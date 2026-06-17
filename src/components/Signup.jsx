@@ -151,11 +151,17 @@ export default function Signup() {
         localStorage.removeItem("conversion_guest_id");
         login(userData);
 
-        if (userData.email && userData.isEmailVerified === false) {
+        if (userData.mobile && userData.isMobileVerified === false) {
           sessionStorage.setItem(
-            `email_otp_sent_${userData.email.toLowerCase()}`,
+            `mobile_otp_sent_${userData.mobile}`,
             "1",
           );
+          if (response.data?.otpSessionId) {
+            sessionStorage.setItem(
+              `mobile_otp_session_${userData.mobile}`,
+              response.data.otpSessionId,
+            );
+          }
         }
 
         const redirectMateId = localStorage.getItem("redirect_mate_id");
@@ -163,10 +169,10 @@ export default function Signup() {
         if (redirectMateId) {
           localStorage.removeItem("redirect_mate_id");
           localStorage.removeItem("redirect_type");
-          toast.success("Registration successful! Please verify your email.");
+          toast.success("Registration successful! Please verify your mobile number.");
           navigate("/verify-email");
-        } else if (userData.isEmailVerified === false) {
-          toast.success("Registration successful! Please verify your email.");
+        } else if (userData.isMobileVerified === false) {
+          toast.success("Registration successful! Please verify your mobile number.");
           navigate("/verify-email");
         } else {
           toast.success("Registration successful!");

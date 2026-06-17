@@ -101,7 +101,7 @@ const EmailVerificationGate = ({ children }) => {
 
   useEffect(() => {
     // Only intercept if user is authenticated, not a guest, not a mate, and not verified
-    if (isAuthenticated && user && user.role !== "guest" && user.role !== "mate" && user.isEmailVerified === false) {
+    if (isAuthenticated && user && user.role !== "guest" && user.role !== "mate" && user.isMobileVerified === false) {
       const publicOrAuthRoutes = [
         "/verify-email", 
         "/login", 

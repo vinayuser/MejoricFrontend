@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { FaEnvelope, FaLock, FaRedo, FaArrowLeft, FaSignOutAlt } from "react-icons/fa";
+import { FaMobileAlt, FaLock, FaRedo, FaSignOutAlt } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Layout from "./Layout";
@@ -23,18 +23,25 @@ export default function VerifyEmail() {
     useRef(null),
     useRef(null),
   ];
+  const [sessionId, setSessionId] = useState("");
   const autoSendStartedRef = useRef(false);
 
-  const getOtpSessionKeys = (email) => {
-    const normalizedEmail = email.toLowerCase();
+  const getOtpSessionKeys = (mobile) => {
+    const normalizedMobile = String(mobile);
     return {
-      signupSentKey: `email_otp_sent_${normalizedEmail}`,
-      autoSendKey: `email_otp_autosend_${normalizedEmail}`,
+      signupSentKey: `mobile_otp_sent_${normalizedMobile}`,
+      autoSendKey: `mobile_otp_autosend_${normalizedMobile}`,
+      sessionKey: `mobile_otp_session_${normalizedMobile}`,
     };
   };
 
-  const shouldSkipAutoSend = (email) => {
-    const { signupSentKey, autoSendKey } = getOtpSessionKeys(email);
+  const shouldSkipAutoSend = (mobile) => {
+    const { signupSentKey, autoSendKey, sessionKey } = getOtpSessionKeys(mobile);
+
+    const storedSessionId = sessionStorage.getItem(sessionKey);
+    if (storedSessionId) {
+      setSessionId(storedSessionId);
+    }
 
     if (sessionStorage.getItem(signupSentKey)) {
       sessionStorage.removeItem(signupSentKey);
@@ -69,14 +76,14 @@ export default function VerifyEmail() {
       navigate("/login");
       return;
     }
-    if (user && (user.isEmailVerified || user.role === "mate")) {
+    if (user && (user.isMobileVerified || user.role === "mate")) {
       navigate("/");
       return;
     }
 
-    if (!user?.email || autoSendStartedRef.current) return;
+    if (!user?.mobile || autoSendStartedRef.current) return;
 
-    if (shouldSkipAutoSend(user.email)) {
+    if (shouldSkipAutoSend(user.mobile)) {
       return;
     }
 
@@ -123,22 +130,31 @@ export default function VerifyEmail() {
   };
 
   const handleResend = async (silent = false) => {
-    if (!user?.email) return;
+    if (!user?.mobile) return;
     setIsResending(true);
     setError("");
     try {
       const response = await apiPost(
-        "/auth/loginOrSignin-with-email",
+        "/auth/loginOrSignin-with-mobile",
         {
-          email: user.email,
+          mobile: user.mobile,
           role: user.role,
         },
-        true // Skip auth check for login/signin endpoint
+        true
       );
 
       if (response.success) {
+        const newSessionId =
+          response.data?.sessionId ||
+          response.data?.otpData?.Details ||
+          response.data?.otpData?.details;
+        if (newSessionId) {
+          setSessionId(newSessionId);
+          const { sessionKey } = getOtpSessionKeys(user.mobile);
+          sessionStorage.setItem(sessionKey, newSessionId);
+        }
         if (!silent) {
-          toast.success("OTP has been resent successfully!");
+          toast.success("OTP has been resent to your mobile number!");
         }
         setCountdown(60);
         setCanResend(false);
@@ -167,13 +183,15 @@ export default function VerifyEmail() {
     setError("");
 
     try {
-      const response = await apiPut("/auth/verify-otp-email", {
+      const response = await apiPut("/auth/verify-otp-mobile", {
         otp: otpCode,
-        email: user.email,
+        mobile: user.mobile,
+        sessionId,
+        role: user.role,
       });
 
       if (response && response.success) {
-        toast.success("Email verified successfully! Welcome!");
+        toast.success("Mobile number verified successfully! Welcome!");
         
         // Update user auth context
         const updatedUser = {
@@ -187,8 +205,9 @@ export default function VerifyEmail() {
         
         login(updatedUser);
 
-        const { autoSendKey } = getOtpSessionKeys(user.email);
+        const { autoSendKey, sessionKey } = getOtpSessionKeys(user.mobile);
         sessionStorage.removeItem(autoSendKey);
+        sessionStorage.removeItem(sessionKey);
         
         // Navigate appropriately
         const redirectMateId = localStorage.getItem("redirect_mate_id");
@@ -216,7 +235,7 @@ export default function VerifyEmail() {
   };
 
   return (
-    <Layout activePage="Verify Email">
+    <Layout activePage="Verify Mobile">
       <div className="min-h-screen bg-gradient-to-br from-purple-100 via-purple-50 to-pink-100 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-md">
           {/* Main Card */}
@@ -228,14 +247,14 @@ export default function VerifyEmail() {
             {/* Header */}
             <div className="text-center mb-8 relative z-10">
               <div className="w-20 h-20 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4 animate-pulse shadow-inner border border-purple-200">
-                <FaEnvelope className="text-purple-600 text-3xl" />
+                <FaMobileAlt className="text-purple-600 text-3xl" />
               </div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Verify Your Email</h1>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Verify Your Mobile</h1>
               <p className="text-gray-600 text-sm">
                 We've sent a 6-digit verification code to
               </p>
               <p className="text-purple-600 font-semibold text-base mt-1 truncate">
-                {user?.email || "your registered email"}
+                {user?.mobile || "your registered mobile number"}
               </p>
             </div>
 
