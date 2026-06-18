@@ -23,12 +23,22 @@ set +a
 export PORT="${PORT:-3004}"
 export NODE_ENV=production
 
+install_deps() {
+  if [[ -f package-lock.json ]]; then
+    echo "==> Installing dependencies with npm ci..."
+    npm ci
+    return
+  fi
+
+  echo "==> Installing dependencies with npm install..."
+  npm install
+}
+
 echo "==> Installing dependencies..."
-corepack enable 2>/dev/null || true
-pnpm install --frozen-lockfile
+install_deps
 
 echo "==> Building production bundle (VITE_BASE=${VITE_BASE:-/})..."
-pnpm run build
+npm run build
 
 echo "==> Starting on port $PORT with PM2..."
 if pm2 describe mejoric-front >/dev/null 2>&1; then

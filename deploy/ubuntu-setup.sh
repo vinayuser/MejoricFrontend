@@ -13,10 +13,6 @@ fi
 echo "==> Node version: $(node -v)"
 echo "==> npm version: $(npm -v)"
 
-echo "==> Enabling pnpm..."
-corepack enable
-corepack prepare pnpm@latest --activate
-
 echo "==> Installing PM2 globally..."
 sudo npm install -g pm2
 
