@@ -11,6 +11,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { trackPixel, trackPixelCustom } from "../utils/metaPixel";
 import { apiPost, apiGet } from "../utils/api";
+import { appPath } from "../utils/basePath";
 import toast from "react-hot-toast";
 
 const Wallet = () => {
@@ -193,7 +194,7 @@ const Wallet = () => {
       // Determine whether to auto-call or auto-chat
       const param =
         redirectType === "chat" ? "auto_chat=true" : "auto_call=true";
-      window.location.href = `/mate-profile/${redirectMateId}?${param}`;
+      window.location.href = appPath(`/mate-profile/${redirectMateId}?${param}`);
     }
   };
 

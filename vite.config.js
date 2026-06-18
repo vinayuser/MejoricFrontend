@@ -1,23 +1,22 @@
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import stagingConfig, { viteEnvDefines } from "./staging.config.js";
 
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), "");
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
 
-  return {
-    plugins: [react(), tailwindcss()],
+  base: stagingConfig.base,
 
-    base: env.VITE_BASE || "/staging/",
+  define: viteEnvDefines(),
 
-    build: {
-      outDir: "build",
-    },
+  build: {
+    outDir: "build",
+  },
 
-    server: {
-      port: 3004,
-      cors: true,
-      allowedHosts: ["mejoric.com", "www.mejoric.com"],
-    },
-  };
+  server: {
+    port: stagingConfig.devPort,
+    cors: true,
+    allowedHosts: ["mejoric.com", "www.mejoric.com", "localhost"],
+  },
 });

@@ -1,3 +1,5 @@
+import { appPath } from "./basePath";
+
 // API Utility functions
 // Typical success body: { success: true, message: string, data: T }
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
@@ -13,9 +15,9 @@ export const cleanupAndRedirect = () => {
   localStorage.removeItem("user");
   localStorage.removeItem("authToken");
   localStorage.removeItem("walletBalance");
-  // Redirect to login page
-  if (window.location.pathname !== "/login") {
-    window.location.href = "/login";
+  const loginPath = appPath("/login");
+  if (window.location.pathname !== loginPath) {
+    window.location.href = loginPath;
   }
 };
 

@@ -4,12 +4,14 @@ import { fileURLToPath } from "url";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import compression from "compression";
+import stagingConfig from "./staging.config.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || (process.env.VITE_APP_ENV === "local" ? 6001 : 3004);
+const PORT = process.env.PORT || stagingConfig.port;
+const BASE_PATH = stagingConfig.basePath;
 
 // 1. Security Headers (Helmet)
 app.use(
@@ -77,13 +79,23 @@ app.use(
 // 3. Compression
 app.use(compression());
 
-// 4. Static Files
-app.use(express.static(path.join(__dirname, "build")));
+// 4. Static Files + SPA fallback (supports subpath deploy e.g. /staging)
+const buildDir = path.join(__dirname, "build");
 
-// 5. Catch-all: serve index.html for all routes (SPA support)
-app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "build", "index.html"));
-});
+if (BASE_PATH) {
+  app.use(BASE_PATH, express.static(buildDir));
+  app.get(`${BASE_PATH}/*`, (req, res) => {
+    res.sendFile(path.join(buildDir, "index.html"));
+  });
+  app.get("/", (req, res) => {
+    res.redirect(`${BASE_PATH}/`);
+  });
+} else {
+  app.use(express.static(buildDir));
+  app.get("*", (req, res) => {
+    res.sendFile(path.join(buildDir, "index.html"));
+  });
+}
 
 app.listen(PORT, () => {
   console.log(`🛡️  Secure server running on port ${PORT}`);

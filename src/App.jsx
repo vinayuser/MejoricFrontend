@@ -27,8 +27,7 @@ import { isInAppBrowser } from './utils/browserDetect';
 import { Toaster } from 'react-hot-toast';
 import MateDetailsPage from './components/MateDetailsPage';
 import VerifyEmail from './components/VerifyEmail';
-
-
+import { getRouterBasename } from './utils/basePath';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
@@ -125,7 +124,7 @@ const EmailVerificationGate = ({ children }) => {
 function App() {
   return (
     <AuthProvider>
-    <Router>
+    <Router basename={getRouterBasename()}>
       <AnalyticsTracker />
       <ScrollToTop />
       <InAppBrowserBanner />
