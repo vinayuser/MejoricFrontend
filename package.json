@@ -7,7 +7,12 @@
     "dev": "vite --port 6001",
     "build": "vite build",
     "preview": "vite preview",
-    "start": "node server.js"
+    "start": "node server.js",
+    "start:prod": "NODE_ENV=production PORT=3004 node server.js",
+    "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:restart": "pm2 restart ecosystem.config.cjs --update-env",
+    "pm2:stop": "pm2 stop mejoric-front",
+    "pm2:logs": "pm2 logs mejoric-front"
   },
   "dependencies": {
     "compression": "^1.8.1",
