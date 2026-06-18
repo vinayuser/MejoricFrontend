@@ -4,16 +4,18 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const isLocal = env.VITE_APP_ENV === "local";
 
   return {
     plugins: [react(), tailwindcss()],
+
+    base: env.VITE_BASE || "/staging/",
+
     build: {
       outDir: "build",
-      publicDir: "public",
     },
+
     server: {
-      port: isLocal ? 6001 : 3000,
+      port: 3004,
       cors: true,
       allowedHosts: ["mejoric.com", "www.mejoric.com"],
     },

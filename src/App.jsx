@@ -8,6 +8,8 @@ import TermsAndConditions from './components/TermsAndConditions';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import EmotionalCare from './components/EmotionalCare';
 import Mentors from './components/Mentors';
+import ProfessionalMentors from './components/ProfessionalMentors';
+import EmotionalMentors from './components/EmotionalMentors';
 import Mentor from './components/Mentor';
 import KnowYourMateMentor from './components/KnowYourMateMentor';
 import Login from './components/Login';
@@ -146,6 +148,8 @@ function App() {
 
             <Route path="/emotional-care" element={<EmotionalCare />} />
             <Route path="/mentors" element={<Mentors />} />
+            <Route path="/mentors/professional" element={<ProfessionalMentors />} />
+            <Route path="/mentors/emotional" element={<EmotionalMentors />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />

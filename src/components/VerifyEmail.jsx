@@ -183,12 +183,16 @@ export default function VerifyEmail() {
     setError("");
 
     try {
-      const response = await apiPut("/auth/verify-otp-mobile", {
-        otp: otpCode,
-        mobile: user.mobile,
-        sessionId,
-        role: user.role,
-      });
+      const response = await apiPut(
+        "/auth/verify-otp-mobile",
+        {
+          otp: otpCode,
+          mobile: user.mobile,
+          sessionId,
+          role: user.role,
+        },
+        true,
+      );
 
       if (response && response.success) {
         toast.success("Mobile number verified successfully! Welcome!");

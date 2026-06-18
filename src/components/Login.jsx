@@ -1,5 +1,13 @@
 import React, { useState, useEffect, useRef } from "react";
-import { FaMobileAlt, FaArrowLeft, FaRedo } from "react-icons/fa";
+import {
+  FaMobileAlt,
+  FaArrowLeft,
+  FaRedo,
+  FaEnvelope,
+  FaLock,
+  FaEye,
+  FaEyeSlash,
+} from "react-icons/fa";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import Layout from "../components/Layout";
 import { useAuth } from "../context/AuthContext";
@@ -12,16 +20,24 @@ export default function Login() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { login } = useAuth();
+  const [selectedRole, setSelectedRole] = useState("user");
+  const isMateLogin = selectedRole === "mate";
+
+  // User OTP login state
   const [step, setStep] = useState("mobile");
   const [mobile, setMobile] = useState("");
   const [sessionId, setSessionId] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isResending, setIsResending] = useState(false);
-  const [error, setError] = useState("");
   const [countdown, setCountdown] = useState(60);
   const [canResend, setCanResend] = useState(false);
-  const [selectedRole, setSelectedRole] = useState("user");
+  const [isResending, setIsResending] = useState(false);
+
+  // Mate email/password login state
+  const [mateForm, setMateForm] = useState({ email: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
   const inputRefs = [
     useRef(null),
     useRef(null),
@@ -33,28 +49,36 @@ export default function Login() {
 
   useEffect(() => {
     const roleParam = searchParams.get("role");
-    if (roleParam && (roleParam === "user" || roleParam === "mate")) {
-      setSelectedRole(roleParam);
+    if (roleParam === "mate") {
+      setSelectedRole("mate");
     } else {
       setSelectedRole("user");
     }
+    setStep("mobile");
+    setError("");
   }, [searchParams]);
 
   useEffect(() => {
     let timer;
-    if (step === "otp" && countdown > 0) {
+    if (!isMateLogin && step === "otp" && countdown > 0) {
       timer = setInterval(() => {
         setCountdown((prev) => prev - 1);
       }, 1000);
-    } else if (step === "otp") {
+    } else if (!isMateLogin && step === "otp") {
       setCanResend(true);
     }
     return () => clearInterval(timer);
-  }, [countdown, step]);
+  }, [countdown, step, isMateLogin]);
 
   const handleMobileChange = (e) => {
     const value = e.target.value.replace(/\D/g, "").slice(0, 10);
     setMobile(value);
+    setError("");
+  };
+
+  const handleMateChange = (e) => {
+    const { name, value } = e.target;
+    setMateForm((prev) => ({ ...prev, [name]: value }));
     setError("");
   };
 
@@ -73,14 +97,11 @@ export default function Login() {
     try {
       const data = await apiPost(
         "/auth/loginOrSignin-with-mobile",
-        {
-          mobile,
-          role: selectedRole,
-        },
+        { mobile, role: "user" },
         true,
       );
 
-      if (data.success) {
+      if (data?.success) {
         const newSessionId =
           data.data?.sessionId ||
           data.data?.otpData?.Details ||
@@ -96,7 +117,7 @@ export default function Login() {
         return true;
       }
 
-      const errorMsg = data.message || "Failed to send OTP. Please try again.";
+      const errorMsg = data?.message || "Failed to send OTP. Please try again.";
       setError(errorMsg);
       toast.error(errorMsg);
       return false;
@@ -126,6 +147,71 @@ export default function Login() {
       toast.success("OTP resent successfully!");
     }
     setIsResending(false);
+  };
+
+  const handleMateSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
+    if (!mateForm.email || !mateForm.password) {
+      setError("Please fill in all fields");
+      setIsLoading(false);
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(mateForm.email)) {
+      setError("Please enter a valid email address");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      const data = await apiPost(
+        "/auth/login",
+        {
+          type: "email",
+          email: mateForm.email,
+          password: mateForm.password,
+          role: "mate",
+          fcmToken: localStorage.getItem("fcmToken"),
+        },
+        true,
+      );
+
+      if (data?.success) {
+        const payload = data.data || data;
+        const token = payload?.token ?? data.token;
+        const apiUser = payload?.user ?? data.user;
+
+        const userData = {
+          ...(apiUser || {}),
+          token,
+          role: "mate",
+        };
+
+        if (token) {
+          localStorage.setItem("authToken", token);
+        }
+
+        login(userData);
+        trackPixelCustom("LoginSuccess", { role: "mate", email: mateForm.email });
+        toast.success("Login successful!");
+        navigate("/dashboard");
+      } else {
+        const errorMsg = data?.message || "Login failed. Please check your credentials.";
+        setError(errorMsg);
+        toast.error(errorMsg);
+      }
+    } catch (err) {
+      console.error("Mate login error:", err);
+      const errorMessage = err.message || "Login failed. Please try again.";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleOtpChange = (value, index) => {
@@ -170,24 +256,33 @@ export default function Login() {
     setIsLoading(true);
     setError("");
     try {
-      const data = await apiPut("/auth/verify-otp-mobile", {
-        otp: otpCode,
-        mobile,
-        sessionId,
-        role: selectedRole,
-        fcmToken: localStorage.getItem("fcmToken"),
-      });
+      const data = await apiPut(
+        "/auth/verify-otp-mobile",
+        {
+          otp: otpCode,
+          mobile,
+          sessionId,
+          role: "user",
+          fcmToken: localStorage.getItem("fcmToken"),
+        },
+        true,
+      );
+
+      if (!data) {
+        setError("Verification failed. Please try again.");
+        toast.error("Verification failed. Please try again.");
+        return;
+      }
 
       if (data.success) {
         const payload = data.data || data;
         const token = payload?.token ?? data.token;
         const apiUser = payload?.user ?? data.user;
-        const apiRole = apiUser?.role || selectedRole;
 
         const userData = {
           ...(apiUser || {}),
           token,
-          role: apiRole,
+          role: apiUser?.role || "user",
         };
 
         if (token) {
@@ -195,16 +290,9 @@ export default function Login() {
         }
 
         login(userData);
+        trackPixelCustom("LoginSuccess", { role: "user", mobile });
 
-        trackPixelCustom("LoginSuccess", {
-          role: apiRole,
-          mobile,
-        });
-
-        if (apiRole === "mate") {
-          toast.success("Login successful!");
-          navigate("/dashboard");
-        } else if (userData.isMobileVerified === false) {
+        if (userData.isMobileVerified === false) {
           toast.success("Login successful! Please verify your mobile number.");
           navigate("/verify-email");
         } else {
@@ -231,11 +319,19 @@ export default function Login() {
     }
   };
 
-  const handleBackToMobile = () => {
-    setStep("mobile");
-    setOtp(["", "", "", "", "", ""]);
-    setSessionId("");
-    setError("");
+  const handleBack = () => {
+    if (isMateLogin) {
+      navigate("/");
+      return;
+    }
+    if (step === "otp") {
+      setStep("mobile");
+      setOtp(["", "", "", "", "", ""]);
+      setSessionId("");
+      setError("");
+    } else {
+      navigate("/");
+    }
   };
 
   return (
@@ -243,24 +339,28 @@ export default function Login() {
       <div className="min-h-screen bg-gradient-to-br from-purple-100 via-purple-50 to-pink-100 flex items-center justify-center px-4 py-12">
         <div className="w-full max-w-md">
           <button
-            onClick={() => (step === "otp" ? handleBackToMobile() : navigate("/"))}
+            onClick={handleBack}
             className="flex items-center gap-2 text-purple-700 hover:text-purple-900 mb-6 transition-colors"
           >
             <FaArrowLeft />
             <span className="font-medium">
-              {step === "otp" ? "Change mobile number" : "Back to Home"}
+              {!isMateLogin && step === "otp"
+                ? "Change mobile number"
+                : "Back to Home"}
             </span>
           </button>
 
           <div className="bg-white rounded-3xl shadow-2xl p-8">
             <div className="text-center mb-8">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                Welcome Back!
+                {isMateLogin ? "Mate Login" : "Welcome Back!"}
               </h1>
               <p className="text-gray-600">
-                {step === "mobile"
-                  ? "Login with your mobile number"
-                  : "Enter the OTP sent to your phone"}
+                {isMateLogin
+                  ? "Login with your email and password"
+                  : step === "mobile"
+                    ? "Login with your mobile number"
+                    : "Enter the OTP sent to your phone"}
               </p>
             </div>
 
@@ -272,7 +372,80 @@ export default function Login() {
               </div>
             )}
 
-            {step === "mobile" ? (
+            {isMateLogin ? (
+              <form onSubmit={handleMateSubmit}>
+                <div className="mb-6">
+                  <label
+                    htmlFor="email"
+                    className="block text-sm font-semibold text-gray-700 mb-2"
+                  >
+                    Email Address
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <FaEnvelope className="text-purple-500" />
+                    </div>
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={mateForm.email}
+                      onChange={handleMateChange}
+                      placeholder="Enter your email"
+                      className="w-full pl-12 pr-4 py-4 bg-purple-50 border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="mb-6">
+                  <label
+                    htmlFor="password"
+                    className="block text-sm font-semibold text-gray-700 mb-2"
+                  >
+                    Password
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <FaLock className="text-purple-500" />
+                    </div>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      id="password"
+                      name="password"
+                      value={mateForm.password}
+                      onChange={handleMateChange}
+                      placeholder="Enter your password"
+                      className="w-full pl-12 pr-12 py-4 bg-purple-50 border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-purple-500 hover:text-purple-700 transition-colors"
+                    >
+                      {showPassword ? <FaEyeSlash /> : <FaEye />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex justify-end mb-6">
+                  <button
+                    type="button"
+                    onClick={() => navigate("/forgot-password")}
+                    className="text-sm text-purple-600 hover:text-purple-800 font-medium transition-colors"
+                  >
+                    Forgot Password?
+                  </button>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="w-full bg-purple-600 text-white py-4 rounded-xl font-semibold text-lg hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? "Logging in..." : "Login"}
+                </button>
+              </form>
+            ) : step === "mobile" ? (
               <form onSubmit={handleMobileSubmit}>
                 <div className="mb-6">
                   <label
@@ -363,21 +536,25 @@ export default function Login() {
               </form>
             )}
 
-            <div className="my-6 flex items-center">
-              <div className="flex-1 border-t border-gray-200"></div>
-              <span className="px-4 text-sm text-gray-500">or</span>
-              <div className="flex-1 border-t border-gray-200"></div>
-            </div>
+            {!isMateLogin && (
+              <>
+                <div className="my-6 flex items-center">
+                  <div className="flex-1 border-t border-gray-200"></div>
+                  <span className="px-4 text-sm text-gray-500">or</span>
+                  <div className="flex-1 border-t border-gray-200"></div>
+                </div>
 
-            <p className="text-center text-gray-600">
-              Don&apos;t have an account?{" "}
-              <button
-                onClick={() => navigate("/signup")}
-                className="text-purple-600 hover:text-purple-600 font-semibold transition-colors"
-              >
-                Sign Up
-              </button>
-            </p>
+                <p className="text-center text-gray-600">
+                  Don&apos;t have an account?{" "}
+                  <button
+                    onClick={() => navigate("/signup")}
+                    className="text-purple-600 hover:text-purple-600 font-semibold transition-colors"
+                  >
+                    Sign Up
+                  </button>
+                </p>
+              </>
+            )}
           </div>
         </div>
       </div>

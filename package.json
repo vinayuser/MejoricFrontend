@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite --port 6001",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "start": "node server.js"
   },
   "dependencies": {
     "compression": "^1.8.1",

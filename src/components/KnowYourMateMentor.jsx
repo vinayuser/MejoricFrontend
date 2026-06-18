@@ -121,11 +121,25 @@ export default function KnowYourMateMentor() {
               </div>
 
               <button
-                onClick={() => navigate("/mentor")}
-                className="w-full bg-blue-500 text-white py-4 rounded-2xl font-semibold text-lg hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2"
+                onClick={() => navigate("/mentors")}
+                className="w-full bg-blue-500 text-white py-4 rounded-2xl font-semibold text-lg hover:shadow-lg transition-all duration-300 flex items-center justify-center gap-2 mb-3"
               >
-                Find a Mentor <FaArrowRight />
+                Explore Mentors <FaArrowRight />
               </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  onClick={() => navigate("/mentors/emotional")}
+                  className="w-full bg-white text-blue-600 border-2 border-blue-200 py-3 rounded-xl font-semibold text-sm hover:bg-blue-50 transition-all duration-300"
+                >
+                  Emotional Mentors
+                </button>
+                <button
+                  onClick={() => navigate("/mentors/professional")}
+                  className="w-full bg-white text-blue-600 border-2 border-blue-200 py-3 rounded-xl font-semibold text-sm hover:bg-blue-50 transition-all duration-300"
+                >
+                  Professional Mentors
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -215,19 +229,35 @@ export default function KnowYourMateMentor() {
               There's no wrong choice — only the choice that feels right for you right now.
             </p>
 
-            <div className="flex flex-col sm:flex-row justify-center gap-4">
-              <button
-                onClick={() => navigate("/mate")}
-                className="bg-pink-500 text-white px-8 py-4 rounded-2xl font-semibold text-lg hover:shadow-lg transition-all duration-300"
-              >
-                Start with a Mate
-              </button>
-              <button
-                onClick={() => navigate("/mentor")}
-                className="bg-blue-500 text-white px-8 py-4 rounded-2xl font-semibold text-lg hover:shadow-lg transition-all duration-300"
-              >
-                Start with a Mentor
-              </button>
+            <div className="flex flex-col items-center gap-4">
+              <div className="flex flex-col sm:flex-row justify-center gap-4">
+                <button
+                  onClick={() => navigate("/mate")}
+                  className="bg-pink-500 text-white px-8 py-4 rounded-2xl font-semibold text-lg hover:shadow-lg transition-all duration-300"
+                >
+                  Start with a Mate
+                </button>
+                <button
+                  onClick={() => navigate("/mentors")}
+                  className="bg-blue-500 text-white px-8 py-4 rounded-2xl font-semibold text-lg hover:shadow-lg transition-all duration-300"
+                >
+                  Explore Mentors
+                </button>
+              </div>
+              <div className="flex flex-col sm:flex-row justify-center gap-4">
+                <button
+                  onClick={() => navigate("/mentors/emotional")}
+                  className="text-blue-600 font-semibold hover:underline"
+                >
+                  Emotional Mentors →
+                </button>
+                <button
+                  onClick={() => navigate("/mentors/professional")}
+                  className="text-blue-600 font-semibold hover:underline"
+                >
+                  Professional Mentors →
+                </button>
+              </div>
             </div>
           </div>
         </div>

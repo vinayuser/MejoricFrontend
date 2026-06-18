@@ -102,6 +102,8 @@ export default function Footer() {
                     { name: "Home", path: "/" },
                     { name: "Mates", path: "/mate" },
                     { name: "Mentors", path: "/mentors" },
+                    { name: "Emotional Mentors", path: "/mentors/emotional" },
+                    { name: "Professional Mentors", path: "/mentors/professional" },
                     { name: "About Us", path: "/about" },
                   ].map((item) => (
                     <li key={item.name}>
