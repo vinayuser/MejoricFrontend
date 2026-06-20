@@ -18,6 +18,7 @@ import { useAuth } from "../context/AuthContext";
 export default function Footer() {
   const { user, isAuthenticated } = useAuth();
   const isMate = isAuthenticated && user?.role === "mate";
+  const isMentor = isAuthenticated && user?.role === "mentor";
 
   return (
     <footer className="bg-purple-900/60 lg:bg-gradient-to-br lg:from-purple-900 lg:via-purple-800 lg:to-purple-900 text-white">
@@ -133,7 +134,10 @@ export default function Footer() {
                     },
                     { name: "Privacy Policy", path: "/privacy-policy" },
                     { name: "Certificate Course", path: "/certificate" },
-                    !isMate && { name: "Mate Login", path: "/login?role=mate" },
+                    !isMate && !isMentor && { name: "Mate Login", path: "/login?role=mate" },
+                    !isMate && !isMentor && { name: "Mentor Login", path: "/login?role=mentor" },
+                    isMate && { name: "Mate Dashboard", path: "/dashboard" },
+                    isMentor && { name: "Mentor Dashboard", path: "/mentor-dashboard" },
                   ]
                     .filter(Boolean)
                     .map((item) => (

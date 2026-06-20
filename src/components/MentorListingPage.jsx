@@ -4,12 +4,14 @@ import { FaFilter, FaTimes } from "react-icons/fa";
 import Layout from "./Layout";
 import Footer from "./Footer";
 import MentorLandingCard from "./MentorLandingCard";
+import MentorBookingModal from "./MentorBooking";
 import { apiGet } from "../utils/api";
 import {
-  transformMateData,
+  transformMentorData,
   filterByType,
   matchesKeywords,
   FILTER_KEYWORDS,
+  buildMentorsApiQuery,
 } from "../utils/mentorData";
 
 const PAGE_CONFIG = {
@@ -188,27 +190,29 @@ export default function MentorListingPage({ type }) {
   const [selectedPrimary, setSelectedPrimary] = useState([]);
   const [selectedSecondary, setSelectedSecondary] = useState([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [bookingMentorId, setBookingMentorId] = useState(null);
 
   useEffect(() => {
-    const fetchMates = async () => {
+    setLoading(true);
+    const fetchMentors = async () => {
       try {
-        const data = await apiGet(
-          "/users/getAll?page=1&limit=100&role=mate&sortBy=isAvailable",
-          true,
-        );
+        const data = await apiGet(buildMentorsApiQuery({ type }), true);
         if (data?.success && Array.isArray(data?.data?.data)) {
           setMates(data.data.data);
+        } else {
+          setMates([]);
         }
       } catch (err) {
         console.error("Failed to fetch mentors:", err);
+        setMates([]);
       } finally {
         setLoading(false);
       }
     };
-    fetchMates();
-  }, []);
+    fetchMentors();
+  }, [type]);
 
-  const mentorsList = useMemo(() => transformMateData(mates), [mates]);
+  const mentorsList = useMemo(() => transformMentorData(mates), [mates]);
 
   const typeMentors = useMemo(
     () => filterByType(mentorsList, type),
@@ -371,14 +375,15 @@ export default function MentorListingPage({ type }) {
                       key={mentor._id}
                       mentor={mentor}
                       navigate={navigate}
+                      onBook={(m) => setBookingMentorId(m._id)}
                     />
                   ))}
                 </div>
               ) : (
                 <div className="text-center py-16 rounded-2xl bg-white border border-slate-200">
                   <p className="text-slate-600 mb-4">
-                    No mentors match your filters right now. Try adjusting filters or browse all
-                    mentors.
+                    No {type === "professional" ? "professional" : "emotional"} mentors
+                    are listed yet. Please check back soon or adjust your filters.
                   </p>
                   <button
                     type="button"
@@ -418,6 +423,12 @@ export default function MentorListingPage({ type }) {
       </section>
 
       <Footer />
+
+      <MentorBookingModal
+        mentorId={bookingMentorId}
+        isOpen={Boolean(bookingMentorId)}
+        onClose={() => setBookingMentorId(null)}
+      />
     </Layout>
   );
 }

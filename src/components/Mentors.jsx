@@ -11,8 +11,14 @@ import {
 import Layout from "./Layout";
 import Footer from "./Footer";
 import MentorLandingCard from "./MentorLandingCard";
+import MentorBookingModal from "./MentorBooking";
 import { apiGet } from "../utils/api";
 import { trackPixel } from "../utils/metaPixel";
+import {
+  transformMentorData,
+  filterByType,
+  buildMentorsApiQuery,
+} from "../utils/mentorData";
 import segmentImage from "../assets/img/segment.webp";
 
 const TRUST_ITEMS = [
@@ -104,49 +110,6 @@ const COMPANY_LOGOS = [
   "Paytm",
 ];
 
-const EMOTIONAL_KEYWORDS = [
-  "relationship",
-  "emotional",
-  "life",
-  "psychologist",
-  "coach",
-  "wellness",
-  "mental",
-];
-
-const PROFESSIONAL_KEYWORDS = [
-  "career",
-  "finance",
-  "law",
-  "business",
-  "professional",
-  "legal",
-  "strategy",
-];
-
-const transformMateData = (matesData) => {
-  if (!Array.isArray(matesData)) return [];
-
-  return matesData.map((user) => {
-    const mate = user.mate || {};
-    const specifications = mate.specifications || [];
-    return {
-      _id: user._id,
-      name: mate.name || user.name || "Unknown",
-      img: user.image || "/favicon.png",
-      category: specifications[0] || "Mentor",
-      skills: specifications.join(", ") || "General guidance",
-      tags: specifications.slice(0, 3),
-      bio: mate.bio || "",
-    };
-  });
-};
-
-const matchesKeywords = (mentor, keywords) => {
-  const text = `${mentor.category} ${mentor.skills} ${mentor.bio}`.toLowerCase();
-  return keywords.some((keyword) => text.includes(keyword));
-};
-
 const scrollToSection = (id) => {
   const el = document.getElementById(id);
   if (el) {
@@ -185,6 +148,7 @@ function MentorTabsSection({
   professionalMentors,
   loading,
   navigate,
+  onBook,
 }) {
   const isEmotional = activeTab === "emotional";
   const mentors = isEmotional ? emotionalMentors : professionalMentors;
@@ -259,6 +223,7 @@ function MentorTabsSection({
                 key={mentor._id}
                 mentor={mentor}
                 navigate={navigate}
+                onBook={onBook}
               />
             ))}
           </div>
@@ -288,44 +253,38 @@ export default function Mentors() {
   const [mates, setMates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeMentorTab, setActiveMentorTab] = useState("emotional");
+  const [bookingMentorId, setBookingMentorId] = useState(null);
 
   useEffect(() => {
-    const fetchMates = async () => {
+    const fetchMentors = async () => {
       try {
-        const data = await apiGet(
-          "/users/getAll?page=1&limit=100&role=mate&sortBy=isAvailable",
-          true,
-        );
+        const data = await apiGet(buildMentorsApiQuery(), true);
         if (data?.success && Array.isArray(data?.data?.data)) {
           setMates(data.data.data);
+        } else {
+          setMates([]);
         }
       } catch (err) {
         console.error("Failed to fetch mentors:", err);
+        setMates([]);
       } finally {
         setLoading(false);
       }
     };
-    fetchMates();
+    fetchMentors();
   }, []);
 
-  const mentorsList = useMemo(() => transformMateData(mates), [mates]);
+  const mentorsList = useMemo(() => transformMentorData(mates), [mates]);
 
-  const emotionalMentors = useMemo(() => {
-    const filtered = mentorsList.filter((m) => matchesKeywords(m, EMOTIONAL_KEYWORDS));
-    const list = filtered.length > 0 ? filtered : mentorsList;
-    return list.slice(0, 4);
-  }, [mentorsList]);
+  const emotionalMentors = useMemo(
+    () => filterByType(mentorsList, "emotional").slice(0, 4),
+    [mentorsList],
+  );
 
-  const professionalMentors = useMemo(() => {
-    const filtered = mentorsList.filter((m) =>
-      matchesKeywords(m, PROFESSIONAL_KEYWORDS),
-    );
-    const fallback = mentorsList.filter(
-      (m) => !emotionalMentors.some((e) => e._id === m._id),
-    );
-    const list = filtered.length > 0 ? filtered : fallback;
-    return list.slice(0, 4);
-  }, [mentorsList, emotionalMentors]);
+  const professionalMentors = useMemo(
+    () => filterByType(mentorsList, "professional").slice(0, 4),
+    [mentorsList],
+  );
 
   const handleCtaClick = (tab) => {
     trackPixel("ViewContent");
@@ -556,6 +515,7 @@ export default function Mentors() {
         professionalMentors={professionalMentors}
         loading={loading}
         navigate={navigate}
+        onBook={(mentor) => setBookingMentorId(mentor._id)}
       />
 
       {/* How it works */}
@@ -669,6 +629,12 @@ export default function Mentors() {
       </section>
 
       <Footer />
+
+      <MentorBookingModal
+        mentorId={bookingMentorId}
+        isOpen={Boolean(bookingMentorId)}
+        onClose={() => setBookingMentorId(null)}
+      />
     </Layout>
   );
 }

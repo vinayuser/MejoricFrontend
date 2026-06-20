@@ -22,6 +22,8 @@ export default function Login() {
   const { login } = useAuth();
   const [selectedRole, setSelectedRole] = useState("user");
   const isMateLogin = selectedRole === "mate";
+  const isMentorLogin = selectedRole === "mentor";
+  const isEmailPasswordLogin = isMateLogin || isMentorLogin;
 
   // User OTP login state
   const [step, setStep] = useState("mobile");
@@ -51,6 +53,8 @@ export default function Login() {
     const roleParam = searchParams.get("role");
     if (roleParam === "mate") {
       setSelectedRole("mate");
+    } else if (roleParam === "mentor") {
+      setSelectedRole("mentor");
     } else {
       setSelectedRole("user");
     }
@@ -60,15 +64,15 @@ export default function Login() {
 
   useEffect(() => {
     let timer;
-    if (!isMateLogin && step === "otp" && countdown > 0) {
+    if (!isEmailPasswordLogin && step === "otp" && countdown > 0) {
       timer = setInterval(() => {
         setCountdown((prev) => prev - 1);
       }, 1000);
-    } else if (!isMateLogin && step === "otp") {
+    } else if (!isEmailPasswordLogin && step === "otp") {
       setCanResend(true);
     }
     return () => clearInterval(timer);
-  }, [countdown, step, isMateLogin]);
+  }, [countdown, step, isEmailPasswordLogin]);
 
   const handleMobileChange = (e) => {
     const value = e.target.value.replace(/\D/g, "").slice(0, 10);
@@ -174,7 +178,7 @@ export default function Login() {
           type: "email",
           email: mateForm.email,
           password: mateForm.password,
-          role: "mate",
+          role: isMentorLogin ? "mentor" : "mate",
           fcmToken: localStorage.getItem("fcmToken"),
         },
         true,
@@ -188,7 +192,7 @@ export default function Login() {
         const userData = {
           ...(apiUser || {}),
           token,
-          role: "mate",
+          role: apiUser?.role || (isMentorLogin ? "mentor" : "mate"),
         };
 
         if (token) {
@@ -196,9 +200,12 @@ export default function Login() {
         }
 
         login(userData);
-        trackPixelCustom("LoginSuccess", { role: "mate", email: mateForm.email });
+        trackPixelCustom("LoginSuccess", {
+          role: isMentorLogin ? "mentor" : "mate",
+          email: mateForm.email,
+        });
         toast.success("Login successful!");
-        navigate("/dashboard");
+        navigate(isMentorLogin ? "/mentor-dashboard" : "/dashboard");
       } else {
         const errorMsg = data?.message || "Login failed. Please check your credentials.";
         setError(errorMsg);
@@ -320,7 +327,7 @@ export default function Login() {
   };
 
   const handleBack = () => {
-    if (isMateLogin) {
+    if (isEmailPasswordLogin) {
       navigate("/");
       return;
     }
@@ -344,7 +351,7 @@ export default function Login() {
           >
             <FaArrowLeft />
             <span className="font-medium">
-              {!isMateLogin && step === "otp"
+              {!isEmailPasswordLogin && step === "otp"
                 ? "Change mobile number"
                 : "Back to Home"}
             </span>
@@ -353,10 +360,14 @@ export default function Login() {
           <div className="bg-white rounded-3xl shadow-2xl p-8">
             <div className="text-center mb-8">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                {isMateLogin ? "Mate Login" : "Welcome Back!"}
+                {isMentorLogin
+                  ? "Mentor Login"
+                  : isMateLogin
+                    ? "Mate Login"
+                    : "Welcome Back!"}
               </h1>
               <p className="text-gray-600">
-                {isMateLogin
+                {isEmailPasswordLogin
                   ? "Login with your email and password"
                   : step === "mobile"
                     ? "Login with your mobile number"
@@ -372,7 +383,7 @@ export default function Login() {
               </div>
             )}
 
-            {isMateLogin ? (
+            {isEmailPasswordLogin ? (
               <form onSubmit={handleMateSubmit}>
                 <div className="mb-6">
                   <label
@@ -536,7 +547,7 @@ export default function Login() {
               </form>
             )}
 
-            {!isMateLogin && (
+            {!isEmailPasswordLogin && (
               <>
                 <div className="my-6 flex items-center">
                   <div className="flex-1 border-t border-gray-200"></div>

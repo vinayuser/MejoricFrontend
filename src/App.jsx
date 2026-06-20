@@ -10,6 +10,7 @@ import EmotionalCare from './components/EmotionalCare';
 import Mentors from './components/Mentors';
 import ProfessionalMentors from './components/ProfessionalMentors';
 import EmotionalMentors from './components/EmotionalMentors';
+import MentorBookingModal from './components/MentorBooking';
 import Mentor from './components/Mentor';
 import KnowYourMateMentor from './components/KnowYourMateMentor';
 import Login from './components/Login';
@@ -21,6 +22,7 @@ import Wallet from './components/Wallet';
 import ScrollToTop from './components/ScrollToTop';
 import Certificate from './components/Certificate';
 import MateDashboard from './components/MateDashboard';
+import MentorDashboard from './components/MentorDashboard';
 import CallNotification from './components/CallNotification';
 import IOSInstallPrompt from './components/IOSInstallPrompt';
 import { isInAppBrowser } from './utils/browserDetect';
@@ -102,16 +104,22 @@ const EmailVerificationGate = ({ children }) => {
 
   useEffect(() => {
     // Only intercept if user is authenticated, not a guest, not a mate, and not verified
-    if (isAuthenticated && user && user.role !== "guest" && user.role !== "mate" && user.isMobileVerified === false) {
+    if (isAuthenticated && user && user.role !== "guest" && user.role !== "mate" && user.role !== "mentor" && user.isMobileVerified === false) {
       const publicOrAuthRoutes = [
         "/verify-email", 
         "/login", 
         "/signup", 
         "/forgot-password", 
-        "/reset-password"
+        "/reset-password",
+        "/mentors",
+        "/mentors/professional",
+        "/mentors/emotional",
+        "/mentor-dashboard",
       ];
       
-      if (!publicOrAuthRoutes.includes(location.pathname)) {
+      const isPublicRoute = publicOrAuthRoutes.includes(location.pathname);
+      
+      if (!isPublicRoute) {
         console.log("🔒 Redirecting unverified user to email verification");
         navigate("/verify-email", { replace: true });
       }
@@ -163,6 +171,7 @@ function App() {
             <Route path="/certificate" element={<Certificate />} />
             <Route path="/mate-profile/:id" element={<MateDetailsPage />} />
             <Route path="/dashboard" element={<MateDashboard />} />
+            <Route path="/mentor-dashboard" element={<MentorDashboard />} />
           </Routes>
         </div>
       </EmailVerificationGate>

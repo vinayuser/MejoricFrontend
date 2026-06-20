@@ -76,7 +76,7 @@ export default function VerifyEmail() {
       navigate("/login");
       return;
     }
-    if (user && (user.isMobileVerified || user.role === "mate")) {
+    if (user && (user.isMobileVerified || user.role === "mate" || user.role === "mentor")) {
       navigate("/");
       return;
     }

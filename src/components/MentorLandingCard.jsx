@@ -1,7 +1,7 @@
 import React, { memo } from "react";
 import { capitalizeName } from "../utils/formatters";
 
-const MentorLandingCard = memo(({ mentor, navigate }) => (
+const MentorLandingCard = memo(({ mentor, navigate, onBook }) => (
   <div className="bg-white rounded-2xl border border-slate-100 shadow-md hover:shadow-xl transition-all duration-300 overflow-hidden h-full flex flex-col relative group">
     <div className="flex justify-center pt-8 pb-2">
       <div
@@ -25,7 +25,7 @@ const MentorLandingCard = memo(({ mentor, navigate }) => (
         {capitalizeName(mentor.name)}
       </h3>
       <p className="text-purple-600 text-xs font-semibold mt-1 capitalize">
-        {mentor.category}
+        {mentor.typeLabel || mentor.category}
       </p>
       {mentor.skills && (
         <p className="text-slate-500 text-xs mt-1 line-clamp-1">{mentor.skills}</p>
@@ -44,7 +44,7 @@ const MentorLandingCard = memo(({ mentor, navigate }) => (
 
       <button
         type="button"
-        onClick={() => navigate(`/mate-profile/${mentor._id}`)}
+        onClick={() => (onBook ? onBook(mentor) : navigate(`/mate-profile/${mentor._id}`))}
         className="mt-auto w-full py-2.5 rounded-lg bg-white border-2 border-purple-500 text-purple-600 text-sm font-semibold hover:bg-purple-50 transition-colors"
       >
         Book Appointment
