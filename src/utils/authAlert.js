@@ -31,3 +31,13 @@ export const showLoginSignupAlert = (navigate, options = {}) => {
     }
   });
 };
+
+export const requireAuthForBooking = (navigate, { isAuthenticated, user }) => {
+  if (!isAuthenticated || user?.role === "guest") {
+    showLoginSignupAlert(navigate, {
+      message: "Please sign up or login to book an appointment.",
+    });
+    return false;
+  }
+  return true;
+};

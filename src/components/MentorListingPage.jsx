@@ -1,5 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate, Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { requireAuthForBooking } from "../utils/authAlert";
 import { FaFilter, FaTimes } from "react-icons/fa";
 import Layout from "./Layout";
 import Footer from "./Footer";
@@ -184,6 +186,7 @@ const applySidebarFilters = (mentors, selectedPrimary, selectedSecondary) => {
 
 export default function MentorListingPage({ type }) {
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
   const config = PAGE_CONFIG[type];
   const [mates, setMates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -191,6 +194,14 @@ export default function MentorListingPage({ type }) {
   const [selectedSecondary, setSelectedSecondary] = useState([]);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [bookingMentorId, setBookingMentorId] = useState(null);
+
+  const handleBookAppointment = useCallback(
+    (mentor) => {
+      if (!requireAuthForBooking(navigate, { isAuthenticated, user })) return;
+      setBookingMentorId(mentor._id);
+    },
+    [navigate, isAuthenticated, user],
+  );
 
   useEffect(() => {
     setLoading(true);
@@ -375,7 +386,7 @@ export default function MentorListingPage({ type }) {
                       key={mentor._id}
                       mentor={mentor}
                       navigate={navigate}
-                      onBook={(m) => setBookingMentorId(m._id)}
+                      onBook={handleBookAppointment}
                     />
                   ))}
                 </div>

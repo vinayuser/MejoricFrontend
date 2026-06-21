@@ -19,6 +19,7 @@ import ResetPassword from './components/ResetPassword';
 import Signup from './components/Signup';
 import VideoCall from './components/VideoCall';
 import Wallet from './components/Wallet';
+import MyAppointments from './components/MyAppointments';
 import ScrollToTop from './components/ScrollToTop';
 import Certificate from './components/Certificate';
 import MateDashboard from './components/MateDashboard';
@@ -168,6 +169,7 @@ function App() {
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/video-call" element={<VideoCall />} />
             <Route path="/wallet" element={<Wallet />} />
+            <Route path="/my-appointments" element={<MyAppointments />} />
             <Route path="/certificate" element={<Certificate />} />
             <Route path="/mate-profile/:id" element={<MateDetailsPage />} />
             <Route path="/dashboard" element={<MateDashboard />} />

@@ -18,6 +18,7 @@ import {
   FaVideo,
   FaWallet,
   FaRupeeSign,
+  FaCalendarAlt,
 } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -371,6 +372,16 @@ const Layout = ({ children, activePage }) => {
                         </>
                       ) : (
                         <>
+                          <button
+                            onClick={() => {
+                              setIsDropdownOpen(false);
+                              navigate("/my-appointments");
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors duration-200"
+                          >
+                            <FaCalendarAlt className="text-purple-600" />
+                            <span className="font-medium">My Appointments</span>
+                          </button>
                           <button
                             onClick={() => {
                               setIsDropdownOpen(false);

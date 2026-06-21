@@ -219,6 +219,23 @@ export async function fetchMyAppointments(tab = "upcoming", page = 1) {
   return data.data;
 }
 
+export async function fetchMyBookings(tab = "upcoming", page = 1) {
+  const token = localStorage.getItem("authToken");
+  const response = await fetch(
+    `${getApiBaseUrl()}/bookings/me?tab=${tab}&page=${page}&limit=20`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || "Failed to load bookings");
+  }
+  return data.data;
+}
+
 export function formatDuration(seconds) {
   if (!seconds) return "—";
   const mins = Math.floor(seconds / 60);

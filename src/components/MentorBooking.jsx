@@ -532,9 +532,9 @@ function BookingSuccess({ booking, onDone }) {
       </h2>
       <p className="text-slate-600 mb-8">
         Your session with <span className="font-semibold">{booking.mentorName}</span>{" "}
-        is confirmed. A confirmation email with the Zoom meeting details will be sent
-        to <span className="font-semibold">{booking.userEmail}</span> once email delivery
-        is enabled.
+        is confirmed. A confirmation email with the Zoom meeting details has been sent
+        to <span className="font-semibold">{booking.userEmail}</span>.
+        You will also receive reminders 30 minutes and 5 minutes before the session.
       </p>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm mb-8">
@@ -561,6 +561,7 @@ function BookingSuccess({ booking, onDone }) {
             <FaVideo />
             Zoom meeting details
           </div>
+          <p className="text-xs text-slate-500 mb-3">You will join this session as a participant.</p>
           <div className="space-y-2 text-sm">
             <p>
               <span className="text-slate-500">Meeting ID:</span>{" "}
@@ -576,7 +577,7 @@ function BookingSuccess({ booking, onDone }) {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 mt-2 text-purple-600 font-semibold hover:text-purple-700"
             >
-              Open Zoom link
+              Join meeting as participant
             </a>
           </div>
         </div>

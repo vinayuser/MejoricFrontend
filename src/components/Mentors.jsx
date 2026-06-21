@@ -1,5 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+import { requireAuthForBooking } from "../utils/authAlert";
 import {
   FaChevronDown,
   FaChevronUp,
@@ -250,10 +252,19 @@ function MentorTabsSection({
 
 export default function Mentors() {
   const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
   const [mates, setMates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeMentorTab, setActiveMentorTab] = useState("emotional");
   const [bookingMentorId, setBookingMentorId] = useState(null);
+
+  const handleBookAppointment = useCallback(
+    (mentor) => {
+      if (!requireAuthForBooking(navigate, { isAuthenticated, user })) return;
+      setBookingMentorId(mentor._id);
+    },
+    [navigate, isAuthenticated, user],
+  );
 
   useEffect(() => {
     const fetchMentors = async () => {
@@ -515,7 +526,7 @@ export default function Mentors() {
         professionalMentors={professionalMentors}
         loading={loading}
         navigate={navigate}
-        onBook={(mentor) => setBookingMentorId(mentor._id)}
+        onBook={handleBookAppointment}
       />
 
       {/* How it works */}

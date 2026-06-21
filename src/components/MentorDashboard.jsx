@@ -223,6 +223,14 @@ function AppointmentsTab({ tab }) {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const handleCopyLink = (url) => {
+    if (!url) return;
+    navigator.clipboard.writeText(url).then(
+      () => toast.success("Meeting link copied"),
+      () => toast.error("Could not copy link"),
+    );
+  };
+
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -248,7 +256,12 @@ function AppointmentsTab({ tab }) {
   if (appointments.length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-slate-200 p-10 text-center text-slate-500">
-        No {tab} appointments yet.
+        <p>No {tab} appointments yet.</p>
+        {tab === "upcoming" && (
+          <p className="text-sm text-slate-400 mt-2">
+            When a user books a session with you, it will appear here with the Zoom join link.
+          </p>
+        )}
       </div>
     );
   }
@@ -287,7 +300,7 @@ function AppointmentsTab({ tab }) {
               )}
             </div>
 
-            <div className="min-w-[220px] space-y-2">
+            <div className="min-w-[260px] space-y-3">
               <p className="flex items-center gap-2 text-purple-700 font-semibold">
                 <FaClock />
                 {booking.slotLabel}
@@ -297,21 +310,42 @@ function AppointmentsTab({ tab }) {
                   Duration: {formatDuration(booking.actualDurationSeconds)}
                 </p>
               ) : null}
-              {booking.zoomStartUrl && tab === "upcoming" && (
-                <a
-                  href={booking.zoomStartUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-sm font-semibold text-purple-600 hover:text-purple-700"
-                >
-                  <FaVideo />
-                  Start Zoom meeting
-                </a>
+              {tab === "upcoming" && booking.zoomStartUrl && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-purple-600">
+                    You join as host
+                  </p>
+                  <a
+                    href={booking.zoomStartUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-purple-600 text-white text-sm font-bold hover:bg-purple-700 transition-colors shadow-md shadow-purple-200"
+                  >
+                    <FaVideo />
+                    Start meeting as host
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyLink(booking.zoomStartUrl)}
+                    className="w-full px-4 py-2 rounded-lg border border-purple-200 text-purple-700 text-sm font-semibold hover:bg-purple-50 transition-colors"
+                  >
+                    Copy host link
+                  </button>
+                </div>
               )}
-              {booking.zoomJoinUrl && (
-                <p className="text-xs text-slate-500 break-all">
-                  Meeting ID: {booking.zoomMeetingId}
-                </p>
+              {booking.zoomMeetingId && (
+                <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-slate-600 space-y-1">
+                  <p>
+                    <span className="font-semibold text-slate-800">Meeting ID:</span>{" "}
+                    {booking.zoomMeetingId}
+                  </p>
+                  {booking.zoomPassword && (
+                    <p>
+                      <span className="font-semibold text-slate-800">Passcode:</span>{" "}
+                      {booking.zoomPassword}
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -325,6 +359,7 @@ export default function MentorDashboard() {
   const navigate = useNavigate();
   const { user, logout, isAuthenticated } = useAuth();
   const [activeTab, setActiveTab] = useState("schedule");
+  const [upcomingCount, setUpcomingCount] = useState(0);
   const [viewDate, setViewDate] = useState(() => {
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
@@ -342,6 +377,23 @@ export default function MentorDashboard() {
     tomorrow.setDate(tomorrow.getDate() + 1);
     setSelectedDateKey(toDateKey(tomorrow));
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated || user?.role !== "mentor") return undefined;
+    let cancelled = false;
+
+    fetchMyAppointments("upcoming")
+      .then((result) => {
+        if (!cancelled) setUpcomingCount(result.total || result.data?.length || 0);
+      })
+      .catch(() => {
+        if (!cancelled) setUpcomingCount(0);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, user]);
 
   const handleLogout = () => {
     logout();
@@ -399,6 +451,15 @@ export default function MentorDashboard() {
             >
               <Icon />
               {label}
+              {id === "upcoming" && upcomingCount > 0 && (
+                <span
+                  className={`min-w-[1.25rem] h-5 px-1.5 rounded-full text-xs font-bold flex items-center justify-center ${
+                    activeTab === id ? "bg-white text-purple-600" : "bg-purple-600 text-white"
+                  }`}
+                >
+                  {upcomingCount}
+                </span>
+              )}
             </button>
           ))}
         </div>
