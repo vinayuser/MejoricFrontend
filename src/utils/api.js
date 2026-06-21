@@ -13,7 +13,6 @@ export const cleanupAndRedirect = () => {
   localStorage.removeItem("user");
   localStorage.removeItem("authToken");
   localStorage.removeItem("walletBalance");
-  // Redirect to login page
   if (window.location.pathname !== "/login") {
     window.location.href = "/login";
   }
@@ -140,7 +139,7 @@ export const apiPut = async (endpoint, body, skipAuth = false) => {
 
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: "PUT",
-      headers,
+      headers: headers,
       body: JSON.stringify(body),
     });
 
@@ -151,12 +150,9 @@ export const apiPut = async (endpoint, body, skipAuth = false) => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      const error = new Error(
-        errorData.message || errorData.msg || `HTTP error! status: ${response.status}`,
+      throw new Error(
+        errorData.message || `HTTP error! status: ${response.status}`,
       );
-      error.response = errorData;
-      error.status = response.status;
-      throw error;
     }
 
     const data = await response.json();

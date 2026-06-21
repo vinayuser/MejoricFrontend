@@ -16,9 +16,9 @@ import { trackPixel } from "../utils/metaPixel";
 import { useNavigate } from "react-router-dom";
 import Footer from "../components/Footer";
 import image from "../assets/img/segment.webp";
-import bannerImage from "../assets/img/1.webp";
 import bannerImages from "../assets/img/2.webp";
-import mobileBanner from "../assets/img/1.webp";
+import heroMobileBanner from "../assets/img/hero_mobile.webp";
+import HeroBannerOverlay, { HERO_MOBILE_GRADIENT } from "./HeroBannerOverlay";
 
 import StepsSection from "./StepsSection";
 
@@ -28,13 +28,7 @@ export default function Home() {
 
   return (
     <Layout activePage="Home">
-      <section className="relative w-full overflow-hidden min-h-[580px] lg:min-h-[720px] flex items-center justify-center py-12 lg:py-0">
-        {/* Background with pattern effect */}
-        {/* <div className="absolute inset-0">
-          <div className="absolute inset-0"></div>
-        </div> */}
-
-        {/* Banner Images - For large screens, show as background */}
+      <section className="relative w-full overflow-hidden min-h-[580px] lg:min-h-[720px]">
         <div className="absolute inset-0 hidden lg:block">
           <img
             src={bannerImages}
@@ -44,51 +38,17 @@ export default function Home() {
           />
         </div>
 
-        {/* Mobile banner for smaller screens */}
         <div className="absolute inset-0 lg:hidden">
           <img
-            src={mobileBanner}
-            className="w-full h-full object-cover"
+            src={heroMobileBanner}
+            className="w-full h-full object-cover object-center"
             alt="Mejoric Mobile Hero"
             fetchPriority="high"
           />
+          <div className={`absolute inset-0 ${HERO_MOBILE_GRADIENT} pointer-events-none`} />
         </div>
 
-        {/* Content Overlay - Left-aligned Text and Button */}
-        <div className="relative z-10 container mx-auto px-4 sm:px-6 text-left">
-          <div className="max-w-3xl lg:max-w-2xl mx-0 lg:ml-12">
-            {/* Main Heading */}
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 md:mb-6 leading-tight text-left hidden lg:block">
-              You Are Not Alone...
-            </h1>
-
-            {/* Subheading */}
-            <p className="text-xl md:text-2xl lg:text-3xl text-white mb-8 md:mb-10 leading-relaxed font-medium text-left hidden lg:block">
-              Talk to a trained, empathetic
-              <br className="hidden md:block" />
-              <span className="font-bold"> listener Instantly!</span>
-            </p>
-
-            {/* CTA Button (left aligned) */}
-            <div className="flex items-start mt-10 md:mt-12 lg:mt-16">
-              <button
-                onClick={() => {
-                  trackPixel("ViewContent");
-                  if (typeof window.gtag === "function") {
-                    window.gtag("event", "select_content", {
-                      content_type: "CTA Button",
-                      content_id: "talk_now",
-                    });
-                  }
-                  navigate("/mate");
-                }}
-                className="bg-white hover:bg-purple-100 text-purple-700 px-10 py-4 md:py-5 rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-300 font-bold text-lg md:text-xl hover:scale-105 active:scale-95 cursor-pointer"
-              >
-                Talk now!
-              </button>
-            </div>
-          </div>
-        </div>
+        <HeroBannerOverlay onCtaClick={() => navigate("/mate")} />
       </section>
 
       {/* VIDEO SECTION */}

@@ -238,7 +238,7 @@ function MateDashboard() {
     } finally {
       // Logout and navigate to login page
       logout();
-      navigate("/login");
+      navigate("/login?role=mate");
     }
   };
 

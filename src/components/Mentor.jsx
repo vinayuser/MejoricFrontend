@@ -24,7 +24,7 @@ import { onForegroundMessage } from "../firebase/firebase";
 import banner from "../assets/img/mateguide.webp";
 import banners from "../assets/img/mates_hero.webp";
 import homeDesktopBanner from "../assets/img/2.webp";
-import homeMobileBanner from "../assets/img/1.webp";
+import heroMobileBanner from "../assets/img/hero_mobile.webp";
 import BannerSlider from "./BannerSlider";
 import InstantChat from "./InstantChat";
 import { showLoginSignupAlert } from "../utils/authAlert";
@@ -35,7 +35,11 @@ const mateBannerSlides = [
 ];
 
 const mateBannerMobileSlides = [
-  { src: homeMobileBanner, alt: "Mejoric Hero", showHeroContent: true },
+  {
+    src: heroMobileBanner,
+    alt: "Mejoric Hero",
+    showHeroContent: true,
+  },
   { src: banners, alt: "Mate Hero" },
 ];
 

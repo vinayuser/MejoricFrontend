@@ -8,7 +8,7 @@ import toast from "react-hot-toast";
 
 export default function VerifyEmail() {
   const navigate = useNavigate();
-  const { user, login, logout, isAuthenticated } = useAuth();
+  const { user, login, logout, isAuthenticated, authInitialized } = useAuth();
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -72,11 +72,13 @@ export default function VerifyEmail() {
 
   // Check authentication status on mount
   useEffect(() => {
+    if (!authInitialized) return;
+
     if (!isAuthenticated) {
       navigate("/login");
       return;
     }
-    if (user && (user.isMobileVerified || user.role === "mate")) {
+    if (user && (user.isMobileVerified || user.role === "mate" || user.role === "mentor")) {
       navigate("/");
       return;
     }
@@ -89,7 +91,7 @@ export default function VerifyEmail() {
 
     autoSendStartedRef.current = true;
     handleResend(true);
-  }, [isAuthenticated, user, navigate]);
+  }, [authInitialized, isAuthenticated, user, navigate]);
 
   const handleChange = (value, index) => {
     if (isNaN(value)) return; // Allow only numeric characters
@@ -143,7 +145,7 @@ export default function VerifyEmail() {
         true
       );
 
-      if (response?.success) {
+      if (response.success) {
         const newSessionId =
           response.data?.sessionId ||
           response.data?.otpData?.Details ||
@@ -159,7 +161,7 @@ export default function VerifyEmail() {
         setCountdown(60);
         setCanResend(false);
       } else {
-        setError(response?.message || "Failed to send verification code.");
+        setError(response.message || "Failed to send verification code.");
       }
     } catch (err) {
       console.error("Resend OTP error:", err);
@@ -194,11 +196,7 @@ export default function VerifyEmail() {
         true,
       );
 
-      if (!response) {
-        throw new Error("Verification failed. Please try again.");
-      }
-
-      if (response.success) {
+      if (response && response.success) {
         toast.success("Mobile number verified successfully! Welcome!");
         
         // Update user auth context

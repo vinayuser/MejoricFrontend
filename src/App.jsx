@@ -26,8 +26,6 @@ import { Toaster } from 'react-hot-toast';
 import MateDetailsPage from './components/MateDetailsPage';
 import VerifyEmail from './components/VerifyEmail';
 
-
-
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { useAuth } from './context/AuthContext';
@@ -95,11 +93,13 @@ const AnalyticsTracker = () => {
 
 // Email Verification Gate
 const EmailVerificationGate = ({ children }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, authInitialized } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
+    if (!authInitialized) return;
+
     // Only intercept if user is authenticated, not a guest, not a mate, and not verified
     if (isAuthenticated && user && user.role !== "guest" && user.role !== "mate" && user.isMobileVerified === false) {
       const publicOrAuthRoutes = [
@@ -107,15 +107,18 @@ const EmailVerificationGate = ({ children }) => {
         "/login", 
         "/signup", 
         "/forgot-password", 
-        "/reset-password"
+        "/reset-password",
+        "/mentors",
       ];
       
-      if (!publicOrAuthRoutes.includes(location.pathname)) {
+      const isPublicRoute = publicOrAuthRoutes.includes(location.pathname);
+      
+      if (!isPublicRoute) {
         console.log("🔒 Redirecting unverified user to email verification");
         navigate("/verify-email", { replace: true });
       }
     }
-  }, [user, isAuthenticated, location.pathname, navigate]);
+  }, [user, isAuthenticated, authInitialized, location.pathname, navigate]);
 
   return children;
 };

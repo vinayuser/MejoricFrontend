@@ -1,49 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { trackPixel } from "../utils/metaPixel";
+import HeroBannerOverlay, { HERO_MOBILE_GRADIENT } from "./HeroBannerOverlay";
 
 const TRANSITION_MS = 700;
 const HEIGHT_CLASSES = "min-h-[580px] lg:min-h-[720px]";
-
-function HeroOverlay({ onCtaClick }) {
-  const handleCtaClick = () => {
-    trackPixel("ViewContent");
-    if (typeof window.gtag === "function") {
-      window.gtag("event", "select_content", {
-        content_type: "CTA Button",
-        content_id: "talk_now",
-      });
-    }
-    onCtaClick?.();
-  };
-
-  return (
-    <div className="absolute inset-0 z-10 flex items-center py-12 lg:py-0 pointer-events-none">
-      <div className="container mx-auto px-4 sm:px-6 text-left w-full">
-        <div className="max-w-3xl lg:max-w-2xl mx-0 lg:ml-12 pointer-events-auto">
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 md:mb-6 leading-tight text-left hidden lg:block">
-            You Are Not Alone...
-          </h1>
-
-          <p className="text-xl md:text-2xl lg:text-3xl text-white mb-8 md:mb-10 leading-relaxed font-medium text-left hidden lg:block">
-            Talk to a trained, empathetic
-            <br className="hidden md:block" />
-            <span className="font-bold"> listener Instantly!</span>
-          </p>
-
-          <div className="flex items-start mt-10 md:mt-12 lg:mt-16">
-            <button
-              type="button"
-              onClick={handleCtaClick}
-              className="bg-white hover:bg-purple-100 text-purple-700 px-10 py-4 md:py-5 rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-300 font-bold text-lg md:text-xl hover:scale-105 active:scale-95 cursor-pointer"
-            >
-              Talk now!
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function BannerSlider({
   slides,
@@ -151,20 +110,34 @@ export default function BannerSlider({
         }`}
         style={{ transform: `translateX(-${currentIndex * 100}%)` }}
       >
-        {extendedSlides.map((slide, index) => (
+        {extendedSlides.map((slide, index) => {
+          const isHeroMobile = isMobile && slide.showHeroContent;
+
+          return (
           <div
             key={`${slide.alt}-${index}`}
             className={`relative w-full flex-shrink-0 h-full ${HEIGHT_CLASSES}`}
           >
             <img
               className="absolute inset-0 w-full h-full object-cover"
+              style={{
+                objectPosition: slide.objectPosition ?? "center",
+              }}
               src={slide.src}
               alt={slide.alt}
               fetchPriority={index === 1 ? "high" : "auto"}
             />
-            {slide.showHeroContent && <HeroOverlay onCtaClick={onCtaClick} />}
+            {isHeroMobile && (
+              <div
+                className={`absolute inset-0 z-[5] ${HERO_MOBILE_GRADIENT} pointer-events-none`}
+              />
+            )}
+            {slide.showHeroContent && (
+              <HeroBannerOverlay onCtaClick={onCtaClick} />
+            )}
           </div>
-        ))}
+        );
+        })}
       </div>
 
       {slideCount > 1 && (

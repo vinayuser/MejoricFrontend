@@ -22,6 +22,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [walletBalance, setWalletBalance] = useState(0);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authInitialized, setAuthInitialized] = useState(false);
   const [guestTrialExhausted, setGuestTrialExhausted] = useState(false);
 
   const refreshGuestTrialStatus = useCallback(async () => {
@@ -53,17 +54,28 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-    // Check for stored user data
     const storedUser = localStorage.getItem("user");
     const storedBalance = localStorage.getItem("walletBalance");
-    const storedToken = localStorage.getItem("authToken");
+    let storedToken = localStorage.getItem("authToken");
     const storedExhausted = localStorage.getItem("guestTrialExhausted");
 
-    if (storedUser && storedToken) {
-      setUser(JSON.parse(storedUser));
-      setIsAuthenticated(true);
-    } else {
-      // Clear any partial data if both aren't present
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        const token = storedToken || parsedUser?.token;
+        if (token) {
+          if (!storedToken) {
+            localStorage.setItem("authToken", token);
+          }
+          setUser(parsedUser);
+          setIsAuthenticated(true);
+        }
+      } catch (error) {
+        console.error("Failed to restore user session:", error);
+        localStorage.removeItem("user");
+        localStorage.removeItem("authToken");
+      }
+    } else if (!storedToken) {
       setIsAuthenticated(false);
       setUser(null);
     }
@@ -76,24 +88,38 @@ export const AuthProvider = ({ children }) => {
       setGuestTrialExhausted(storedExhausted === "true");
     }
 
-    // Check for existing auth token
-    if (storedToken) {
-      console.log("✅ Found existing auth token on load");
-    }
+    setAuthInitialized(true);
   }, []);
 
-  // Refresh wallet balance and guest trial status when page loads and user is authenticated
+  // Refresh wallet balance and guest trial status after session restore
   useEffect(() => {
+    if (!authInitialized) return;
+
     refreshGuestTrialStatus();
-    if (isAuthenticated) {
+
+    if (
+      isAuthenticated &&
+      user &&
+      (user.role === "user" || user.role === "guest")
+    ) {
       refreshWalletBalance();
     }
-  }, [isAuthenticated, refreshWalletBalance, refreshGuestTrialStatus]);
+  }, [
+    authInitialized,
+    isAuthenticated,
+    user,
+    refreshWalletBalance,
+    refreshGuestTrialStatus,
+  ]);
 
   const login = (userData) => {
     setUser(userData);
     setIsAuthenticated(true);
     localStorage.setItem("user", JSON.stringify(userData));
+
+    if (userData?.token) {
+      localStorage.setItem("authToken", userData.token);
+    }
 
     // Check if this is first login (no existing wallet balance)
     const existingBalance = localStorage.getItem("walletBalance");
@@ -139,6 +165,7 @@ export const AuthProvider = ({ children }) => {
       user,
       walletBalance,
       isAuthenticated,
+      authInitialized,
       guestTrialExhausted,
       login,
       logout,
@@ -147,7 +174,15 @@ export const AuthProvider = ({ children }) => {
       refreshWalletBalance,
       refreshGuestTrialStatus,
     }),
-    [user, walletBalance, isAuthenticated, guestTrialExhausted, refreshWalletBalance, refreshGuestTrialStatus],
+    [
+      user,
+      walletBalance,
+      isAuthenticated,
+      authInitialized,
+      guestTrialExhausted,
+      refreshWalletBalance,
+      refreshGuestTrialStatus,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
