@@ -99,11 +99,13 @@ const AnalyticsTracker = () => {
 
 // Email Verification Gate
 const EmailVerificationGate = ({ children }) => {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, authInitialized } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
+    if (!authInitialized) return;
+
     // Only intercept if user is authenticated, not a guest, not a mate, and not verified
     if (isAuthenticated && user && user.role !== "guest" && user.role !== "mate" && user.role !== "mentor" && user.isMobileVerified === false) {
       const publicOrAuthRoutes = [
@@ -125,7 +127,7 @@ const EmailVerificationGate = ({ children }) => {
         navigate("/verify-email", { replace: true });
       }
     }
-  }, [user, isAuthenticated, location.pathname, navigate]);
+  }, [user, isAuthenticated, authInitialized, location.pathname, navigate]);
 
   return children;
 };

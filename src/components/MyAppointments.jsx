@@ -115,19 +115,20 @@ function BookingCard({ booking, showJoin }) {
 
 export default function MyAppointments() {
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, authInitialized } = useAuth();
   const [activeTab, setActiveTab] = useState("upcoming");
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!authInitialized) return;
     if (!isAuthenticated) {
       navigate("/login?role=user");
     }
-  }, [isAuthenticated, navigate]);
+  }, [authInitialized, isAuthenticated, navigate]);
 
   useEffect(() => {
-    if (!isAuthenticated) return undefined;
+    if (!authInitialized || !isAuthenticated) return undefined;
 
     let cancelled = false;
     setLoading(true);
@@ -144,9 +145,9 @@ export default function MyAppointments() {
     return () => {
       cancelled = true;
     };
-  }, [activeTab, isAuthenticated]);
+  }, [activeTab, authInitialized, isAuthenticated]);
 
-  if (!isAuthenticated) return null;
+  if (!authInitialized || !isAuthenticated) return null;
 
   return (
     <Layout activePage="My Appointments">

@@ -8,7 +8,7 @@ import toast from "react-hot-toast";
 
 export default function VerifyEmail() {
   const navigate = useNavigate();
-  const { user, login, logout, isAuthenticated } = useAuth();
+  const { user, login, logout, isAuthenticated, authInitialized } = useAuth();
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isResending, setIsResending] = useState(false);
@@ -72,6 +72,8 @@ export default function VerifyEmail() {
 
   // Check authentication status on mount
   useEffect(() => {
+    if (!authInitialized) return;
+
     if (!isAuthenticated) {
       navigate("/login");
       return;
@@ -89,7 +91,7 @@ export default function VerifyEmail() {
 
     autoSendStartedRef.current = true;
     handleResend(true);
-  }, [isAuthenticated, user, navigate]);
+  }, [authInitialized, isAuthenticated, user, navigate]);
 
   const handleChange = (value, index) => {
     if (isNaN(value)) return; // Allow only numeric characters

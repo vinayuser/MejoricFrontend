@@ -357,7 +357,7 @@ function AppointmentsTab({ tab }) {
 
 export default function MentorDashboard() {
   const navigate = useNavigate();
-  const { user, logout, isAuthenticated } = useAuth();
+  const { user, logout, isAuthenticated, authInitialized } = useAuth();
   const [activeTab, setActiveTab] = useState("schedule");
   const [upcomingCount, setUpcomingCount] = useState(0);
   const [viewDate, setViewDate] = useState(() => {
@@ -367,10 +367,11 @@ export default function MentorDashboard() {
   const [selectedDateKey, setSelectedDateKey] = useState("");
 
   useEffect(() => {
+    if (!authInitialized) return;
     if (!isAuthenticated || user?.role !== "mentor") {
       navigate("/login?role=mentor");
     }
-  }, [isAuthenticated, user, navigate]);
+  }, [authInitialized, isAuthenticated, user, navigate]);
 
   useEffect(() => {
     const tomorrow = new Date();
@@ -379,7 +380,7 @@ export default function MentorDashboard() {
   }, []);
 
   useEffect(() => {
-    if (!isAuthenticated || user?.role !== "mentor") return undefined;
+    if (!authInitialized || !isAuthenticated || user?.role !== "mentor") return undefined;
     let cancelled = false;
 
     fetchMyAppointments("upcoming")
@@ -393,12 +394,16 @@ export default function MentorDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, user]);
+  }, [authInitialized, isAuthenticated, user]);
 
   const handleLogout = () => {
     logout();
     navigate("/");
   };
+
+  if (!authInitialized) {
+    return null;
+  }
 
   if (!user || user.role !== "mentor") {
     return null;
