@@ -143,7 +143,7 @@ export default function VerifyEmail() {
         true
       );
 
-      if (response.success) {
+      if (response?.success) {
         const newSessionId =
           response.data?.sessionId ||
           response.data?.otpData?.Details ||
@@ -159,7 +159,7 @@ export default function VerifyEmail() {
         setCountdown(60);
         setCanResend(false);
       } else {
-        setError(response.message || "Failed to send verification code.");
+        setError(response?.message || "Failed to send verification code.");
       }
     } catch (err) {
       console.error("Resend OTP error:", err);
@@ -183,14 +183,22 @@ export default function VerifyEmail() {
     setError("");
 
     try {
-      const response = await apiPut("/auth/verify-otp-mobile", {
-        otp: otpCode,
-        mobile: user.mobile,
-        sessionId,
-        role: user.role,
-      });
+      const response = await apiPut(
+        "/auth/verify-otp-mobile",
+        {
+          otp: otpCode,
+          mobile: user.mobile,
+          sessionId,
+          role: user.role,
+        },
+        true,
+      );
 
-      if (response && response.success) {
+      if (!response) {
+        throw new Error("Verification failed. Please try again.");
+      }
+
+      if (response.success) {
         toast.success("Mobile number verified successfully! Welcome!");
         
         // Update user auth context

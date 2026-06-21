@@ -124,30 +124,39 @@ export const apiPost = async (endpoint, body, skipAuth = false) => {
 };
 
 // PUT request
-export const apiPut = async (endpoint, body) => {
-  const token = getAuthToken();
-  if (!token) {
-    cleanupAndRedirect();
-    return null;
+export const apiPut = async (endpoint, body, skipAuth = false) => {
+  if (!skipAuth) {
+    const token = getAuthToken();
+    if (!token) {
+      cleanupAndRedirect();
+      return null;
+    }
   }
 
   try {
+    const headers = skipAuth
+      ? { "Content-Type": "application/json" }
+      : getHeaders();
+
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: "PUT",
-      headers: getHeaders(),
+      headers,
       body: JSON.stringify(body),
     });
 
-    if (response.status === 401) {
+    if (response.status === 401 && !skipAuth) {
       cleanupAndRedirect();
       return null;
     }
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        errorData.message || `HTTP error! status: ${response.status}`,
+      const error = new Error(
+        errorData.message || errorData.msg || `HTTP error! status: ${response.status}`,
       );
+      error.response = errorData;
+      error.status = response.status;
+      throw error;
     }
 
     const data = await response.json();

@@ -80,7 +80,7 @@ export default function Login() {
         true,
       );
 
-      if (data.success) {
+      if (data?.success) {
         const newSessionId =
           data.data?.sessionId ||
           data.data?.otpData?.Details ||
@@ -96,7 +96,8 @@ export default function Login() {
         return true;
       }
 
-      const errorMsg = data.message || "Failed to send OTP. Please try again.";
+      const errorMsg =
+        data?.message || data?.msg || "Failed to send OTP. Please try again.";
       setError(errorMsg);
       toast.error(errorMsg);
       return false;
@@ -170,13 +171,21 @@ export default function Login() {
     setIsLoading(true);
     setError("");
     try {
-      const data = await apiPut("/auth/verify-otp-mobile", {
-        otp: otpCode,
-        mobile,
-        sessionId,
-        role: selectedRole,
-        fcmToken: localStorage.getItem("fcmToken"),
-      });
+      const data = await apiPut(
+        "/auth/verify-otp-mobile",
+        {
+          otp: otpCode,
+          mobile,
+          sessionId,
+          role: selectedRole,
+          fcmToken: localStorage.getItem("fcmToken"),
+        },
+        true,
+      );
+
+      if (!data) {
+        throw new Error("Verification failed. Please try again.");
+      }
 
       if (data.success) {
         const payload = data.data || data;
@@ -217,7 +226,7 @@ export default function Login() {
           }
         }
       } else {
-        const errorMsg = data.message || data.msg || "Invalid OTP. Please try again.";
+        const errorMsg = data?.message || data?.msg || "Invalid OTP. Please try again.";
         setError(errorMsg);
         toast.error(errorMsg);
       }
