@@ -321,6 +321,21 @@ export default function Mentor() {
 
   useEffect(() => {
     const query = new URLSearchParams(window.location.search);
+    if (query.get("scrollTo") !== "mates" || loading) return;
+
+    const scrollTimer = setTimeout(() => {
+      const target =
+        document.getElementById("first-mate-listing") ||
+        document.getElementById("mates-list");
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }, 150);
+
+    return () => clearTimeout(scrollTimer);
+  }, [loading, filteredMentors]);
+
+  useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
     const autoCall = query.get("auto_call") === "true";
     const autoChat = query.get("auto_chat") === "true";
     const mateId = query.get("mate_id");
@@ -814,22 +829,26 @@ export default function Mentor() {
             <div className="text-center py-10">No mates found</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-              {filteredMentors.map((mentor) => (
-                <MentorCard
+              {filteredMentors.map((mentor, index) => (
+                <div
                   key={mentor._id}
-                  mentor={mentor}
-                  isAuthenticated={isAuthenticated}
-                  user={user}
-                  guestTrialExhausted={guestTrialExhausted}
-                  walletBalance={walletBalance}
-                  navigate={navigate}
-                  onChatClick={handleChatClick}
-                  setCallType={setCallType}
-                  setSelectedMentorId={setSelectedMentorId}
-                  setCallUrl={setCallUrl}
-                  setCallSessionId={setCallSessionId}
-                  setShowCallModal={setShowCallModal}
-                />
+                  id={index === 0 ? "first-mate-listing" : undefined}
+                >
+                  <MentorCard
+                    mentor={mentor}
+                    isAuthenticated={isAuthenticated}
+                    user={user}
+                    guestTrialExhausted={guestTrialExhausted}
+                    walletBalance={walletBalance}
+                    navigate={navigate}
+                    onChatClick={handleChatClick}
+                    setCallType={setCallType}
+                    setSelectedMentorId={setSelectedMentorId}
+                    setCallUrl={setCallUrl}
+                    setCallSessionId={setCallSessionId}
+                    setShowCallModal={setShowCallModal}
+                  />
+                </div>
               ))}
             </div>
           )}
