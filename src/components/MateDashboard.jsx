@@ -15,9 +15,10 @@ import {
 } from "react-icons/fa";
 import toast from "react-hot-toast";
 import logo from "../img/logo- final.png";
-import { apiPost, apiGet, apiPut } from "../utils/api";
+import { apiPost, apiGet } from "../utils/api";
 import { initializeFCM, getFCMToken } from "../utils/fcm";
 import { capitalizeName } from "../utils/formatters";
+import { useMateAvailability } from "../hooks/useMateAvailability";
 // Video/Audio call base URLs - roomId will be appended dynamically
 const VIDEO_CALL_URL = `${import.meta.env.VITE_VIDEO_CALL_BASE_URL || "https://mateandmentors.yourvideo.live/host/"}`;
 const AUDIO_CALL_URL = `${import.meta.env.VITE_AUDIO_CALL_BASE_URL || "https://matenmentor.yourvideo.live/host/"}`;
@@ -30,11 +31,8 @@ function MateDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isChatLoading, setIsChatLoading] = useState(true);
   const [receiverId, setReceiverId] = useState(null);
-  // console.log(receiverId, "this is reciverId");
-  // Fetch user online status on component mount
-
-  const [isOnline, setIsOnline] = useState(false);
-  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const { isOnline, isUpdatingStatus, toggleOnlineStatus, setOffline } =
+    useMateAvailability(user);
   const [showCallIframe, setShowCallIframe] = useState(false);
   const [callUrl, setCallUrl] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -46,35 +44,6 @@ function MateDashboard() {
     totalCalls: 0,
     totalMinutes: 0,
   });
-
-  // Fetch mate's current isAvailable status on mount
-  useEffect(() => {
-    const fetchMateStatus = async () => {
-      try {
-        const userId = user?.user?._id || user?._id || user?.id;
-        if (!userId) return;
-
-        const token = user?.token || localStorage.getItem("authToken");
-        if (!token) return;
-
-        // Bearer identifies the user; same as GET /users/get?userId= when self
-        const result = await apiGet("/users/get");
-
-        if (result.success && result.data) {
-          const mateAvailable = result.data.mate?.isAvailable || false;
-          setIsOnline(mateAvailable);
-          console.log(
-            "📡 Mate availability loaded:",
-            mateAvailable ? "Online" : "Offline",
-          );
-        }
-      } catch (error) {
-        console.error("Error fetching mate status:", error);
-      }
-    };
-
-    fetchMateStatus();
-  }, [user]);
 
   // Fetch call history from API
   useEffect(() => {
@@ -184,62 +153,11 @@ function MateDashboard() {
   useEffect(() => {
     refreshWalletBalance();
   }, []);
-  const toggleOnlineStatus = async () => {
-    setIsUpdatingStatus(true);
-    try {
-      console.log("User object for status update:", user);
-      console.log("User ID:", user?._id || user?.id);
-
-      const newStatus = !isOnline;
-      const userId = user?.user?._id || user?._id || user?.id;
-      if (!userId) {
-        throw new Error("User ID not found");
-      }
-
-      const result = await apiPut(`/users/update?userId=${userId}`, {
-        isAvailable: newStatus,
-      });
-
-      if (result.success) {
-        setIsOnline(newStatus);
-        console.log(`User is now ${newStatus ? "Online" : "Offline"}`);
-      } else {
-        console.error("Failed to update status:", result.message);
-        toast.error("Failed to update status. Please try again.");
-      }
-    } catch (error) {
-      console.error("Error updating status:", error);
-      toast.error("Error updating status. Please try again.");
-    } finally {
-      setIsUpdatingStatus(false);
-    }
-  };
-  // FCM is now handled globally in CallNotification.jsx
 
   const handleLogout = async () => {
-    try {
-      console.log("Setting user to offline before logout");
-      console.log("User ID:", user?._id || user?.id);
-
-      const userId = user?.user?._id || user?._id || user?.id;
-      if (userId) {
-        const result = await apiPut(`/users/update?userId=${userId}`, {
-          isAvailable: false,
-        });
-        if (result.success) {
-          setIsOnline(false);
-          console.log("User set to offline successfully");
-        } else {
-          console.error("Failed to set user to offline:", result.message);
-        }
-      }
-    } catch (error) {
-      console.error("Error setting user to offline:", error);
-    } finally {
-      // Logout and navigate to login page
-      logout();
-      navigate("/login?role=mate");
-    }
+    await setOffline();
+    logout();
+    navigate("/login?role=mate");
   };
 
   const handleAcceptCall = async (
@@ -383,6 +301,13 @@ function MateDashboard() {
               </Link>
             </div>
             <nav className="flex items-center space-x-3 sm:space-x-6">
+              <Link
+                to="/dashboard/profile"
+                className="text-gray-600 hover:text-blue-600 transition-colors flex items-center gap-1 sm:gap-2"
+              >
+                <FaUser className="text-sm sm:text-base" />
+                <span className="hidden sm:inline">Profile</span>
+              </Link>
               <div className="flex items-center gap-2 sm:gap-3">
                 <button
                   onClick={toggleOnlineStatus}

@@ -19,12 +19,14 @@ import Wallet from './components/Wallet';
 import ScrollToTop from './components/ScrollToTop';
 import Certificate from './components/Certificate';
 import MateDashboard from './components/MateDashboard';
+import MateProfile from './components/MateProfile';
 import CallNotification from './components/CallNotification';
 import IOSInstallPrompt from './components/IOSInstallPrompt';
 import { isInAppBrowser } from './utils/browserDetect';
 import { Toaster } from 'react-hot-toast';
 import MateDetailsPage from './components/MateDetailsPage';
 import VerifyEmail from './components/VerifyEmail';
+import Community from './components/Community';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
@@ -109,6 +111,7 @@ const EmailVerificationGate = ({ children }) => {
         "/forgot-password", 
         "/reset-password",
         "/mentors",
+        "/community",
       ];
       
       const isPublicRoute = publicOrAuthRoutes.includes(location.pathname);
@@ -163,6 +166,8 @@ function App() {
             <Route path="/certificate" element={<Certificate />} />
             <Route path="/mate-profile/:id" element={<MateDetailsPage />} />
             <Route path="/dashboard" element={<MateDashboard />} />
+            <Route path="/dashboard/profile" element={<MateProfile />} />
+            {/* <Route path="/community" element={<Community />} /> */}
           </Routes>
         </div>
       </EmailVerificationGate>

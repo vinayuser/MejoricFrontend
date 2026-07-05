@@ -21,12 +21,44 @@ import Swal from "sweetalert2";
 import toast from "react-hot-toast";
 import { capitalizeName } from "../utils/formatters";
 import { showLoginSignupAlert } from "../utils/authAlert";
+import {
+  canStartUserChat,
+  getSignupChatBlockMessage,
+  resolveUserChatAccess,
+} from "../utils/chatAccess";
 
 const MateDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated, user, walletBalance, guestTrialExhausted } = useAuth();
-  const isChatDisabled = guestTrialExhausted && (!isAuthenticated || user?.role === "guest");
+  const {
+    isAuthenticated,
+    user,
+    walletBalance,
+    guestTrialExhausted,
+    isWithinSignupTrial,
+    hasPaidRecharge,
+    signupTrialExhausted,
+    refreshSignupTrialStatus,
+    refreshWalletBalance,
+  } = useAuth();
+  const isChatDisabled =
+    (guestTrialExhausted && (!isAuthenticated || user?.role === "guest")) ||
+    (isAuthenticated &&
+      user?.role === "user" &&
+      !canStartUserChat({
+        user,
+        guestTrialExhausted,
+        isWithinSignupTrial,
+        hasPaidRecharge,
+        walletBalance,
+      }));
+
+  useEffect(() => {
+    if (user?.role === "user") {
+      void refreshSignupTrialStatus();
+      void refreshWalletBalance();
+    }
+  }, [user?.role, refreshSignupTrialStatus, refreshWalletBalance]);
 
   const [mate, setMate] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -225,7 +257,9 @@ const MateDetailsPage = () => {
         if (isChatDisabled) {
           showLoginSignupAlert(navigate, {
             message:
-              "Free trial credits used up. Please sign up or login to continue chatting.",
+              user?.role === "user"
+                ? getSignupChatBlockMessage(signupTrialExhausted, walletBalance)
+                : "Free trial credits used up. Please sign up or login to continue chatting.",
           });
           return;
         }
@@ -237,7 +271,7 @@ const MateDetailsPage = () => {
     }
   }, [mate, isAuthenticated]);
 
-  const handleAction = (type) => {
+  const handleAction = async (type) => {
     if (!mate.isAvailable) {
       Swal.fire({
         icon: "warning",
@@ -265,7 +299,12 @@ const MateDetailsPage = () => {
       return;
     }
 
-    if (isAuthenticated && user?.role === "user" && walletBalance <= 0) {
+    if (
+      isAuthenticated &&
+      user?.role === "user" &&
+      !isWithinSignupTrial &&
+      walletBalance <= 0
+    ) {
       Swal.fire({
         title: "Insufficient Balance",
         text: `Your wallet balance is ₹0 or less. Please recharge your wallet to start a ${type} session.`,
@@ -294,10 +333,33 @@ const MateDetailsPage = () => {
         return;
       }
 
-      if (isChatDisabled) {
+      let canChat = !isChatDisabled;
+      let blockMessage = getSignupChatBlockMessage(
+        signupTrialExhausted,
+        walletBalance,
+      );
+
+      if (user?.role === "user" && isChatDisabled) {
+        try {
+          const access = await resolveUserChatAccess(user);
+          canChat = access.canChat;
+          blockMessage = getSignupChatBlockMessage(
+            access.signupTrialExhausted,
+            access.walletBalance,
+          );
+          void refreshSignupTrialStatus();
+          void refreshWalletBalance();
+        } catch (e) {
+          console.warn("Could not refresh chat access", e);
+        }
+      }
+
+      if (!canChat) {
         showLoginSignupAlert(navigate, {
           message:
-            "Free trial credits used up. Please sign up or login to continue chatting.",
+            user?.role === "user"
+              ? blockMessage
+              : "Free trial credits used up. Please sign up or login to continue chatting.",
         });
         return;
       }

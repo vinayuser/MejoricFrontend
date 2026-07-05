@@ -28,6 +28,11 @@ import heroMobileBanner from "../assets/img/hero_mobile.webp";
 import BannerSlider from "./BannerSlider";
 import InstantChat from "./InstantChat";
 import { showLoginSignupAlert } from "../utils/authAlert";
+import {
+  canStartUserChat,
+  getSignupChatBlockMessage,
+  resolveUserChatAccess,
+} from "../utils/chatAccess";
 
 const mateBannerSlides = [
   { src: homeDesktopBanner, alt: "Mejoric Hero", showHeroContent: true },
@@ -78,7 +83,19 @@ const onlineStatuses = ["All", "Online now", "Offline"];
 
 export default function Mentor() {
   const navigate = useNavigate();
-  const { token, getAuthToken, isAuthenticated, user, walletBalance, guestTrialExhausted } = useAuth();
+  const {
+    token,
+    getAuthToken,
+    isAuthenticated,
+    user,
+    walletBalance,
+    guestTrialExhausted,
+    isWithinSignupTrial,
+    hasPaidRecharge,
+    signupTrialExhausted,
+    refreshSignupTrialStatus,
+    refreshWalletBalance,
+  } = useAuth();
   const [showFilters, setShowFilters] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [selectedOnlineStatus, setSelectedOnlineStatus] = useState("All");
@@ -99,13 +116,20 @@ export default function Mentor() {
   const [selectedMentorForChat, setSelectedMentorForChat] = useState(null);
   const [showInstantChat, setShowInstantChat] = useState(false);
 
+  useEffect(() => {
+    if (user?.role === "user") {
+      void refreshSignupTrialStatus();
+      void refreshWalletBalance();
+    }
+  }, [user?.role, refreshSignupTrialStatus, refreshWalletBalance]);
+
   const handleCloseChat = React.useCallback(() => {
     setShowInstantChat(false);
     setSelectedMentorForChat(null);
   }, []);
 
   const handleChatClick = React.useCallback(
-    (mentor) => {
+    async (mentor) => {
       if (!mentor.isAvailable) {
         Swal.fire({
           icon: "warning",
@@ -126,19 +150,46 @@ export default function Mentor() {
         return;
       }
 
-      if (guestTrialExhausted && user?.role === "guest") {
-        showLoginSignupAlert(navigate, {
-          message:
-            "Free trial credits used up. Please sign up or login to continue chatting.",
-        });
-        return;
+      let chatAccess = {
+        canChat: canStartUserChat({
+          user,
+          guestTrialExhausted,
+          isWithinSignupTrial,
+          hasPaidRecharge,
+          walletBalance,
+        }),
+        signupTrialExhausted,
+        walletBalance,
+      };
+
+      if (user?.role === "user" && !chatAccess.canChat) {
+        try {
+          chatAccess = await resolveUserChatAccess(user);
+          void refreshSignupTrialStatus();
+          void refreshWalletBalance();
+        } catch (e) {
+          console.warn("Could not refresh chat access", e);
+        }
       }
 
-      if (user?.role === "user" && walletBalance <= 0) {
+      if (!chatAccess.canChat) {
+        if (user?.role === "guest") {
+          showLoginSignupAlert(navigate, {
+            message:
+              "Free trial credits used up. Please sign up or login to continue chatting.",
+          });
+          return;
+        }
+
         Swal.fire({
           icon: "warning",
-          title: "Insufficient Balance",
-          text: "Your wallet balance is ₹0 or less. Please recharge your wallet to start chat sessions.",
+          title: chatAccess.signupTrialExhausted
+            ? "Free Chat Ended"
+            : "Insufficient Balance",
+          text: getSignupChatBlockMessage(
+            chatAccess.signupTrialExhausted,
+            chatAccess.walletBalance,
+          ),
           showCancelButton: true,
           showCloseButton: true,
           confirmButtonText: "Recharge Now",
@@ -167,7 +218,18 @@ export default function Mentor() {
         });
       }
     },
-    [isAuthenticated, guestTrialExhausted, user?.role, walletBalance, navigate],
+    [
+      isAuthenticated,
+      guestTrialExhausted,
+      isWithinSignupTrial,
+      hasPaidRecharge,
+      signupTrialExhausted,
+      user,
+      walletBalance,
+      navigate,
+      refreshSignupTrialStatus,
+      refreshWalletBalance,
+    ],
   );
 
   const [timeLeft, setTimeLeft] = useState(0);

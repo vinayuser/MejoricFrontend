@@ -1,10 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import {
   FaEnvelope,
-  FaLock,
   FaUser,
-  FaEye,
-  FaEyeSlash,
   FaArrowLeft,
   FaCheck,
   FaWhatsapp,
@@ -13,6 +10,8 @@ import {
   FaHeadphones,
   FaUserFriends,
   FaBolt,
+  FaMapMarkerAlt,
+  FaBirthdayCake,
 } from "react-icons/fa";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -29,6 +28,8 @@ const TRUST_POINTS = [
   { label: "Instant Support", icon: FaBolt },
 ];
 
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 export default function Signup() {
   const navigate = useNavigate();
   const { login } = useAuth();
@@ -37,10 +38,9 @@ export default function Signup() {
     name: "",
     phone: "",
     email: "",
-    password: "",
-    confirmPassword: "",
+    age: "",
+    city: "",
   });
-  const [showPassword, setShowPassword] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -84,27 +84,67 @@ export default function Signup() {
     setFormData((prev) => ({
       ...prev,
       phone: value,
-      email: value ? `${value}@users.mejoric.com` : "",
     }));
     setError("");
   };
 
-  const sendOtp = async () => {
-    if (!formData.phone) {
-      setError("Please enter your phone number");
+  const validateStep1 = () => {
+    if (!formData.name?.trim()) {
+      setError("Please enter your name");
       return false;
     }
-    if (!/^\d{10}$/.test(formData.phone)) {
+    if (formData.name.trim().length < 2) {
+      setError("Name must be at least 2 characters");
+      return false;
+    }
+    if (!formData.phone || !/^\d{10}$/.test(formData.phone)) {
       setError("Please enter a valid 10-digit phone number");
       return false;
     }
+    if (!formData.email?.trim()) {
+      setError("Please enter your email address");
+      return false;
+    }
+    if (!EMAIL_REGEX.test(formData.email.trim())) {
+      setError("Please enter a valid email address");
+      return false;
+    }
+    if (!formData.age?.trim()) {
+      setError("Please enter your age");
+      return false;
+    }
+    const ageNum = Number(formData.age);
+    if (!Number.isFinite(ageNum) || ageNum < 18 || ageNum > 100) {
+      setError("Age must be between 18 and 100");
+      return false;
+    }
+    if (!formData.city?.trim()) {
+      setError("Please enter your city");
+      return false;
+    }
+    if (formData.city.trim().length < 2) {
+      setError("City must be at least 2 characters");
+      return false;
+    }
+    return true;
+  };
 
+  const sendOtp = async () => {
     setIsLoading(true);
     setError("");
     try {
+      const normalizedEmail = formData.email.trim().toLowerCase();
       const data = await apiPost(
         "/auth/loginOrSignin-with-mobile",
-        { mobile: formData.phone, role: "user" },
+        {
+          mobile: formData.phone,
+          role: "user",
+          name: formData.name.trim(),
+          email: normalizedEmail,
+          age: Number(formData.age),
+          city: formData.city.trim(),
+          guestId: localStorage.getItem("conversion_guest_id") || undefined,
+        },
         true,
       );
 
@@ -141,16 +181,7 @@ export default function Signup() {
   const handleStep1Continue = async (e) => {
     e.preventDefault();
     setError("");
-
-    if (!formData.name || !formData.phone) {
-      setError("Please fill in all fields");
-      return;
-    }
-
-    if (formData.name.length < 2) {
-      setError("Name must be at least 2 characters");
-      return;
-    }
+    if (!validateStep1()) return;
 
     const sent = await sendOtp();
     if (sent) {
@@ -204,20 +235,7 @@ export default function Signup() {
     setIsLoading(true);
     setError("");
 
-    if (!formData.password || !formData.confirmPassword) {
-      setError("Please fill in all fields");
-      setIsLoading(false);
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      setError("Password must be at least 6 characters");
-      setIsLoading(false);
-      return;
-    }
-
-    if (formData.password !== formData.confirmPassword) {
-      setError("Passwords do not match");
+    if (!validateStep1()) {
       setIsLoading(false);
       return;
     }
@@ -235,6 +253,8 @@ export default function Signup() {
       return;
     }
 
+    const normalizedEmail = formData.email.trim().toLowerCase();
+
     try {
       let fcmToken = null;
       try {
@@ -247,11 +267,13 @@ export default function Signup() {
       }
 
       const payload = {
-        name: formData.name,
-        email: formData.email,
+        name: formData.name.trim(),
+        email: normalizedEmail,
         mobile: formData.phone,
-        password: formData.password,
-        cofirmPassword: formData.confirmPassword,
+        age: Number(formData.age),
+        city: formData.city.trim(),
+        password: normalizedEmail,
+        cofirmPassword: normalizedEmail,
         agreedToTerms: true,
         role: "user",
         fcmToken,
@@ -333,11 +355,8 @@ export default function Signup() {
     setError("");
   };
 
-  const passwordRequirements = [
-    { met: formData.password.length >= 6, text: "At least 6 characters" },
-    { met: /[A-Z]/.test(formData.password), text: "One uppercase letter" },
-    { met: /[0-9]/.test(formData.password), text: "One number" },
-  ];
+  const inputClass =
+    "w-full pl-12 pr-4 py-4 bg-purple-50 border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all";
 
   return (
     <Layout activePage="Signup">
@@ -357,7 +376,6 @@ export default function Signup() {
             <div className="absolute -top-10 -right-10 w-32 h-32 bg-purple-200 rounded-full blur-3xl opacity-40 pointer-events-none" />
             <div className="absolute -bottom-10 -left-10 w-32 h-32 bg-pink-200 rounded-full blur-3xl opacity-40 pointer-events-none" />
 
-            {/* Step indicator */}
             <div className="flex items-center justify-center gap-3 mb-6 relative z-10">
               {[1, 2].map((s) => (
                 <div key={s} className="flex items-center gap-2">
@@ -379,7 +397,6 @@ export default function Signup() {
               ))}
             </div>
 
-            {/* Header */}
             <div className="text-center mb-6 relative z-10">
               <h1 className="text-3xl font-bold text-gray-900 mb-2">
                 {step === 1 ? "Start Your Journey" : "Almost There!"}
@@ -387,7 +404,7 @@ export default function Signup() {
               <p className="text-gray-600 text-sm leading-relaxed">
                 {step === 1
                   ? "Talk to trusted Mates & Mentors who are here for you."
-                  : "Set your password and verify your number to get started"}
+                  : "Verify your mobile number to complete signup"}
               </p>
             </div>
 
@@ -410,13 +427,10 @@ export default function Signup() {
             )}
 
             {step === 1 ? (
-              <form onSubmit={handleStep1Continue} className="relative z-10">
-                <div className="mb-5">
-                  <label
-                    htmlFor="name"
-                    className="block text-sm font-semibold text-gray-700 mb-2"
-                  >
-                    Name
+              <form onSubmit={handleStep1Continue} className="relative z-10 space-y-5">
+                <div>
+                  <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Name <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -429,17 +443,37 @@ export default function Signup() {
                       value={formData.name}
                       onChange={handleChange}
                       placeholder="What should we call you?"
-                      className="w-full pl-12 pr-4 py-4 bg-purple-50 border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+                      required
+                      className={inputClass}
                     />
                   </div>
                 </div>
 
-                <div className="mb-6">
-                  <label
-                    htmlFor="phone"
-                    className="block text-sm font-semibold text-gray-700 mb-2"
-                  >
-                    Phone Number
+                <div>
+                  <label htmlFor="email" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Email <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <FaEnvelope className="text-purple-500" />
+                    </div>
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      placeholder="you@example.com"
+                      required
+                      autoComplete="email"
+                      className={inputClass}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="phone" className="block text-sm font-semibold text-gray-700 mb-2">
+                    Phone Number <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -455,26 +489,55 @@ export default function Signup() {
                       value={formData.phone}
                       onChange={handlePhoneChange}
                       placeholder="10-digit mobile number"
+                      required
                       className="w-full pl-24 pr-4 py-4 bg-purple-50 border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
                     />
                   </div>
                 </div>
 
-                {/* Email field — kept for API compatibility, hidden from users */}
-                <div className="hidden">
-                  <label htmlFor="email">Email Address</label>
-                  <div className="relative">
-                    <FaEnvelope className="text-purple-500" />
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      placeholder="Enter your email"
-                      tabIndex={-1}
-                      aria-hidden="true"
-                    />
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label htmlFor="age" className="block text-sm font-semibold text-gray-700 mb-2">
+                      Age <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <FaBirthdayCake className="text-purple-500" />
+                      </div>
+                      <input
+                        type="number"
+                        id="age"
+                        name="age"
+                        min="18"
+                        max="100"
+                        value={formData.age}
+                        onChange={handleChange}
+                        placeholder="18+"
+                        required
+                        className={inputClass}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label htmlFor="city" className="block text-sm font-semibold text-gray-700 mb-2">
+                      City <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <FaMapMarkerAlt className="text-purple-500" />
+                      </div>
+                      <input
+                        type="text"
+                        id="city"
+                        name="city"
+                        value={formData.city}
+                        onChange={handleChange}
+                        placeholder="Your city"
+                        required
+                        className={inputClass}
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -522,85 +585,9 @@ export default function Signup() {
                 </p>
 
                 <div className="mb-5">
-                  <label
-                    htmlFor="password"
-                    className="block text-sm font-semibold text-gray-700 mb-2"
-                  >
-                    Create Password
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <FaLock className="text-purple-500" />
-                    </div>
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      id="password"
-                      name="password"
-                      value={formData.password}
-                      onChange={handleChange}
-                      placeholder="Create a secure password"
-                      className="w-full pl-12 pr-12 py-4 bg-purple-50 border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 pr-4 flex items-center text-purple-500 hover:text-purple-700 transition-colors"
-                    >
-                      {showPassword ? <FaEyeSlash /> : <FaEye />}
-                    </button>
-                  </div>
-
-                  {formData.password && (
-                    <div className="mt-3 space-y-1">
-                      {passwordRequirements.map((req, index) => (
-                        <div
-                          key={index}
-                          className={`flex items-center gap-2 text-sm ${req.met ? "text-green-600" : "text-gray-400"}`}
-                        >
-                          <FaCheck
-                            className={`text-xs ${req.met ? "opacity-100" : "opacity-30"}`}
-                          />
-                          <span>{req.text}</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="mb-5">
-                  <label
-                    htmlFor="confirmPassword"
-                    className="block text-sm font-semibold text-gray-700 mb-2"
-                  >
-                    Re-enter Password
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <FaLock className="text-purple-500" />
-                    </div>
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      placeholder="Confirm your password"
-                      className="w-full pl-12 pr-4 py-4 bg-purple-50 border border-purple-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
-                    />
-                  </div>
-                  {formData.confirmPassword &&
-                    formData.password === formData.confirmPassword && (
-                      <div className="mt-2 flex items-center gap-2 text-sm text-green-600">
-                        <FaCheck className="text-xs" />
-                        <span>Passwords match</span>
-                      </div>
-                    )}
-                </div>
-
-                <div className="mb-5">
                   <label className="block text-sm font-semibold text-gray-700 mb-3">
                     <FaMobileAlt className="inline mr-1.5 text-purple-500" />
-                    Verify OTP
+                    Verify OTP <span className="text-red-500">*</span>
                   </label>
                   <div
                     className="flex justify-between gap-2"
@@ -712,7 +699,6 @@ export default function Signup() {
               </form>
             )}
 
-            {/* Trust footer */}
             <div className="mt-8 pt-6 border-t border-purple-100 relative z-10">
               <div className="flex flex-nowrap items-center justify-center gap-x-2 sm:gap-x-4 text-xs sm:text-sm whitespace-nowrap">
                 {TRUST_POINTS.map((point, index) => {

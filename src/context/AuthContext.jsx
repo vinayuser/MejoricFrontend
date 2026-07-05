@@ -24,6 +24,10 @@ export const AuthProvider = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authInitialized, setAuthInitialized] = useState(false);
   const [guestTrialExhausted, setGuestTrialExhausted] = useState(false);
+  const [signupTrialExhausted, setSignupTrialExhausted] = useState(false);
+  const [isWithinSignupTrial, setIsWithinSignupTrial] = useState(false);
+  const [signupTrialRemainingSeconds, setSignupTrialRemainingSeconds] = useState(0);
+  const [hasPaidRecharge, setHasPaidRecharge] = useState(false);
 
   const refreshGuestTrialStatus = useCallback(async () => {
     try {
@@ -37,6 +41,24 @@ export const AuthProvider = ({ children }) => {
     }
   }, []);
 
+  const refreshSignupTrialStatus = useCallback(async () => {
+    try {
+      const result = await apiGet("/auth/check-signup-trial");
+      if (result?.success && result.data) {
+        setSignupTrialExhausted(Boolean(result.data.isExhausted));
+        setIsWithinSignupTrial(Boolean(result.data.isWithinTrial));
+        setHasPaidRecharge(Boolean(result.data.hasPaidRecharge));
+        setSignupTrialRemainingSeconds(result.data.remainingSeconds || 0);
+        localStorage.setItem(
+          "signupTrialExhausted",
+          String(Boolean(result.data.isExhausted)),
+        );
+      }
+    } catch (error) {
+      console.error("Error checking signup trial status:", error);
+    }
+  }, []);
+
   const refreshWalletBalance = useCallback(async () => {
     try {
       const result = await apiGet("/wallet");
@@ -44,6 +66,7 @@ export const AuthProvider = ({ children }) => {
         const inrBalance = result.data.balances?.INR || 0;
         setWalletBalance(inrBalance);
         localStorage.setItem("walletBalance", inrBalance.toString());
+        return inrBalance;
       }
     } catch (error) {
       console.error("Error refreshing wallet balance:", error);
@@ -51,6 +74,7 @@ export const AuthProvider = ({ children }) => {
       setWalletBalance(0);
       localStorage.removeItem("walletBalance");
     }
+    return 0;
   }, []);
 
   useEffect(() => {
@@ -58,6 +82,7 @@ export const AuthProvider = ({ children }) => {
     const storedBalance = localStorage.getItem("walletBalance");
     let storedToken = localStorage.getItem("authToken");
     const storedExhausted = localStorage.getItem("guestTrialExhausted");
+    const storedSignupExhausted = localStorage.getItem("signupTrialExhausted");
 
     if (storedUser) {
       try {
@@ -88,6 +113,10 @@ export const AuthProvider = ({ children }) => {
       setGuestTrialExhausted(storedExhausted === "true");
     }
 
+    if (storedSignupExhausted) {
+      setSignupTrialExhausted(storedSignupExhausted === "true");
+    }
+
     setAuthInitialized(true);
   }, []);
 
@@ -96,6 +125,10 @@ export const AuthProvider = ({ children }) => {
     if (!authInitialized) return;
 
     refreshGuestTrialStatus();
+
+    if (isAuthenticated && user?.role === "user") {
+      refreshSignupTrialStatus();
+    }
 
     if (
       isAuthenticated &&
@@ -110,6 +143,7 @@ export const AuthProvider = ({ children }) => {
     user,
     refreshWalletBalance,
     refreshGuestTrialStatus,
+    refreshSignupTrialStatus,
   ]);
 
   const login = (userData) => {
@@ -119,6 +153,10 @@ export const AuthProvider = ({ children }) => {
 
     if (userData?.token) {
       localStorage.setItem("authToken", userData.token);
+    }
+
+    if (userData?.role === "user") {
+      void refreshSignupTrialStatus();
     }
 
     // Check if this is first login (no existing wallet balance)
@@ -142,6 +180,11 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("user");
     localStorage.removeItem("authToken");
     localStorage.removeItem("walletBalance");
+    localStorage.removeItem("signupTrialExhausted");
+    setSignupTrialExhausted(false);
+    setIsWithinSignupTrial(false);
+    setHasPaidRecharge(false);
+    setSignupTrialRemainingSeconds(0);
   };
 
   const addToWallet = (amount) => {
@@ -167,12 +210,17 @@ export const AuthProvider = ({ children }) => {
       isAuthenticated,
       authInitialized,
       guestTrialExhausted,
+      signupTrialExhausted,
+      isWithinSignupTrial,
+      hasPaidRecharge,
+      signupTrialRemainingSeconds,
       login,
       logout,
       addToWallet,
       deductFromWallet,
       refreshWalletBalance,
       refreshGuestTrialStatus,
+      refreshSignupTrialStatus,
     }),
     [
       user,
@@ -180,8 +228,13 @@ export const AuthProvider = ({ children }) => {
       isAuthenticated,
       authInitialized,
       guestTrialExhausted,
+      signupTrialExhausted,
+      isWithinSignupTrial,
+      hasPaidRecharge,
+      signupTrialRemainingSeconds,
       refreshWalletBalance,
       refreshGuestTrialStatus,
+      refreshSignupTrialStatus,
     ],
   );
 

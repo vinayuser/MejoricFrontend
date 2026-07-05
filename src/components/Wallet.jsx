@@ -14,7 +14,8 @@ import { apiPost, apiGet } from "../utils/api";
 import toast from "react-hot-toast";
 
 const Wallet = () => {
-  const { walletBalance, addToWallet, refreshWalletBalance } = useAuth();
+  const { walletBalance, addToWallet, refreshWalletBalance, refreshSignupTrialStatus } =
+    useAuth();
   const [balance, setBalance] = useState(walletBalance);
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
@@ -166,8 +167,8 @@ const Wallet = () => {
     setTransactions([newTransaction, ...transactions]);
     addToWallet(finalAmount);
 
-    // Refresh wallet balance from backend
-    refreshWalletBalance();
+    await refreshWalletBalance();
+    await refreshSignupTrialStatus();
 
     setAmount("");
     // Track Meta Pixel Purchase event

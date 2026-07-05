@@ -12,6 +12,7 @@ import { io } from "socket.io-client";
 import Swal from "sweetalert2";
 import { capitalizeName } from "../utils/formatters";
 import { showLoginSignupAlert } from "../utils/authAlert";
+import { useAuth } from "../context/AuthContext";
 
 const SOCKET_SERVER_URL = import.meta.env.VITE_SOCKET_SERVER_URL || "https://mejoric.com";
 
@@ -33,7 +34,10 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
   const [inputValue, setInputValue] = useState("");
   const [currentUser, setCurrentUser] = useState(null);
   const [isTrialChat, setIsTrialChat] = useState(false);
+  const [isSignupTrialUser, setIsSignupTrialUser] = useState(false);
   const [isTrialSession, setIsTrialSession] = useState(true);
+  const isTrialSessionRef = useRef(true);
+  const isSignupTrialUserRef = useRef(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [sessionEnded, setSessionEnded] = useState(false);
   const [endedBy, setEndedBy] = useState(null);
@@ -55,6 +59,34 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
   const lastInitiatedMentorIdRef = useRef(null);
   const sessionEndedRef = useRef(false);
   const navigate = useNavigate();
+  const { refreshSignupTrialStatus, signupTrialRemainingSeconds } = useAuth();
+
+  useEffect(() => {
+    if (isTrialSession || isSignupTrialUser) {
+      setShowRechargeDrawer(false);
+    }
+  }, [isTrialSession, isSignupTrialUser]);
+
+  useEffect(() => {
+    isTrialSessionRef.current = isTrialSession;
+  }, [isTrialSession]);
+
+  useEffect(() => {
+    isSignupTrialUserRef.current = isSignupTrialUser;
+  }, [isSignupTrialUser]);
+
+  useEffect(() => {
+    if (
+      signupTrialRemainingSeconds > 0 &&
+      !isMate &&
+      (isSignupTrialUser || currentUser?.role === "user")
+    ) {
+      setTimeLeft((prev) =>
+        prev > 0 ? Math.min(prev, signupTrialRemainingSeconds) : signupTrialRemainingSeconds,
+      );
+      setIsTrialSession(true);
+    }
+  }, [signupTrialRemainingSeconds, isSignupTrialUser, isMate, currentUser?.role]);
 
   const closeSmoothly = useCallback(
     (afterClose) => {
@@ -184,8 +216,23 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
         setCurrentUser(user);
         currentUserIdRef.current = user?._id || user?.id;
 
-        // Determine if this is a trial chat (involves at least one guest)
+        // Determine if this is a trial chat (guest or new signup window)
         let isTrial = user?.role === "guest" || mentor.role === "guest";
+        if (!isTrial && user?.role === "user") {
+          try {
+            const trialRes = await apiGet("/auth/check-signup-trial");
+            if (trialRes?.success && trialRes.data?.isWithinTrial) {
+              isTrial = true;
+              setIsSignupTrialUser(true);
+              setIsTrialSession(true);
+              if (typeof trialRes.data.remainingSeconds === "number") {
+                setTimeLeft(trialRes.data.remainingSeconds);
+              }
+            }
+          } catch (e) {
+            console.warn("[Chat] Could not fetch signup trial status", e);
+          }
+        }
         if (!isTrial) {
           try {
             const recipientRes = await apiGet(`/users/get/${mentor._id}`);
@@ -203,6 +250,9 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
 
         const amIMate = user?.role === "mate" || user?.role === "mentor";
         setIsMate(amIMate);
+        if (isTrial && !amIMate) {
+          setIsTrialSession(true);
+        }
         if (amIMate) setIsAccepted(true); // Mates start as accepted
 
         // Sync FCM token with server in the background without blocking Socket initialization
@@ -406,7 +456,8 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
 
         socket.on("low_balance_warning", (data) => {
           console.log("⚠️ [Socket] Low balance warning:", data);
-          if (amIMate) return; // Do not show low balance alert to the Mate
+          if (amIMate) return;
+          if (isTrialSessionRef.current || isSignupTrialUserRef.current) return;
 
           setMessages((prev) => {
             const warningText = `Your balance is about to finish. The session will end in ${Math.round(data.timeLeft / 60)} minute(s).`;
@@ -470,6 +521,9 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
             }
             if (data.isTrial !== undefined) {
               setIsTrialSession(data.isTrial);
+              if (data.isTrial) {
+                setIsSignupTrialUser(true);
+              }
             }
             if (data.elapsedSeconds !== undefined) {
               setElapsedSeconds(data.elapsedSeconds);
@@ -520,7 +574,12 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
           if (data.endedBy) {
             setEndedBy(data.endedBy);
           }
-          toast.error(`${name} has ended the session.`);
+          if (data.message) {
+            toast.error(data.message);
+          } else {
+            toast.error(`${name} has ended the session.`);
+          }
+          void refreshSignupTrialStatus();
           if (amIMate) onClose();
         });
 
@@ -616,11 +675,14 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
               },
             ];
           } else if (user?.role === "user") {
+            const trialSecs =
+              parseInt(import.meta.env.VITE_TRIAL_CHAT_DURATION) || 600;
+            const trialMins = Math.round(trialSecs / 60);
             return [
               {
                 senderId: mentor?._id || mentor?.id,
                 senderName: mentor.name,
-                text: `Hi! I'm ${capitalizeName(mentor.name)}. I'm here to listen and support you.`,
+                text: `Hi! I'm ${capitalizeName(mentor.name)}. I'm here to listen and support you. You have ${trialMins} minutes of free chat after signup.`,
                 timestamp: new Date(),
                 isOwn: false,
               },
@@ -724,16 +786,21 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
   // Timer logic (countdown if trial, count up if paid)
   useEffect(() => {
     const localTimer = setInterval(() => {
-      if (!isStarted || sessionEnded) return;
-      if (isTrialSession) {
+      if (sessionEnded) return;
+
+      const isTrialCountdown =
+        !isMate && (isTrialSession || isSignupTrialUser || isTrialChat);
+      if (isTrialCountdown) {
         setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
-      } else {
-        setElapsedSeconds((prev) => prev + 1);
+        return;
       }
+
+      if (!isStarted) return;
+      setElapsedSeconds((prev) => prev + 1);
     }, 1000);
 
     return () => clearInterval(localTimer);
-  }, [isStarted, isTrialSession, sessionEnded]);
+  }, [isStarted, isTrialSession, isSignupTrialUser, isTrialChat, isMate, sessionEnded]);
 
   // Dynamically load Razorpay checkout script
   useEffect(() => {
@@ -999,6 +1066,11 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const showTrialCountdown =
+    !isMate &&
+    !sessionEnded &&
+    (isTrialSession || isSignupTrialUser || isTrialChat);
+
   return (
     <div
       className={`fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ease-out ${
@@ -1033,74 +1105,71 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
                 )}
               </div>
               <p className="text-[10px] opacity-80 uppercase tracking-widest">
-                Live Chat
+                {showTrialCountdown ? "Free trial chat" : "Live Chat"}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {isStarted && (
-              <>
-                {/* Header Wallet Pill for Payer (Registered User) */}
-                {!isTrialSession && !isMate && walletBalance !== null && (
-                  <div className="relative group">
-                    <button
-                      onClick={() => setShowRechargeDrawer(true)}
-                      className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white px-3.5 py-1.5 rounded-full border border-emerald-400 shadow-lg shadow-emerald-500/20 transition-all duration-300 hover:scale-105 active:scale-95 font-semibold"
-                    >
-                      <FaWallet className="text-xs text-white group-hover:animate-bounce" />
-                      <span className="font-mono text-xs font-bold" style={{ fontVariantNumeric: "tabular-nums" }}>
-                        ₹{Math.floor(walletBalance)}
-                      </span>
-                      <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
-                    </button>
-                    {/* Premium Tooltip */}
-                    <div className="absolute top-full right-0 mt-2 whitespace-nowrap bg-slate-900/95 text-white text-xs px-2.5 py-1.5 rounded-lg shadow-xl border border-white/10 opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 origin-top-right transition-all duration-200 pointer-events-none z-[60] flex items-center gap-1.5 backdrop-blur-sm">
-                      <FaWallet className="text-emerald-400 text-[10px]" />
-                      <span>Wallet Balance: ₹{Math.floor(walletBalance)} (Click to Recharge)</span>
-                    </div>
-                  </div>
-                )}
+            {isStarted && !isTrialSession && !isMate && walletBalance !== null && (
+              <div className="relative group">
+                <button
+                  onClick={() => setShowRechargeDrawer(true)}
+                  className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white px-3.5 py-1.5 rounded-full border border-emerald-400 shadow-lg shadow-emerald-500/20 transition-all duration-300 hover:scale-105 active:scale-95 font-semibold"
+                >
+                  <FaWallet className="text-xs text-white group-hover:animate-bounce" />
+                  <span className="font-mono text-xs font-bold" style={{ fontVariantNumeric: "tabular-nums" }}>
+                    ₹{Math.floor(walletBalance)}
+                  </span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse"></span>
+                </button>
+                {/* Premium Tooltip */}
+                <div className="absolute top-full right-0 mt-2 whitespace-nowrap bg-slate-900/95 text-white text-xs px-2.5 py-1.5 rounded-lg shadow-xl border border-white/10 opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 origin-top-right transition-all duration-200 pointer-events-none z-[60] flex items-center gap-1.5 backdrop-blur-sm">
+                  <FaWallet className="text-emerald-400 text-[10px]" />
+                  <span>Wallet Balance: ₹{Math.floor(walletBalance)} (Click to Recharge)</span>
+                </div>
+              </div>
+            )}
 
-                {isTrialSession ? (
-                  <div className="relative group animate-in fade-in slide-in-from-right-4 duration-300">
-                    <div className={`flex items-center gap-1.5 bg-white/20 px-3 py-1.5 rounded-full border border-white/30 text-white shadow-sm ${sessionEnded
-                        ? "opacity-50"
-                        : timeLeft < 30
-                          ? "border-red-400/50 bg-red-500/10 text-red-400"
-                          : ""
-                      }`}>
-                      <FaClock className={`text-xs animate-pulse ${sessionEnded
-                          ? "opacity-50"
-                          : timeLeft < 30
-                            ? "text-red-400"
-                            : "text-white/80"
-                        }`} />
-                      <span className="font-mono text-xs font-bold tracking-wider" style={{ fontVariantNumeric: "tabular-nums" }}>
-                        {formatTime(timeLeft)}
-                      </span>
-                    </div>
-                    {/* Premium Tooltip */}
-                    <div className="absolute top-full right-0 mt-2 whitespace-nowrap bg-slate-900/95 text-white text-xs px-2.5 py-1.5 rounded-lg shadow-xl border border-white/10 opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 origin-top-right transition-all duration-200 pointer-events-none z-[60] flex items-center gap-1.5 backdrop-blur-sm">
-                      <FaClock className="text-purple-400 text-[10px]" />
-                      <span>Session Timer (Countdown)</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="relative group animate-in fade-in slide-in-from-right-4 duration-300">
-                    <div className="flex items-center gap-1.5 bg-white/20 px-3 py-1.5 rounded-full border border-white/30 text-white shadow-sm">
-                      <FaClock className="text-xs text-white/80 animate-pulse" />
-                      <span className="font-mono text-xs font-bold tracking-wider" style={{ fontVariantNumeric: "tabular-nums" }}>
-                        {formatTime(elapsedSeconds)}
-                      </span>
-                    </div>
-                    {/* Premium Tooltip */}
-                    <div className="absolute top-full right-0 mt-2 whitespace-nowrap bg-slate-900/95 text-white text-xs px-2.5 py-1.5 rounded-lg shadow-xl border border-white/10 opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 origin-top-right transition-all duration-200 pointer-events-none z-[60] flex items-center gap-1.5 backdrop-blur-sm">
-                      <FaClock className="text-purple-400 text-[10px]" />
-                      <span>Session Timer (Elapsed)</span>
-                    </div>
-                  </div>
-                )}
-              </>
+            {showTrialCountdown && (
+              <div className="relative group animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className={`flex items-center gap-1.5 bg-white/20 px-3 py-1.5 rounded-full border border-white/30 text-white shadow-sm ${sessionEnded
+                    ? "opacity-50"
+                    : timeLeft < 30
+                      ? "border-red-400/50 bg-red-500/10 text-red-400"
+                      : ""
+                  }`}>
+                  <FaClock className={`text-xs animate-pulse ${sessionEnded
+                      ? "opacity-50"
+                      : timeLeft < 30
+                        ? "text-red-400"
+                        : "text-white/80"
+                    }`} />
+                  <span className="font-mono text-xs font-bold tracking-wider" style={{ fontVariantNumeric: "tabular-nums" }}>
+                    {formatTime(timeLeft)}
+                  </span>
+                </div>
+                {/* Premium Tooltip */}
+                <div className="absolute top-full right-0 mt-2 whitespace-nowrap bg-slate-900/95 text-white text-xs px-2.5 py-1.5 rounded-lg shadow-xl border border-white/10 opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 origin-top-right transition-all duration-200 pointer-events-none z-[60] flex items-center gap-1.5 backdrop-blur-sm">
+                  <FaClock className="text-purple-400 text-[10px]" />
+                  <span>Free trial remaining</span>
+                </div>
+              </div>
+            )}
+
+            {isStarted && !showTrialCountdown && (
+              <div className="relative group animate-in fade-in slide-in-from-right-4 duration-300">
+                <div className="flex items-center gap-1.5 bg-white/20 px-3 py-1.5 rounded-full border border-white/30 text-white shadow-sm">
+                  <FaClock className="text-xs text-white/80 animate-pulse" />
+                  <span className="font-mono text-xs font-bold tracking-wider" style={{ fontVariantNumeric: "tabular-nums" }}>
+                    {formatTime(elapsedSeconds)}
+                  </span>
+                </div>
+                {/* Premium Tooltip */}
+                <div className="absolute top-full right-0 mt-2 whitespace-nowrap bg-slate-900/95 text-white text-xs px-2.5 py-1.5 rounded-lg shadow-xl border border-white/10 opacity-0 group-hover:opacity-100 scale-95 group-hover:scale-100 origin-top-right transition-all duration-200 pointer-events-none z-[60] flex items-center gap-1.5 backdrop-blur-sm">
+                  <FaClock className="text-purple-400 text-[10px]" />
+                  <span>Session Timer (Elapsed)</span>
+                </div>
+              </div>
             )}
             <div className="relative group">
               <button
@@ -1181,7 +1250,7 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
                       <p className="text-gray-700 text-xs font-semibold mb-3 leading-relaxed">
                         {msg.text}
                       </p>
-                      {!isMate && (
+                      {!isMate && !isTrialSession && !isSignupTrialUser && (
                         <button
                           onClick={() => setShowRechargeDrawer(true)}
                           className="w-full py-2 px-4 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-bold rounded-xl transition-all duration-300 transform active:scale-95 shadow-md shadow-amber-500/20 flex items-center justify-center gap-1.5"
@@ -1284,16 +1353,15 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
           )}
         </div>
 
-        {/* Quick Recharge Drawer */}
-        {showRechargeDrawer && (
+        {/* Quick Recharge Drawer — hidden during free signup / guest trial */}
+        {showRechargeDrawer && !isTrialSession && !isSignupTrialUser && (
+          <>
           <div
             className="absolute inset-0 bg-black/40 backdrop-blur-xs z-40 transition-opacity duration-300"
             onClick={() => setShowRechargeDrawer(false)}
           />
-        )}
         <div
-          className={`absolute bottom-0 left-0 right-0 z-50 bg-white border-t border-purple-100 rounded-t-[2rem] shadow-[0_-8px_30px_rgb(0,0,0,0.15)] px-6 py-5 transition-transform duration-300 ease-out transform ${showRechargeDrawer ? "translate-y-0" : "translate-y-full"
-            }`}
+          className="absolute bottom-0 left-0 right-0 z-50 bg-white border-t border-purple-100 rounded-t-[2rem] shadow-[0_-8px_30px_rgb(0,0,0,0.15)] px-6 py-5 transition-transform duration-300 ease-out transform translate-y-0"
         >
           <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-4 cursor-pointer animate-pulse" onClick={() => setShowRechargeDrawer(false)}></div>
 
@@ -1365,6 +1433,8 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
             )}
           </button>
         </div>
+          </>
+        )}
       </div>
     </div>
   );

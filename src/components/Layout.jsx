@@ -7,6 +7,7 @@ import {
   FaUser,
   FaHeart,
   FaUsers,
+  FaComments,
   FaWhatsapp,
   FaInstagram,
   FaFacebook,
@@ -162,6 +163,7 @@ const Layout = ({ children, activePage }) => {
       : [
           { name: "Home", icon: <FaHome />, path: "/", badge: null },
           { name: "Mate", icon: <FaHeart />, path: "/mate", badge: "" },
+          // { name: "Community", icon: <FaComments />, path: "/community", badge: "" },
           { name: "Mentors", icon: <FaUsers />, path: "/mentors", badge: "" },
           {
             name: "Contact",

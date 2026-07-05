@@ -1,6 +1,6 @@
 // API Utility functions
 // Typical success body: { success: true, message: string, data: T }
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:3000/mateandmentors";
 
 // Get auth token from localStorage
 export const getAuthToken = () => {
@@ -122,8 +122,8 @@ export const apiPost = async (endpoint, body, skipAuth = false) => {
   }
 };
 
-// PUT request
-export const apiPut = async (endpoint, body, skipAuth = false) => {
+// PUT request (supports keepalive for tab-close offline beacons)
+export const apiPut = async (endpoint, body, skipAuth = false, options = {}) => {
   if (!skipAuth) {
     const token = getAuthToken();
     if (!token) {
@@ -141,6 +141,7 @@ export const apiPut = async (endpoint, body, skipAuth = false) => {
       method: "PUT",
       headers: headers,
       body: JSON.stringify(body),
+      keepalive: Boolean(options.keepalive),
     });
 
     if (response.status === 401 && !skipAuth) {
