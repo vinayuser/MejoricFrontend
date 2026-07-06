@@ -19,8 +19,9 @@ import {
   FaVideo,
   FaWallet,
   FaRupeeSign,
+  FaCalendarAlt,
 } from "react-icons/fa";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { trackPixel, trackPixelCustom } from "../utils/metaPixel";
 import logo from "../img/logo_final.webp";
@@ -28,15 +29,41 @@ import { getFCMToken } from "../utils/fcm";
 import toast from "react-hot-toast";
 import { capitalizeName } from "../utils/formatters";
 
+const MENTOR_DROPDOWN_LINKS = [
+  { label: "All Mentors", path: "/mentors", description: "Choose emotional or professional" },
+  {
+    label: "Emotional Mentors",
+    path: "/mentors/emotional/about",
+    description: "Anxiety, grief, relationships & more",
+    accent: "emotional",
+  },
+  {
+    label: "Professional Mentors",
+    path: "/mentors/professional/about",
+    description: "Career, HR, product, data & more",
+    accent: "professional",
+  },
+];
+
 const Layout = ({ children, activePage }) => {
   const { user, isAuthenticated, walletBalance, logout, refreshWalletBalance } =
     useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMentorDropdownOpen, setIsMentorDropdownOpen] = useState(false);
+  const [isMobileMentorsOpen, setIsMobileMentorsOpen] = useState(false);
   const searchInputRef = useRef(null);
   const dropdownRef = useRef(null);
+  const mentorDropdownRef = useRef(null);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const isMentorsActive =
+    activePage === "Mentors" ||
+    activePage === "Emotional Mentors" ||
+    activePage === "Professional Mentors" ||
+    location.pathname.startsWith("/mentors");
 
   // Notification State
   const [fcmStatus, setFcmStatus] = useState(
@@ -110,6 +137,9 @@ const Layout = ({ children, activePage }) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setIsDropdownOpen(false);
       }
+      if (mentorDropdownRef.current && !mentorDropdownRef.current.contains(event.target)) {
+        setIsMentorDropdownOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -164,7 +194,7 @@ const Layout = ({ children, activePage }) => {
           { name: "Home", icon: <FaHome />, path: "/", badge: null },
           { name: "Mate", icon: <FaHeart />, path: "/mate", badge: "" },
           // { name: "Community", icon: <FaComments />, path: "/community", badge: "" },
-          { name: "Mentors", icon: <FaUsers />, path: "/mentors", badge: "" },
+          { name: "Mentors", icon: <FaUsers />, path: "/mentors", badge: "", hasDropdown: true },
           {
             name: "Contact",
             icon: <FaWhatsapp />,
@@ -174,7 +204,7 @@ const Layout = ({ children, activePage }) => {
         ];
 
   return (
-    <div className="min-h-screen bg-purple-100">
+    <div className="min-h-screen bg-white">
       {/* Notifications Blocked Banner - Global visibility */}
       {fcmStatus === "denied" && !isDismissed && (
         <div className="fixed bottom-0 left-0 right-0 md:sticky md:top-0 z-[100] animate-slide-up md:animate-none">
@@ -239,51 +269,112 @@ const Layout = ({ children, activePage }) => {
 
           {/* Desktop Navigation */}
           <ul className="hidden lg:flex items-center gap-1">
-            {navigationItems.map((item) => (
-              <li key={item.name} className="relative">
-                <Link
-                  to={item.path}
-                  onClick={() => {
-                    trackPixel("ViewContent", {
-                      content_category: item.name,
-                    });
-                    if (typeof window.gtag === "function") {
-                      window.gtag("event", "view_item", {
-                        items: [
-                          {
-                            item_name: item.name,
-                            item_category: "Navigation",
-                          },
-                        ],
-                      });
-                    }
-                  }}
-                  className={`flex items-center gap-3 px-5 py-3 rounded-2xl transition-all duration-300 mx-1 ${
-                    activePage === item.name
-                      ? "bg-purple-600 text-white shadow-lg"
-                      : "hover:bg-purple-50 text-gray-700 hover:text-purple-700 hover:shadow-md"
-                  }`}
-                >
-                  <span
-                    className={`text-lg ${activePage === item.name ? "text-white" : "text-purple-600"}`}
-                  >
-                    {item.icon}
-                  </span>
-                  <span className="font-semibold text-sm">{item.name}</span>
-                  {item.badge && (
-                    <span
-                      className={`px-2 py-0.5 text-xs rounded-full ${
-                        activePage === item.name
-                          ? "bg-white/30 text-white"
-                          : "bg-purple-100 text-purple-700"
+            {navigationItems.map((item) => {
+              if (item.hasDropdown) {
+                return (
+                  <li key={item.name} className="relative" ref={mentorDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsMentorDropdownOpen(!isMentorDropdownOpen)}
+                      className={`flex items-center gap-3 px-5 py-3 rounded-2xl transition-all duration-300 mx-1 ${
+                        isMentorsActive
+                          ? "bg-purple-600 text-white shadow-lg"
+                          : "hover:bg-purple-50 text-gray-700 hover:text-purple-700 hover:shadow-md"
                       }`}
                     >
-                      {item.badge}
+                      <span
+                        className={`text-lg ${isMentorsActive ? "text-white" : "text-purple-600"}`}
+                      >
+                        {item.icon}
+                      </span>
+                      <span className="font-semibold text-sm">{item.name}</span>
+                      <FaChevronDown
+                        className={`text-xs transition-transform duration-200 ${isMentorDropdownOpen ? "rotate-180" : ""}`}
+                      />
+                    </button>
+
+                    {isMentorDropdownOpen && (
+                      <div className="absolute left-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-purple-100 py-2 z-50 animate-fade-in overflow-hidden">
+                        {MENTOR_DROPDOWN_LINKS.map((link) => (
+                          <Link
+                            key={link.path}
+                            to={link.path}
+                            onClick={() => {
+                              setIsMentorDropdownOpen(false);
+                              trackPixel("ViewContent", { content_category: link.label });
+                            }}
+                            className="block px-4 py-3 hover:bg-purple-50 transition-colors"
+                          >
+                            <span
+                              className={`block text-sm font-semibold ${
+                                link.accent === "emotional"
+                                  ? "text-pink-600"
+                                  : link.accent === "professional"
+                                    ? "text-purple-700"
+                                    : "text-gray-900"
+                              }`}
+                            >
+                              {link.label}
+                            </span>
+                            {link.description && (
+                              <span className="block text-xs text-gray-500 mt-0.5">
+                                {link.description}
+                              </span>
+                            )}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </li>
+                );
+              }
+
+              return (
+                <li key={item.name} className="relative">
+                  <Link
+                    to={item.path}
+                    onClick={() => {
+                      trackPixel("ViewContent", {
+                        content_category: item.name,
+                      });
+                      if (typeof window.gtag === "function") {
+                        window.gtag("event", "view_item", {
+                          items: [
+                            {
+                              item_name: item.name,
+                              item_category: "Navigation",
+                            },
+                          ],
+                        });
+                      }
+                    }}
+                    className={`flex items-center gap-3 px-5 py-3 rounded-2xl transition-all duration-300 mx-1 ${
+                      activePage === item.name
+                        ? "bg-purple-600 text-white shadow-lg"
+                        : "hover:bg-purple-50 text-gray-700 hover:text-purple-700 hover:shadow-md"
+                    }`}
+                  >
+                    <span
+                      className={`text-lg ${activePage === item.name ? "text-white" : "text-purple-600"}`}
+                    >
+                      {item.icon}
                     </span>
-                  )}
-                </Link>
-              </li>
-            ))}
+                    <span className="font-semibold text-sm">{item.name}</span>
+                    {item.badge && (
+                      <span
+                        className={`px-2 py-0.5 text-xs rounded-full ${
+                          activePage === item.name
+                            ? "bg-white/30 text-white"
+                            : "bg-purple-100 text-purple-700"
+                        }`}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
 
           {/* Right Side Actions */}
@@ -373,6 +464,16 @@ const Layout = ({ children, activePage }) => {
                         </>
                       ) : (
                         <>
+                          <button
+                            onClick={() => {
+                              setIsDropdownOpen(false);
+                              navigate("/my-appointments");
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors duration-200"
+                          >
+                            <FaCalendarAlt className="text-purple-600" />
+                            <span className="font-medium">My Appointments</span>
+                          </button>
                           <button
                             onClick={() => {
                               setIsDropdownOpen(false);
@@ -502,56 +603,107 @@ const Layout = ({ children, activePage }) => {
 
                 {/* Navigation Items */}
                 <ul className="space-y-3 mb-8">
-                  {navigationItems.map((item) => (
-                    <li key={item.name}>
-                      <Link
-                        to={item.path}
-                        onClick={() => {
-                          setIsMobileMenuOpen(false);
-                          trackPixel("ViewContent", {
-                            content_category: item.name,
-                          });
-                          if (typeof window.gtag === "function") {
-                            window.gtag("event", "view_item", {
-                              items: [
-                                {
-                                  item_name: item.name,
-                                  item_category: "Navigation",
-                                },
-                              ],
-                            });
-                          }
-                        }}
-                        className={`flex items-center justify-between p-4 rounded-2xl transition-all duration-300 ${
-                          activePage === item.name
-                            ? "bg-purple-600 text-white shadow-xl"
-                            : "bg-white hover:bg-purple-50 text-gray-700 shadow-md hover:shadow-lg"
-                        }`}
-                      >
-                        <div className="flex items-center gap-4">
-                          <span
-                            className={`text-xl ${activePage === item.name ? "text-white" : "text-purple-600"}`}
-                          >
-                            {item.icon}
-                          </span>
-                          <span className="font-semibold text-lg">
-                            {item.name}
-                          </span>
-                        </div>
-                        {item.badge && (
-                          <span
-                            className={`px-3 py-1 rounded-full text-xs font-bold ${
-                              activePage === item.name
-                                ? "bg-white/30 text-white"
-                                : "bg-purple-100 text-purple-700"
+                  {navigationItems.map((item) => {
+                    if (item.hasDropdown) {
+                      return (
+                        <li key={item.name}>
+                          <button
+                            type="button"
+                            onClick={() => setIsMobileMentorsOpen(!isMobileMentorsOpen)}
+                            className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all duration-300 ${
+                              isMentorsActive
+                                ? "bg-purple-600 text-white shadow-xl"
+                                : "bg-white hover:bg-purple-50 text-gray-700 shadow-md hover:shadow-lg"
                             }`}
                           >
-                            {item.badge}
-                          </span>
-                        )}
-                      </Link>
-                    </li>
-                  ))}
+                            <div className="flex items-center gap-4">
+                              <span
+                                className={`text-xl ${isMentorsActive ? "text-white" : "text-purple-600"}`}
+                              >
+                                {item.icon}
+                              </span>
+                              <span className="font-semibold text-lg">{item.name}</span>
+                            </div>
+                            <FaChevronDown
+                              className={`text-sm transition-transform ${isMobileMentorsOpen ? "rotate-180" : ""}`}
+                            />
+                          </button>
+                          {isMobileMentorsOpen && (
+                            <ul className="mt-2 ml-4 space-y-2">
+                              {MENTOR_DROPDOWN_LINKS.map((link) => (
+                                <li key={link.path}>
+                                  <Link
+                                    to={link.path}
+                                    onClick={() => {
+                                      setIsMobileMenuOpen(false);
+                                      setIsMobileMentorsOpen(false);
+                                      trackPixel("ViewContent", {
+                                        content_category: link.label,
+                                      });
+                                    }}
+                                    className="block p-3 rounded-xl bg-purple-50/80 hover:bg-purple-100 text-sm font-medium text-gray-800"
+                                  >
+                                    {link.label}
+                                  </Link>
+                                </li>
+                              ))}
+                            </ul>
+                          )}
+                        </li>
+                      );
+                    }
+
+                    return (
+                      <li key={item.name}>
+                        <Link
+                          to={item.path}
+                          onClick={() => {
+                            setIsMobileMenuOpen(false);
+                            trackPixel("ViewContent", {
+                              content_category: item.name,
+                            });
+                            if (typeof window.gtag === "function") {
+                              window.gtag("event", "view_item", {
+                                items: [
+                                  {
+                                    item_name: item.name,
+                                    item_category: "Navigation",
+                                  },
+                                ],
+                              });
+                            }
+                          }}
+                          className={`flex items-center justify-between p-4 rounded-2xl transition-all duration-300 ${
+                            activePage === item.name
+                              ? "bg-purple-600 text-white shadow-xl"
+                              : "bg-white hover:bg-purple-50 text-gray-700 shadow-md hover:shadow-lg"
+                          }`}
+                        >
+                          <div className="flex items-center gap-4">
+                            <span
+                              className={`text-xl ${activePage === item.name ? "text-white" : "text-purple-600"}`}
+                            >
+                              {item.icon}
+                            </span>
+                            <span className="font-semibold text-lg">
+                              {item.name}
+                            </span>
+                          </div>
+                          {item.badge && (
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                activePage === item.name
+                                  ? "bg-white/30 text-white"
+                                  : "bg-purple-100 text-purple-700"
+                              }`}
+                            >
+                              {item.badge}
+                            </span>
+                          )}
+                        </Link>
+                      </li>
+                    );
+                  })}
                   {/* Add Login/Logout button for mobile */}
                   {isAuthenticated ? (
                     <li>

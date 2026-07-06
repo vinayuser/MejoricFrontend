@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   FaCalendarAlt,
   FaCheckCircle,
@@ -11,12 +11,12 @@ import {
   FaTimes,
   FaVideo,
 } from "react-icons/fa";
+import { getFormatLabel, getFormatDuration } from "../utils/mentorPlatformApi";
 import { apiGet } from "../utils/api";
 import { capitalizeName } from "../utils/formatters";
 import { useAuth } from "../context/AuthContext";
 import toast from "react-hot-toast";
 import {
-  createMentorBooking,
   fetchAvailableDates,
   fetchAvailableSlots,
   formatBookingDateTime,
@@ -25,6 +25,8 @@ import {
   parseDateKey,
   toDateKey,
 } from "../utils/mentorBooking";
+import { payAndBookMentorSession } from "../utils/mentorBookingPayment";
+import { getAuthToken } from "../utils/api";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -224,17 +226,24 @@ function TimeSlots({
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
             {visibleSlots.map((slot) => {
               const isSelected = selectedSlotId === slot.id;
+              const isMine = Boolean(slot.bookedByMe);
               return (
                 <button
                   key={slot.id}
                   type="button"
                   onClick={() => onSelectSlot(slot)}
+                  title={isMine ? "You already booked this slot" : undefined}
                   className={`py-3 px-4 rounded-xl border text-sm font-semibold transition-all ${
-                    isSelected
-                      ? "bg-purple-600 border-purple-600 text-white shadow-md shadow-purple-200"
-                      : "bg-white border-slate-200 text-slate-700 hover:border-purple-300 hover:bg-purple-50"
+                    isMine
+                      ? isSelected
+                        ? "bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-200"
+                        : "bg-emerald-50 border-emerald-300 text-emerald-800"
+                      : isSelected
+                        ? "bg-purple-600 border-purple-600 text-white shadow-md shadow-purple-200"
+                        : "bg-white border-slate-200 text-slate-700 hover:border-purple-300 hover:bg-purple-50"
                   }`}
                 >
+                  {isMine ? "✓ " : ""}
                   {slot.label}
                 </button>
               );
@@ -266,10 +275,17 @@ function BookingFormStep({
   onBack,
   onSubmit,
   submitting,
+  sessionFormat = "video",
+  sessionPrice,
 }) {
   const [showMoreDetails, setShowMoreDetails] = useState(false);
   const mentorName = capitalizeName(mentor?.mentor?.name || mentor?.name || "Mentor");
   const sessionLabel = `Session with ${mentorName}`;
+  const formatLabel = getFormatLabel(sessionFormat);
+  const durationMinutes = getFormatDuration(sessionFormat);
+  const pricePerMin = sessionPrice != null ? Math.round(sessionPrice / durationMinutes) : null;
+  const formatKind = sessionFormat === "audio" ? "Audio call" : "Video call via Zoom";
+  const slotLabel = selectedSlot?.label;
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_300px] min-h-0">
@@ -465,8 +481,19 @@ function BookingFormStep({
         <div className="space-y-2 mb-6">
           <p className="font-semibold text-slate-900">{sessionLabel}</p>
           <p className="text-slate-700">
-            {formatBookingDateTime(selectedDateKey, selectedSlot.label)}
+            {selectedDateKey && slotLabel
+              ? formatBookingDateTime(selectedDateKey, slotLabel)
+              : "Select a date and time"}
           </p>
+          {sessionPrice != null && (
+            <p className="text-purple-700 font-bold text-lg">
+              ₹{Number(sessionPrice).toLocaleString("en-IN")}{" "}
+              <span className="text-sm font-medium text-slate-600">
+                · {formatLabel}
+                {pricePerMin ? ` (₹${pricePerMin}/min)` : ""}
+              </span>
+            </p>
+          )}
         </div>
 
         <button
@@ -484,11 +511,23 @@ function BookingFormStep({
               <span className="font-semibold text-slate-800">Mentor:</span> {mentorName}
             </p>
             <p>
-              <span className="font-semibold text-slate-800">Duration:</span> 30 minutes
+              <span className="font-semibold text-slate-800">Duration:</span> {durationMinutes}{" "}
+              minutes
             </p>
             <p>
-              <span className="font-semibold text-slate-800">Format:</span> Video call via Zoom
+              <span className="font-semibold text-slate-800">Format:</span> {formatKind}
             </p>
+            {sessionPrice != null && pricePerMin != null && (
+              <p>
+                <span className="font-semibold text-slate-800">Rate:</span> ₹{pricePerMin}/min
+              </p>
+            )}
+            {sessionPrice != null && (
+              <p>
+                <span className="font-semibold text-slate-800">Session total:</span> ₹
+                {Number(sessionPrice).toLocaleString("en-IN")}
+              </p>
+            )}
             <p>
               <span className="font-semibold text-slate-800">Timezone:</span> India Standard Time
               (IST)
@@ -514,7 +553,11 @@ function BookingFormStep({
           onClick={onSubmit}
           className="w-full mt-8 py-4 rounded-xl bg-purple-600 text-white text-lg font-bold hover:bg-purple-700 disabled:opacity-50 transition-colors shadow-lg shadow-purple-200"
         >
-          {submitting ? "Booking..." : "Book Now"}
+          {submitting
+            ? "Processing payment..."
+            : sessionPrice != null
+              ? `Pay ₹${Number(sessionPrice).toLocaleString("en-IN")} & Book`
+              : "Pay & Book"}
         </button>
       </aside>
     </div>
@@ -532,9 +575,10 @@ function BookingSuccess({ booking, onDone }) {
       </h2>
       <p className="text-slate-600 mb-8">
         Your session with <span className="font-semibold">{booking.mentorName}</span>{" "}
-        is confirmed. A confirmation email with the Zoom meeting details has been sent
-        to <span className="font-semibold">{booking.userEmail}</span>.
-        You will also receive reminders 30 minutes and 5 minutes before the session.
+        is confirmed. A confirmation email has been sent to{" "}
+        <span className="font-semibold">{booking.userEmail}</span>.
+        Join from <Link to="/my-appointments" className="text-purple-600 font-semibold underline">My Appointments</Link> when
+        it&apos;s time (15 minutes before your slot).
       </p>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-6 text-left shadow-sm mb-8">
@@ -559,58 +603,76 @@ function BookingSuccess({ booking, onDone }) {
         <div className="mt-6 pt-6 border-t border-slate-100">
           <div className="flex items-center gap-2 text-purple-700 font-semibold mb-3">
             <FaVideo />
-            Zoom meeting details
+            Session via Agora
           </div>
-          <p className="text-xs text-slate-500 mb-3">You will join this session as a participant.</p>
-          <div className="space-y-2 text-sm">
-            <p>
-              <span className="text-slate-500">Meeting ID:</span>{" "}
-              <span className="font-semibold text-slate-900">{booking.zoomMeetingId}</span>
-            </p>
-            <p>
-              <span className="text-slate-500">Passcode:</span>{" "}
-              <span className="font-semibold text-slate-900">{booking.zoomPassword}</span>
-            </p>
-            <a
-              href={booking.zoomJoinUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-2 mt-2 text-purple-600 font-semibold hover:text-purple-700"
-            >
-              Join meeting as participant
-            </a>
-          </div>
+          <p className="text-xs text-slate-500 mb-3">
+            Audio/video call opens in the Mejoric app — no external Zoom link needed.
+          </p>
+          <Link
+            to="/my-appointments"
+            className="inline-flex items-center gap-2 mt-2 text-purple-600 font-semibold hover:text-purple-700"
+          >
+            View my appointments
+          </Link>
         </div>
       </div>
 
-      <button
-        type="button"
-        onClick={onDone}
-        className="px-8 py-3 rounded-xl bg-purple-600 text-white font-semibold hover:bg-purple-700 transition-colors"
-      >
-        Done
-      </button>
+      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <Link
+          to="/my-appointments"
+          className="px-8 py-3 rounded-xl bg-purple-600 text-white font-semibold hover:bg-purple-700 transition-colors text-center"
+        >
+          My Appointments
+        </Link>
+        <button
+          type="button"
+          onClick={onDone}
+          className="px-8 py-3 rounded-xl border border-slate-200 text-slate-700 font-semibold hover:bg-slate-50 transition-colors"
+        >
+          Done
+        </button>
+      </div>
     </div>
   );
 }
 
-export default function MentorBookingModal({ mentorId, isOpen, onClose }) {
+export default function MentorBookingModal({
+  mentorId,
+  isOpen,
+  onClose,
+  onBookingSuccess,
+  sessionFormat = "video",
+  sessionPrice,
+  initialSlot = null,
+  initialDateKey = "",
+  initialStep = "schedule",
+}) {
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const [mentor, setMentor] = useState(null);
   const [loadingMentor, setLoadingMentor] = useState(true);
   const [viewDate, setViewDate] = useState(() => {
+    const dateKey = initialDateKey || initialSlot?.dateKey;
+    if (dateKey) {
+      const d = parseDateKey(dateKey);
+      return new Date(d.getFullYear(), d.getMonth(), 1);
+    }
     const now = new Date();
     return new Date(now.getFullYear(), now.getMonth(), 1);
   });
-  const [selectedDateKey, setSelectedDateKey] = useState("");
-  const [selectedSlot, setSelectedSlot] = useState(null);
+  const [selectedDateKey, setSelectedDateKey] = useState(
+    initialDateKey || initialSlot?.dateKey || "",
+  );
+  const [selectedSlot, setSelectedSlot] = useState(initialSlot || null);
   const [showAllSlots, setShowAllSlots] = useState(false);
   const [availableDateKeys, setAvailableDateKeys] = useState([]);
   const [slots, setSlots] = useState([]);
   const [loadingDates, setLoadingDates] = useState(false);
   const [loadingSlots, setLoadingSlots] = useState(false);
-  const [step, setStep] = useState("schedule");
+  const [step, setStep] = useState(
+    initialStep === "confirm" && initialSlot ? "confirm" : "schedule",
+  );
   const [form, setForm] = useState(EMPTY_FORM);
   const [errors, setErrors] = useState({});
   const [booking, setBooking] = useState(null);
@@ -655,8 +717,20 @@ export default function MentorBookingModal({ mentorId, isOpen, onClose }) {
         const now = new Date();
         return new Date(now.getFullYear(), now.getMonth(), 1);
       });
+      return;
     }
-  }, [isOpen]);
+
+    if (initialSlot) {
+      setSelectedSlot(initialSlot);
+      const dateKey = initialDateKey || initialSlot.dateKey || "";
+      setSelectedDateKey(dateKey);
+      setStep(initialStep === "confirm" ? "confirm" : "schedule");
+      if (dateKey) {
+        const d = parseDateKey(dateKey);
+        setViewDate(new Date(d.getFullYear(), d.getMonth(), 1));
+      }
+    }
+  }, [isOpen, initialSlot, initialDateKey, initialStep]);
 
   useEffect(() => {
     if (!isOpen) return undefined;
@@ -755,19 +829,41 @@ export default function MentorBookingModal({ mentorId, isOpen, onClose }) {
   }, [mentorId, selectedDateKey]);
 
   useEffect(() => {
+    if (loadingDates) return;
+
     if (availableDateKeys.length === 0) {
-      setSelectedDateKey("");
+      if (!initialSlot?.dateKey) {
+        setSelectedDateKey("");
+      }
       return;
     }
-    if (!selectedDateKey || !availableDateKeys.includes(selectedDateKey)) {
-      setSelectedDateKey(availableDateKeys[0]);
+
+    if (selectedDateKey && availableDateKeys.includes(selectedDateKey)) {
+      return;
     }
-  }, [availableDateKeys, selectedDateKey]);
+
+    const fallback =
+      initialSlot?.dateKey && availableDateKeys.includes(initialSlot.dateKey)
+        ? initialSlot.dateKey
+        : availableDateKeys[0];
+
+    setSelectedDateKey(fallback);
+    if (fallback !== initialSlot?.dateKey) {
+      setSelectedSlot(null);
+    }
+  }, [availableDateKeys, loadingDates, initialSlot, selectedDateKey]);
 
   useEffect(() => {
+    if (step === "confirm" && !selectedSlot) {
+      setStep("schedule");
+    }
+  }, [step, selectedSlot]);
+
+  const handleSelectDate = (dateKey) => {
+    setSelectedDateKey(dateKey);
     setSelectedSlot(null);
     setShowAllSlots(false);
-  }, [selectedDateKey]);
+  };
 
   const handlePrevMonth = () => {
     setViewDate((current) => new Date(current.getFullYear(), current.getMonth() - 1, 1));
@@ -783,16 +879,34 @@ export default function MentorBookingModal({ mentorId, isOpen, onClose }) {
       return;
     }
 
+    if (selectedSlot.bookedByMe) {
+      toast.error("You have already booked this slot");
+      return;
+    }
+
     if (!validateForm()) {
       toast.error("Please complete all required fields");
       return;
     }
 
+    if (!getAuthToken()) {
+      toast.error("Please log in to complete your booking");
+      navigate("/login");
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const result = await createMentorBooking({
+      const mentorName = capitalizeName(
+        mentor?.mentor?.name || mentor?.name || "Mentor",
+      );
+      const result = await payAndBookMentorSession({
         mentorId,
         slot: selectedSlot,
+        sessionFormat,
+        sessionPrice,
+        mentorName,
+        user,
         guestDetails: {
           fullName: form.fullName.trim(),
           email: form.email.trim(),
@@ -806,10 +920,15 @@ export default function MentorBookingModal({ mentorId, isOpen, onClose }) {
       });
       setBooking(result);
       setStep("success");
-      toast.success("Appointment booked successfully");
+      toast.success("Payment successful — appointment booked!");
+      onBookingSuccess?.(result);
     } catch (error) {
       console.error(error);
-      toast.error(error.message || "Could not create booking. Please try again.");
+      if (error.message === "Payment cancelled") {
+        toast.error("Payment was cancelled");
+      } else {
+        toast.error(error.message || "Could not complete booking. Please try again.");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -869,7 +988,7 @@ export default function MentorBookingModal({ mentorId, isOpen, onClose }) {
             {step === "schedule" && selectedSlot && (
               <button
                 type="button"
-                disabled={!selectedSlot}
+                disabled={!selectedSlot || selectedSlot?.bookedByMe}
                 onClick={() => setStep("confirm")}
                 className="hidden md:inline-flex px-5 py-2.5 rounded-xl bg-purple-600 text-white text-sm font-semibold hover:bg-purple-700 disabled:opacity-50 transition-colors"
               >
@@ -899,7 +1018,7 @@ export default function MentorBookingModal({ mentorId, isOpen, onClose }) {
                         availableDateKeys={availableDateKeysMemo}
                   onPrevMonth={handlePrevMonth}
                   onNextMonth={handleNextMonth}
-                  onSelectDate={setSelectedDateKey}
+                  onSelectDate={handleSelectDate}
                 />
               </div>
 
@@ -932,7 +1051,7 @@ export default function MentorBookingModal({ mentorId, isOpen, onClose }) {
                 <div className="mt-6 flex justify-end md:hidden">
                   <button
                     type="button"
-                    disabled={!selectedSlot}
+                    disabled={!selectedSlot || selectedSlot?.bookedByMe}
                     onClick={() => setStep("confirm")}
                     className="w-full sm:w-auto px-8 py-3 rounded-xl bg-purple-600 text-white font-semibold hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
@@ -952,6 +1071,8 @@ export default function MentorBookingModal({ mentorId, isOpen, onClose }) {
               onBack={() => setStep("schedule")}
               onSubmit={handleConfirmBooking}
               submitting={submitting}
+              sessionFormat={sessionFormat}
+              sessionPrice={sessionPrice}
             />
           )}
         </div>

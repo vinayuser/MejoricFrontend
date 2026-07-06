@@ -1,19 +1,22 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   FaCalendarAlt,
   FaClock,
   FaHistory,
   FaVideo,
   FaUser,
+  FaMicrophone,
 } from "react-icons/fa";
 import Layout from "./Layout";
 import { useAuth } from "../context/AuthContext";
 import { capitalizeName } from "../utils/formatters";
 import toast from "react-hot-toast";
 import {
+  canJoinMentorSession,
   fetchMyBookings,
   formatLongDate,
+  getSessionJoinOpensAt,
 } from "../utils/mentorBooking";
 
 const STATUS_STYLES = {
@@ -25,13 +28,9 @@ const STATUS_STYLES = {
 };
 
 function BookingCard({ booking, showJoin }) {
-  const handleCopyLink = () => {
-    if (!booking.zoomJoinUrl) return;
-    navigator.clipboard.writeText(booking.zoomJoinUrl).then(
-      () => toast.success("Meeting link copied"),
-      () => toast.error("Could not copy link"),
-    );
-  };
+  const isAudio = booking.sessionFormat === "audio";
+  const joinReady = showJoin && canJoinMentorSession(booking);
+  const opensAt = getSessionJoinOpensAt(booking);
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
@@ -64,46 +63,44 @@ function BookingCard({ booking, showJoin }) {
               {booking.slotLabel}
             </p>
             <p className="text-sm text-slate-500 mt-1">
-              {booking.durationMinutes || 30} minute session
+              {booking.durationMinutes || 45} min ·{" "}
+              {isAudio ? "Audio call" : "Video call"} via Agora
             </p>
+            {booking.sessionPrice != null && (
+              <p className="text-sm text-slate-600 mt-1">
+                Paid ₹{Number(booking.sessionPrice).toLocaleString("en-IN")}
+              </p>
+            )}
           </div>
         </div>
 
         <div className="min-w-[240px] space-y-2">
-          {showJoin && booking.zoomJoinUrl && (
-            <>
-              <p className="text-xs font-semibold uppercase tracking-wide text-purple-600">
-                You join as participant
-              </p>
-              <a
-                href={booking.zoomJoinUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-purple-600 text-white text-sm font-bold hover:bg-purple-700 transition-colors shadow-md shadow-purple-200"
-              >
-                <FaVideo />
-                Join meeting as participant
-              </a>
-              <button
-                type="button"
-                onClick={handleCopyLink}
-                className="w-full px-4 py-2 rounded-lg border border-purple-200 text-purple-700 text-sm font-semibold hover:bg-purple-50 transition-colors"
-              >
-                Copy participant link
-              </button>
-            </>
+          {showJoin && joinReady && (
+            <Link
+              to={`/mentor-session/${booking._id}`}
+              className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-purple-600 text-white text-sm font-bold hover:bg-purple-700 transition-colors shadow-md shadow-purple-200"
+            >
+              {isAudio ? <FaMicrophone /> : <FaVideo />}
+              Join session
+            </Link>
           )}
-          {booking.zoomMeetingId && (
-            <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-slate-600 space-y-1">
-              <p>
-                <span className="font-semibold text-slate-800">Meeting ID:</span>{" "}
-                {booking.zoomMeetingId}
-              </p>
-              {booking.zoomPassword && (
-                <p>
-                  <span className="font-semibold text-slate-800">Passcode:</span>{" "}
-                  {booking.zoomPassword}
-                </p>
+          {showJoin && !joinReady && booking.status !== "cancelled" && (
+            <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm text-slate-600">
+              {Date.now() < opensAt.getTime() ? (
+                <>
+                  Join opens at{" "}
+                  <span className="font-semibold text-slate-800">
+                    {opensAt.toLocaleString("en-IN", {
+                      day: "numeric",
+                      month: "short",
+                      hour: "numeric",
+                      minute: "2-digit",
+                      hour12: true,
+                    })}
+                  </span>
+                </>
+              ) : (
+                "This session has ended"
               )}
             </div>
           )}
@@ -158,7 +155,7 @@ export default function MyAppointments() {
               My Appointments
             </h1>
             <p className="text-xl text-gray-600">
-              View your upcoming mentor sessions and booking history
+              View your upcoming mentor sessions and join via audio or video call
             </p>
           </div>
 
@@ -170,7 +167,7 @@ export default function MyAppointments() {
               </div>
               <p className="text-purple-200">
                 {user?.name ? `Hi ${capitalizeName(user.name)}, ` : ""}
-                your scheduled sessions and past appointments are listed below.
+                join your session from here when it&apos;s time — calls run on Agora.
               </p>
             </div>
 

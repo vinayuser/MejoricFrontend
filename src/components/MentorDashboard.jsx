@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   FaCalendarAlt,
   FaChevronLeft,
   FaChevronRight,
   FaSignOutAlt,
   FaVideo,
+  FaMicrophone,
   FaClock,
   FaUser,
+  FaRupeeSign,
 } from "react-icons/fa";
+import { apiGet, apiPut } from "../utils/api";
 import { useAuth } from "../context/AuthContext";
 import { capitalizeName } from "../utils/formatters";
 import toast from "react-hot-toast";
@@ -19,6 +22,8 @@ import {
   fetchMyAvailability,
   formatDuration,
   formatLongDate,
+  canJoinMentorSession,
+  getSessionJoinOpensAt,
   getMonthMatrix,
   saveMyAvailability,
   toDateKey,
@@ -33,6 +38,194 @@ const STATUS_STYLES = {
   cancelled: "bg-slate-100 text-slate-600",
   no_show: "bg-red-100 text-red-700",
 };
+
+function normalizeDisplayPerMin(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return "";
+  if (num > 100) return String(Math.max(1, Math.round(num / 45)));
+  return String(num);
+}
+
+function PricingTab({ userId }) {
+  const [prices, setPrices] = useState({
+    audioCallPrice: "",
+    videoCallPrice: "",
+    video60CallPrice: "",
+  });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!userId) return undefined;
+    let cancelled = false;
+    setLoading(true);
+
+    apiGet(`/users/profile/${userId}`)
+      .then((data) => {
+        if (cancelled || !data?.success) return;
+        const mentor = data.data?.mentor || {};
+        setPrices({
+          audioCallPrice: normalizeDisplayPerMin(mentor.audioCallPrice),
+          videoCallPrice: normalizeDisplayPerMin(mentor.videoCallPrice),
+          video60CallPrice: normalizeDisplayPerMin(mentor.video60CallPrice),
+        });
+      })
+      .catch((error) => toast.error(error.message || "Could not load pricing"))
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
+
+  const handleChange = (field, value) => {
+    setPrices((prev) => ({ ...prev, [field]: value.replace(/[^\d]/g, "") }));
+  };
+
+  const handleSave = async () => {
+    const audio = Number(prices.audioCallPrice);
+    const video = Number(prices.videoCallPrice);
+    const video60 = prices.video60CallPrice
+      ? Number(prices.video60CallPrice)
+      : undefined;
+
+    if (!audio || audio <= 0 || !video || video <= 0) {
+      toast.error("Enter valid per-minute audio and video rates");
+      return;
+    }
+
+    setSaving(true);
+    try {
+      await apiPut(`/users/update?userId=${userId}`, {
+        audioCallPrice: audio,
+        videoCallPrice: video,
+        ...(video60 && video60 > 0 ? { video60CallPrice: video60 } : {}),
+      });
+      toast.success("Per-minute rates updated");
+    } catch (error) {
+      toast.error(error.message || "Could not save prices");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return <p className="text-slate-500 py-8 text-center">Loading pricing...</p>;
+  }
+
+  const audioPreview = prices.audioCallPrice
+    ? Number(prices.audioCallPrice) * 45
+    : null;
+  const videoPreview = prices.videoCallPrice
+    ? Number(prices.videoCallPrice) * 45
+    : null;
+
+  return (
+    <div className="max-w-xl">
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8">
+        <h2 className="text-xl font-bold text-slate-900 mb-2">Call pricing</h2>
+        <p className="text-sm text-slate-600 mb-6">
+          Set your rate per minute. Users see the session total based on call
+          duration (45 or 60 minutes).
+        </p>
+
+        <div className="space-y-5">
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">
+              Audio call · per minute
+            </label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400">
+                ₹
+              </span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={prices.audioCallPrice}
+                onChange={(e) => handleChange("audioCallPrice", e.target.value)}
+                className="w-full pl-9 pr-16 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-500 outline-none"
+                placeholder="e.g. 12"
+              />
+              <span className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 text-sm">
+                /min
+              </span>
+            </div>
+            {audioPreview != null && (
+              <p className="text-xs text-slate-500 mt-1">
+                45 min session total: ₹{audioPreview.toLocaleString("en-IN")}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">
+              Video call · per minute
+            </label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400">
+                ₹
+              </span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={prices.videoCallPrice}
+                onChange={(e) => handleChange("videoCallPrice", e.target.value)}
+                className="w-full pl-9 pr-16 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-500 outline-none"
+                placeholder="e.g. 15"
+              />
+              <span className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 text-sm">
+                /min
+              </span>
+            </div>
+            {videoPreview != null && (
+              <p className="text-xs text-slate-500 mt-1">
+                45 min session total: ₹{videoPreview.toLocaleString("en-IN")} · 60
+                min: ₹{(Number(prices.videoCallPrice) * 60).toLocaleString("en-IN")}
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">
+              60 min video · per minute{" "}
+              <span className="font-normal text-slate-400">optional</span>
+            </label>
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400">
+                ₹
+              </span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={prices.video60CallPrice}
+                onChange={(e) => handleChange("video60CallPrice", e.target.value)}
+                className="w-full pl-9 pr-16 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-500 outline-none"
+                placeholder={prices.videoCallPrice || "Same as video rate"}
+              />
+              <span className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 text-sm">
+                /min
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Leave blank to use the same video per-minute rate for 60 min calls.
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          disabled={saving}
+          onClick={handleSave}
+          className="mt-8 px-6 py-3 rounded-xl bg-purple-600 text-white font-semibold hover:bg-purple-700 disabled:opacity-50"
+        >
+          {saving ? "Saving..." : "Save rates"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 function ScheduleTab({ viewDate, setViewDate, selectedDateKey, setSelectedDateKey }) {
   const [selectedSlotIds, setSelectedSlotIds] = useState([]);
@@ -223,14 +416,6 @@ function AppointmentsTab({ tab }) {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const handleCopyLink = (url) => {
-    if (!url) return;
-    navigator.clipboard.writeText(url).then(
-      () => toast.success("Meeting link copied"),
-      () => toast.error("Could not copy link"),
-    );
-  };
-
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
@@ -259,7 +444,7 @@ function AppointmentsTab({ tab }) {
         <p>No {tab} appointments yet.</p>
         {tab === "upcoming" && (
           <p className="text-sm text-slate-400 mt-2">
-            When a user books a session with you, it will appear here with the Zoom join link.
+            When a user books a session with you, it will appear here with a join link.
           </p>
         )}
       </div>
@@ -298,6 +483,15 @@ function AppointmentsTab({ tab }) {
                   {booking.guestDetails.supportNeeds}
                 </p>
               )}
+              {booking.sessionFormat && (
+                <p className="text-sm text-slate-600 mt-2">
+                  {booking.sessionFormat === "audio" ? "Audio" : "Video"} ·{" "}
+                  {booking.durationMinutes || 45} min
+                  {booking.sessionPrice
+                    ? ` · ₹${Number(booking.sessionPrice).toLocaleString("en-IN")} total`
+                    : ""}
+                </p>
+              )}
             </div>
 
             <div className="min-w-[260px] space-y-3">
@@ -310,40 +504,31 @@ function AppointmentsTab({ tab }) {
                   Duration: {formatDuration(booking.actualDurationSeconds)}
                 </p>
               ) : null}
-              {tab === "upcoming" && booking.zoomStartUrl && (
+              {tab === "upcoming" && (
                 <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-purple-600">
-                    You join as host
-                  </p>
-                  <a
-                    href={booking.zoomStartUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-purple-600 text-white text-sm font-bold hover:bg-purple-700 transition-colors shadow-md shadow-purple-200"
-                  >
-                    <FaVideo />
-                    Start meeting as host
-                  </a>
-                  <button
-                    type="button"
-                    onClick={() => handleCopyLink(booking.zoomStartUrl)}
-                    className="w-full px-4 py-2 rounded-lg border border-purple-200 text-purple-700 text-sm font-semibold hover:bg-purple-50 transition-colors"
-                  >
-                    Copy host link
-                  </button>
-                </div>
-              )}
-              {booking.zoomMeetingId && (
-                <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-slate-600 space-y-1">
-                  <p>
-                    <span className="font-semibold text-slate-800">Meeting ID:</span>{" "}
-                    {booking.zoomMeetingId}
-                  </p>
-                  {booking.zoomPassword && (
-                    <p>
-                      <span className="font-semibold text-slate-800">Passcode:</span>{" "}
-                      {booking.zoomPassword}
-                    </p>
+                  {canJoinMentorSession(booking) ? (
+                    <Link
+                      to={`/mentor-session/${booking._id}`}
+                      className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-purple-600 text-white text-sm font-bold hover:bg-purple-700 transition-colors shadow-md shadow-purple-200"
+                    >
+                      {booking.sessionFormat === "audio" ? (
+                        <FaMicrophone />
+                      ) : (
+                        <FaVideo />
+                      )}
+                      Join session
+                    </Link>
+                  ) : (
+                    <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-slate-600">
+                      Join opens at{" "}
+                      {getSessionJoinOpensAt(booking).toLocaleString("en-IN", {
+                        day: "numeric",
+                        month: "short",
+                        hour: "numeric",
+                        minute: "2-digit",
+                        hour12: true,
+                      })}
+                    </div>
                   )}
                 </div>
               )}
@@ -441,6 +626,7 @@ export default function MentorDashboard() {
         <div className="flex flex-wrap gap-2 mb-6">
           {[
             { id: "schedule", label: "My schedule", icon: FaCalendarAlt },
+            { id: "pricing", label: "Pricing", icon: FaRupeeSign },
             { id: "upcoming", label: "Upcoming", icon: FaClock },
             { id: "completed", label: "Completed", icon: FaVideo },
           ].map(({ id, label, icon: Icon }) => (
@@ -476,6 +662,8 @@ export default function MentorDashboard() {
             selectedDateKey={selectedDateKey}
             setSelectedDateKey={setSelectedDateKey}
           />
+        ) : activeTab === "pricing" ? (
+          <PricingTab userId={user._id} />
         ) : (
           <AppointmentsTab tab={activeTab} />
         )}

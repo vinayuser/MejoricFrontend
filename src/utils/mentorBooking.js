@@ -86,12 +86,22 @@ export function buildAllSlotsForDate(dateKey) {
   return slots;
 }
 
+function getAuthHeaders() {
+  const token = localStorage.getItem("authToken");
+  const headers = {};
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  return headers;
+}
+
 export async function fetchAvailableDates(mentorId, viewDate) {
   try {
     const year = viewDate.getFullYear();
     const month = viewDate.getMonth() + 1;
     const response = await fetch(
       `${getApiBaseUrl()}/bookings/mentor/${mentorId}/available-dates?year=${year}&month=${month}`,
+      { headers: getAuthHeaders() },
     );
     if (!response.ok) return [];
     const data = await response.json();
@@ -105,6 +115,7 @@ export async function fetchAvailableSlots(mentorId, dateKey) {
   try {
     const response = await fetch(
       `${getApiBaseUrl()}/bookings/mentor/${mentorId}/availability?dateKey=${dateKey}`,
+      { headers: getAuthHeaders() },
     );
     if (!response.ok) return [];
     const data = await response.json();
@@ -129,7 +140,13 @@ export async function fetchBookedSlotIds() {
   return [];
 }
 
-export async function createMentorBooking({ mentorId, slot, guestDetails }) {
+export async function createMentorBooking({
+  mentorId,
+  slot,
+  guestDetails,
+  sessionFormat = "video",
+  sessionPrice,
+}) {
   const token = localStorage.getItem("authToken");
   const headers = {
     "Content-Type": "application/json",
@@ -147,6 +164,8 @@ export async function createMentorBooking({ mentorId, slot, guestDetails }) {
       slotLabel: slot.label,
       dateKey: slot.dateKey,
       slotId: slot.id,
+      sessionFormat,
+      sessionPrice,
       guestDetails: {
         fullName: guestDetails.fullName,
         email: guestDetails.email,
@@ -215,6 +234,40 @@ export async function fetchMyAppointments(tab = "upcoming", page = 1) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     throw new Error(data.message || "Failed to load appointments");
+  }
+  return data.data;
+}
+
+export function canJoinMentorSession(booking) {
+  if (!booking || !["scheduled", "in_progress"].includes(booking.status)) {
+    return false;
+  }
+  const now = Date.now();
+  const start = new Date(booking.scheduledAt).getTime();
+  const durationMs = (booking.durationMinutes || 45) * 60 * 1000;
+  const openAt = start - 15 * 60 * 1000;
+  const closeAt = start + durationMs + 15 * 60 * 1000;
+  return now >= openAt && now <= closeAt;
+}
+
+export function getSessionJoinOpensAt(booking) {
+  const start = new Date(booking.scheduledAt).getTime();
+  return new Date(start - 15 * 60 * 1000);
+}
+
+export async function fetchBookingSessionToken(bookingId) {
+  const token = localStorage.getItem("authToken");
+  const response = await fetch(
+    `${getApiBaseUrl()}/bookings/${bookingId}/session-token`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || "Could not join session");
   }
   return data.data;
 }
