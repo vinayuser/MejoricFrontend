@@ -154,11 +154,8 @@ export default function Mentor() {
         canChat: canStartUserChat({
           user,
           guestTrialExhausted,
-          isWithinSignupTrial,
-          hasPaidRecharge,
           walletBalance,
         }),
-        signupTrialExhausted,
         walletBalance,
       };
 
@@ -183,13 +180,8 @@ export default function Mentor() {
 
         Swal.fire({
           icon: "warning",
-          title: chatAccess.signupTrialExhausted
-            ? "Free Chat Ended"
-            : "Insufficient Balance",
-          text: getSignupChatBlockMessage(
-            chatAccess.signupTrialExhausted,
-            chatAccess.walletBalance,
-          ),
+          title: "Insufficient Balance",
+          text: getSignupChatBlockMessage(false, chatAccess.walletBalance),
           showCancelButton: true,
           showCloseButton: true,
           confirmButtonText: "Recharge Now",
@@ -852,8 +844,8 @@ export default function Mentor() {
                       ? "Sign up to chat"
                       : guestTrialExhausted && user?.role === "guest"
                         ? "Trial exhausted — sign up"
-                        : isAuthenticated && user?.role === "user" && walletBalance <= 0
-                          ? "Recharge to chat"
+                        : isAuthenticated && user?.role === "user" && walletBalance < 8
+                          ? "Recharge to chat (₹8/min)"
                           : `₹${import.meta.env.VITE_CHAT_PRICE_PER_MIN || 8}/min`}
                   <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                 </div>

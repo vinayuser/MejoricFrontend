@@ -48,8 +48,6 @@ const MateDetailsPage = () => {
       !canStartUserChat({
         user,
         guestTrialExhausted,
-        isWithinSignupTrial,
-        hasPaidRecharge,
         walletBalance,
       }));
 
@@ -302,7 +300,7 @@ const MateDetailsPage = () => {
     if (
       isAuthenticated &&
       user?.role === "user" &&
-      !isWithinSignupTrial &&
+      type !== "chat" &&
       walletBalance <= 0
     ) {
       Swal.fire({
@@ -333,21 +331,35 @@ const MateDetailsPage = () => {
         return;
       }
 
+      if (user?.role === "user" && walletBalance < 8) {
+        Swal.fire({
+          title: "Insufficient Balance",
+          text: "You need at least ₹8 in your wallet to chat (₹8 per minute). Please recharge to continue.",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonText: "Recharge Now",
+          cancelButtonText: "Cancel",
+          confirmButtonColor: "#9333ea",
+          didOpen: () => {
+            const container = Swal.getContainer();
+            if (container) container.style.zIndex = "100002";
+          },
+        }).then((result) => {
+          if (result.isConfirmed) {
+            navigate("/wallet");
+          }
+        });
+        return;
+      }
+
       let canChat = !isChatDisabled;
-      let blockMessage = getSignupChatBlockMessage(
-        signupTrialExhausted,
-        walletBalance,
-      );
+      let blockMessage = getSignupChatBlockMessage(false, walletBalance);
 
       if (user?.role === "user" && isChatDisabled) {
         try {
           const access = await resolveUserChatAccess(user);
           canChat = access.canChat;
-          blockMessage = getSignupChatBlockMessage(
-            access.signupTrialExhausted,
-            access.walletBalance,
-          );
-          void refreshSignupTrialStatus();
+          blockMessage = getSignupChatBlockMessage(false, access.walletBalance);
           void refreshWalletBalance();
         } catch (e) {
           console.warn("Could not refresh chat access", e);
