@@ -11,6 +11,7 @@ import {
 } from "react-icons/fa";
 import { useAuth } from "../context/AuthContext";
 import InstantChat from "./InstantChat";
+import AgoraCallUI from "./AgoraCallUI";
 import {
   isIOSThirdPartyBrowser,
   isIOS,
@@ -27,9 +28,6 @@ import { apiGet, apiPost } from "../utils/api";
 import Swal from "sweetalert2";
 import toast from "react-hot-toast";
 import { capitalizeName } from "../utils/formatters";
-// Video/Audio call base URLs
-const VIDEO_CALL_URL = `${import.meta.env.VITE_VIDEO_CALL_BASE_URL || "https://mateandmentors.yourvideo.live/host/"}`;
-const AUDIO_CALL_URL = `${import.meta.env.VITE_AUDIO_CALL_BASE_URL || "https://matenmentor.yourvideo.live/host/"}`;
 
 const CALL_TIMEOUT_MS = 60000;
 const DISMISS_INCOMING_TTL_MS = 120000;
@@ -40,7 +38,9 @@ const CallNotification = () => {
   const { isAuthenticated, user } = useAuth();
   const [incomingCall, setIncomingCall] = useState(null);
   const [showCallIframe, setShowCallIframe] = useState(false);
-  const [callUrl, setCallUrl] = useState("");
+  const [agoraSession, setAgoraSession] = useState(null);
+  const [activeCallType, setActiveCallType] = useState("video");
+  const [activeCallerName, setActiveCallerName] = useState("");
   const [audioError, setAudioError] = useState(false);
   const [incomingChat, setIncomingChat] = useState(null);
   const [showChatUI, setShowChatUI] = useState(false);
@@ -53,9 +53,15 @@ const CallNotification = () => {
   const activeCallSessionIdRef = useRef(null);
   const dismissedIncomingSessionsRef = useRef(new Map());
   const socketRef = useRef(null);
+  const showChatUIRef = useRef(showChatUI);
   const [showIOSPrompt, setShowIOSPrompt] = useState(false);
 
+  const authUserId = user?._id ?? user?.id;
   const isCallReceiverRole = user?.role === "mate" || user?.role === "mentor";
+
+  useEffect(() => {
+    showChatUIRef.current = showChatUI;
+  }, [showChatUI]);
 
   const stopRingtone = useCallback(() => {
     if (audioRef.current) {
@@ -169,23 +175,11 @@ const CallNotification = () => {
 
     try {
       const result = await apiPost("/calls/accept", { callSessionId });
-      if (result.success) {
+      if (result.success && result.data?.agora) {
         activeCallSessionIdRef.current = callSessionId;
-        let url;
-        if (roomId) {
-          const combinedId =
-            callType === "audio"
-              ? `${roomId}-69c517c510b8b0a2780f69c3`
-              : `${roomId}-69b7a7f601742c5c950b3e8e`;
-          const encodedCombinedId = btoa(combinedId);
-          url =
-            callType === "audio"
-              ? `${AUDIO_CALL_URL}${encodedCombinedId}?name=${user?.name}&landing=no`
-              : `${VIDEO_CALL_URL}${encodedCombinedId}?name=${user?.name}&landing=no&my_virtual_img=https://res.cloudinary.com/dgpstba9n/image/upload/v1774511122/matebackground_wuqx9h.jpg`;
-        } else {
-          url = callType === "audio" ? AUDIO_CALL_URL : VIDEO_CALL_URL;
-        }
-        setCallUrl(url);
+        setActiveCallType(callType || result.data.callType || "video");
+        setActiveCallerName(incomingCall?.callerName || "Caller");
+        setAgoraSession(result.data.agora);
         setShowCallIframe(true);
       } else {
         Swal.fire({
@@ -216,7 +210,7 @@ const CallNotification = () => {
     }
     activeCallSessionIdRef.current = null;
     setShowCallIframe(false);
-    setCallUrl("");
+    setAgoraSession(null);
     clearIncomingState();
   };
 
@@ -234,7 +228,7 @@ const CallNotification = () => {
           setIncomingChat(null);
         } else if (event.data.type === "CALL_ENDED") {
           setShowCallIframe(false);
-          setCallUrl("");
+          setAgoraSession(null);
           activeCallSessionIdRef.current = null;
           clearIncomingState();
         }
@@ -341,7 +335,7 @@ const CallNotification = () => {
     navigator.serviceWorker?.addEventListener("message", handleSWMessage);
 
     // --- Socket.io Fallback ---
-    if (isAuthenticated && user?._id) {
+    if (isAuthenticated && authUserId) {
       console.log("🔌 [Socket] Connecting for notifications...");
       const socket = io(SOCKET_SERVER_URL, {
         transports: ["websocket", "polling"],
@@ -350,8 +344,8 @@ const CallNotification = () => {
       socketRef.current = socket;
 
       socket.on("connect", () => {
-        console.log("✅ [Socket] Connected. Registering user:", user._id);
-        socket.emit("register_user", user._id);
+        console.log("✅ [Socket] Connected. Registering user:", authUserId);
+        socket.emit("register_user", authUserId);
       });
 
       socket.on("notification", (payload) => {
@@ -360,14 +354,14 @@ const CallNotification = () => {
           "   -> isCallReceiverRole:",
           isCallReceiverRole,
           "showChatUI:",
-          showChatUI,
+          showChatUIRef.current,
           "user role:",
           user?.role,
         );
 
         if (
           payload.type === "CHAT_INITIATED" &&
-          !showChatUI &&
+          !showChatUIRef.current &&
           isCallReceiverRole
         ) {
           console.log("   -> ✅ Condition met! Setting incoming chat...");
@@ -421,13 +415,12 @@ const CallNotification = () => {
     };
   }, [
     isAuthenticated,
-    user?._id,
+    authUserId,
     isCallReceiverRole,
     processIncomingCall,
     playRingtone,
     stopRingtone,
     clearIncomingState,
-    showChatUI,
   ]);
 
   useEffect(() => {
@@ -572,31 +565,36 @@ const CallNotification = () => {
         />
       )}
 
-      {showCallIframe && (
-        <div className="fixed inset-0 z-[9998] bg-white flex flex-col">
-          <div className="bg-gray-900 text-white p-4 flex justify-between items-center">
+      {showCallIframe && agoraSession && (
+        <div className="fixed inset-0 z-[9998] bg-slate-950 flex flex-col">
+          <div className="bg-gray-900 text-white p-4 flex justify-between items-center shrink-0">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-purple-600 rounded-full flex items-center justify-center">
                 <FaPhone className="text-white" />
               </div>
               <div>
-                <h4 className="font-bold">Active Call Session</h4>
-                <p className="text-xs text-gray-400">Encrypted • Real-time</p>
+                <h4 className="font-bold">
+                  {activeCallType === "audio" ? "Audio" : "Video"} call with{" "}
+                  {capitalizeName(activeCallerName)}
+                </h4>
+                <p className="text-xs text-gray-400">Powered by Agora</p>
               </div>
             </div>
             <button
+              type="button"
               onClick={handleEndCall}
               className="bg-red-600 px-6 py-2 rounded-xl font-bold"
             >
               End Call
             </button>
           </div>
-          <iframe
-            src={callUrl}
-            className="w-full flex-1 border-0"
-            allow="camera; microphone; fullscreen; display-capture; speaker"
-            allowFullScreen
-            title="Active Call"
+          <AgoraCallUI
+            agoraSession={agoraSession}
+            callType={activeCallType}
+            localLabel={user?.name || "You"}
+            remoteLabel={activeCallerName || "Caller"}
+            className="flex-1 min-h-0"
+            onLeave={handleEndCall}
           />
         </div>
       )}

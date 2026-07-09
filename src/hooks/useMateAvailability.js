@@ -19,19 +19,21 @@ const clearGrace = () => {
 };
 
 export function useMateAvailability(user) {
+  const userId = user?.user?._id ?? user?._id ?? user?.id;
+  const userRole = user?.role ?? user?.user?.role;
+  const isMate = userRole === "mate";
+
   const [isOnline, setIsOnline] = useState(() => isWithinGrace());
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const isOnlineRef = useRef(isOnline);
-
-  const getUserId = useCallback(() => {
-    return user?.user?._id || user?._id || user?.id;
-  }, [user]);
 
   useEffect(() => {
     isOnlineRef.current = isOnline;
   }, [isOnline]);
 
   useEffect(() => {
+    if (!isMate) return undefined;
+
     const onPageHide = () => {
       if (isOnlineRef.current) {
         extendGrace();
@@ -39,14 +41,13 @@ export function useMateAvailability(user) {
     };
     window.addEventListener("pagehide", onPageHide);
     return () => window.removeEventListener("pagehide", onPageHide);
-  }, []);
+  }, [isMate]);
 
   useEffect(() => {
+    if (!isMate || !userId) return;
+
     const fetchMateStatus = async () => {
       try {
-        const userId = getUserId();
-        if (!userId) return;
-
         const token = user?.token || localStorage.getItem("authToken");
         if (!token) return;
 
@@ -86,14 +87,16 @@ export function useMateAvailability(user) {
     };
 
     fetchMateStatus();
-  }, [user, getUserId]);
+  }, [isMate, userId, user?.token]);
 
   const toggleOnlineStatus = useCallback(async () => {
+    if (!userId) {
+      toast.error("User ID not found");
+      return;
+    }
+
     setIsUpdatingStatus(true);
     try {
-      const userId = getUserId();
-      if (!userId) throw new Error("User ID not found");
-
       const newStatus = !isOnline;
       const result = await apiPut(`/users/update?userId=${userId}`, {
         isAvailable: newStatus,
@@ -117,10 +120,9 @@ export function useMateAvailability(user) {
     } finally {
       setIsUpdatingStatus(false);
     }
-  }, [getUserId, isOnline]);
+  }, [userId, isOnline]);
 
   const setOffline = useCallback(async () => {
-    const userId = getUserId();
     if (!userId) return false;
 
     try {
@@ -137,13 +139,13 @@ export function useMateAvailability(user) {
       console.error("Error setting user to offline:", error);
     }
     return false;
-  }, [getUserId]);
+  }, [userId]);
 
   return {
-    isOnline,
+    isOnline: isMate ? isOnline : false,
     isUpdatingStatus,
     toggleOnlineStatus,
     setOffline,
     setIsOnline,
   };
-};
+}

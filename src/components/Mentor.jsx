@@ -27,6 +27,7 @@ import homeDesktopBanner from "../assets/img/2.webp";
 import heroMobileBanner from "../assets/img/hero_mobile.webp";
 import BannerSlider from "./BannerSlider";
 import InstantChat from "./InstantChat";
+import AgoraCallUI from "./AgoraCallUI";
 import { showLoginSignupAlert } from "../utils/authAlert";
 import {
   canStartUserChat,
@@ -48,10 +49,6 @@ const mateBannerMobileSlides = [
   { src: banners, alt: "Mate Hero" },
 ];
 
-// Video call URLs - base URL, roomId will be appended dynamically
-const VIDEO_CALL_BASE_URL = "https://mateandmentors.yourvideo.live/";
-const AUDIO_CALL_BASE_URL = "https://matenmentor.yourvideo.live/";
-
 // Transform API data
 const transformMateData = (matesData) => {
   if (!Array.isArray(matesData)) return [];
@@ -62,7 +59,7 @@ const transformMateData = (matesData) => {
       _id: user._id,
       name: mate.name || user.name || "Unknown",
       img: user.image || "/favicon.png", // Use favicon or a placeholder instead of empty string
-      online: user.isOnline || false,
+      online: mate.isAvailable || false,
       isAvailable: mate.isAvailable || false,
       isBusy: mate.isBusy || false,
       skills: mate.specifications?.join(", ") || "General",
@@ -106,8 +103,8 @@ export default function Mentor() {
   const [showCallModal, setShowCallModal] = useState(false);
   const [callType, setCallType] = useState(""); // 'video' or 'audio'
   const [selectedMentorId, setSelectedMentorId] = useState("");
-  const [callUrl, setCallUrl] = useState(""); // Dynamic call URL based on roomId
-  const [callSessionId, setCallSessionId] = useState(""); // Store call session ID for ending call
+  const [agoraSession, setAgoraSession] = useState(null);
+  const [callSessionId, setCallSessionId] = useState("");
   const [showFeedbackModal, setShowFeedbackModal] = useState(false); // Show feedback modal
   const [feedbackRating, setFeedbackRating] = useState(0); // Rating 1-5
   const [feedbackDescription, setFeedbackDescription] = useState(""); // Feedback description
@@ -315,7 +312,7 @@ export default function Mentor() {
         content_category: `${type.charAt(0).toUpperCase() + type.slice(1)} Call`,
       });
 
-      if (result.success && result.data?.roomId) {
+      if (result.success && result.data?.agora) {
         if (result.data.remainingMinutes === 0) {
           await apiPost("/calls/end", {
             callSessionId: result.data.callSessionId || result.data._id || "",
@@ -328,10 +325,7 @@ export default function Mentor() {
           return;
         }
 
-        const baseUrl =
-          type === "video" ? VIDEO_CALL_BASE_URL : AUDIO_CALL_BASE_URL;
-        const callUrl = `${baseUrl}${result.data.roomId}?name=${encodeURIComponent(user?.name || "User")}&landing=no`;
-        setCallUrl(callUrl);
+        setAgoraSession(result.data.agora);
         setCallSessionId(result.data.callSessionId || result.data._id || "");
         setTimeLeft((result.data.remainingMinutes || 0) * 60);
         setShowCallModal(true);
@@ -484,7 +478,7 @@ export default function Mentor() {
       } else if (data.event === "ENDED") {
         console.log("📡 [FCM] Call ended by other party");
         setShowCallModal(false);
-        setCallUrl("");
+        setAgoraSession(null);
         setCallSessionId("");
         setShowFeedbackModal(true);
       }
@@ -501,7 +495,7 @@ export default function Mentor() {
       } else if (event.data?.type === "CALL_ENDED") {
         console.log("📡 [SW] Call ended by other party");
         setShowCallModal(false);
-        setCallUrl("");
+        setAgoraSession(null);
         setCallSessionId("");
         setShowFeedbackModal(true);
       }
@@ -530,7 +524,7 @@ export default function Mentor() {
         } else if (event.data?.type === "CALL_ENDED") {
           console.log("📡 [BroadcastChannel] Call ended by other party");
           setShowCallModal(false);
-          setCallUrl("");
+          setAgoraSession(null);
           setCallSessionId("");
           setShowFeedbackModal(true);
         }
@@ -568,7 +562,6 @@ export default function Mentor() {
       onChatClick,
       setCallType,
       setSelectedMentorId,
-      setCallUrl,
       setCallSessionId,
       setShowCallModal,
     }) => {
@@ -898,7 +891,6 @@ export default function Mentor() {
                     onChatClick={handleChatClick}
                     setCallType={setCallType}
                     setSelectedMentorId={setSelectedMentorId}
-                    setCallUrl={setCallUrl}
                     setCallSessionId={setCallSessionId}
                     setShowCallModal={setShowCallModal}
                   />
@@ -930,7 +922,7 @@ export default function Mentor() {
                     }
                   }
                   setShowCallModal(false);
-                  setCallUrl("");
+                  setAgoraSession(null);
                   setCallSessionId("");
                   // Show feedback modal after call ends
                   setShowFeedbackModal(true);
@@ -941,19 +933,36 @@ export default function Mentor() {
               </button>
             </div>
 
-            {/* Iframe */}
             <div className="w-full h-[calc(100%-60px)]">
-              <iframe
-                src={
-                  callUrl ||
-                  (callType === "video"
-                    ? VIDEO_CALL_BASE_URL
-                    : AUDIO_CALL_BASE_URL)
-                }
-                allow="camera; microphone; fullscreen; speaker; display-capture"
-                className="w-full h-full border-0"
-                title={callType === "video" ? "Video Call" : "Audio Call"}
-              />
+              {agoraSession ? (
+                <AgoraCallUI
+                  agoraSession={agoraSession}
+                  callType={callType}
+                  localLabel={user?.name || "You"}
+                  remoteLabel={
+                    mentorsList.find((m) => m._id === selectedMentorId)?.name ||
+                    "Mate"
+                  }
+                  className="w-full h-full"
+                  onLeave={async () => {
+                    if (callSessionId) {
+                      try {
+                        await apiPost("/calls/end", { callSessionId });
+                      } catch (error) {
+                        console.error("Error ending call:", error);
+                      }
+                    }
+                    setShowCallModal(false);
+                    setAgoraSession(null);
+                    setCallSessionId("");
+                    setShowFeedbackModal(true);
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-slate-950 text-white">
+                  Connecting call…
+                </div>
+              )}
             </div>
           </div>
         </div>

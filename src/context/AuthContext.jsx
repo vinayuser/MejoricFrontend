@@ -121,26 +121,32 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // Refresh wallet balance and guest trial status after session restore
+  const userId = user?._id ?? user?.id;
+  const userRole = user?.role;
+
   useEffect(() => {
     if (!authInitialized) return;
 
-    refreshGuestTrialStatus();
+    if (userRole === "guest") {
+      refreshGuestTrialStatus();
+    }
 
-    if (isAuthenticated && user?.role === "user") {
+    if (isAuthenticated && userRole === "user") {
       refreshSignupTrialStatus();
     }
 
     if (
       isAuthenticated &&
-      user &&
-      (user.role === "user" || user.role === "guest")
+      userId &&
+      (userRole === "user" || userRole === "guest" || userRole === "mate")
     ) {
       refreshWalletBalance();
     }
   }, [
     authInitialized,
     isAuthenticated,
-    user,
+    userId,
+    userRole,
     refreshWalletBalance,
     refreshGuestTrialStatus,
     refreshSignupTrialStatus,

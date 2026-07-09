@@ -17,15 +17,18 @@ import toast from "react-hot-toast";
 import logo from "../img/logo- final.png";
 import { apiPost, apiGet } from "../utils/api";
 import { initializeFCM, getFCMToken } from "../utils/fcm";
-import { capitalizeName } from "../utils/formatters";
+import { capitalizeName, getDisplayName, formatDisplayLabel } from "../utils/formatters";
 import { useMateAvailability } from "../hooks/useMateAvailability";
-// Video/Audio call base URLs - roomId will be appended dynamically
-const VIDEO_CALL_URL = `${import.meta.env.VITE_VIDEO_CALL_BASE_URL || "https://mateandmentors.yourvideo.live/host/"}`;
-const AUDIO_CALL_URL = `${import.meta.env.VITE_AUDIO_CALL_BASE_URL || "https://matenmentor.yourvideo.live/host/"}`;
+
+function normalizeId(value) {
+  if (value == null) return "";
+  if (typeof value === "string" || typeof value === "number") return String(value);
+  return String(value._id ?? value.id ?? "");
+}
 
 function MateDashboard() {
   const navigate = useNavigate();
-  const { user, logout, walletBalance, refreshWalletBalance } = useAuth();
+  const { user, logout, walletBalance } = useAuth();
   const [callHistory, setCallHistory] = useState([]);
   const [chatHistory, setChatHistory] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -33,8 +36,6 @@ function MateDashboard() {
   const [receiverId, setReceiverId] = useState(null);
   const { isOnline, isUpdatingStatus, toggleOnlineStatus, setOffline } =
     useMateAvailability(user);
-  const [showCallIframe, setShowCallIframe] = useState(false);
-  const [callUrl, setCallUrl] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [activeTab, setActiveTab] = useState("calls"); // "calls" or "chats"
@@ -45,8 +46,12 @@ function MateDashboard() {
     totalMinutes: 0,
   });
 
+  const userId = user?._id ?? user?.id;
+
   // Fetch call history from API
   useEffect(() => {
+    if (!userId) return;
+
     const fetchCallHistory = async () => {
       try {
         const token = user?.token || localStorage.getItem("authToken");
@@ -70,32 +75,50 @@ function MateDashboard() {
         if (result.success && result.data) {
           // Transform API response to match our display format
           const formattedHistory = result.data.map((call) => {
-            // Calculate duration in minutes
             let duration = "0 min";
-            if (call.startTime && call.updatedAt) {
+            if (call.duration != null && call.duration > 0) {
+              const diffMinutes = Math.ceil(call.duration / 60);
+              duration = diffMinutes >= 1 ? `${diffMinutes} min` : "<1 min";
+            } else if (call.startTime && call.endTime) {
+              const start = new Date(call.startTime);
+              const end = new Date(call.endTime);
+              const diffMinutes = Math.round((end - start) / 60000);
+              duration = diffMinutes > 0 ? `${diffMinutes} min` : "<1 min";
+            } else if (call.startTime && call.updatedAt) {
               const start = new Date(call.startTime);
               const end = new Date(call.updatedAt);
               const diffMinutes = Math.round((end - start) / 60000);
               duration = diffMinutes > 0 ? `${diffMinutes} min` : "<1 min";
-              call.rawMinutes = diffMinutes; // Store numeric value for summing
-            } else {
-              call.rawMinutes = 0;
             }
 
-            // Determine the other party (mentor)
-            const isCaller =
-              String(call.callerId?._id || "") ===
-              String(user?._id || user?.user?._id || "");
-            const mentorName = isCaller
-              ? call.receiverId?.name
-              : call.callerId?.name;
+            let userName =
+              call.otherPartyName ||
+              getDisplayName(call.callerId) ||
+              getDisplayName(call.receiverId) ||
+              "User";
+
+            if (userName === "User") {
+              const currentUserId = normalizeId(userId);
+              const callerId = normalizeId(call.callerId);
+              const receiverId = normalizeId(call.receiverId);
+
+              if (currentUserId && currentUserId === receiverId) {
+                userName = getDisplayName(call.callerId);
+              } else if (currentUserId && currentUserId === callerId) {
+                userName = getDisplayName(call.receiverId);
+              } else if (user?.role === "mate") {
+                userName =
+                  getDisplayName(call.callerId) ||
+                  getDisplayName(call.receiverId) ||
+                  "User";
+              }
+            }
 
             return {
               id: call._id,
-              mentorName: mentorName || "Unknown",
+              userName,
               type: call.callType?.toLowerCase() || "video",
-              duration: duration,
-              rawMinutes: call.rawMinutes || 0,
+              duration,
               date: new Date(call.createdAt).toLocaleDateString("en-GB"),
               status: call.callStatus?.toLowerCase() || "unknown",
             };
@@ -126,10 +149,12 @@ function MateDashboard() {
       }
     };
     fetchCallHistory();
-  }, [user, currentPage]);
+  }, [userId, currentPage]);
 
-  // Fetch chat history from API
+  // Fetch chat history only when the chats tab is active
   useEffect(() => {
+    if (!userId || activeTab !== "chats") return;
+
     const fetchChatHistory = async () => {
       setIsChatLoading(true);
       try {
@@ -146,137 +171,13 @@ function MateDashboard() {
         setIsChatLoading(false);
       }
     };
-    if (user) fetchChatHistory();
-  }, [user, chatPage]);
-
-  // Fetch wallet balance from API on load
-  useEffect(() => {
-    refreshWalletBalance();
-  }, []);
+    fetchChatHistory();
+  }, [userId, chatPage, activeTab]);
 
   const handleLogout = async () => {
     await setOffline();
     logout();
     navigate("/login?role=mate");
-  };
-
-  const handleAcceptCall = async (
-    callSessionId,
-    callType = "video",
-    roomId = null,
-  ) => {
-    console.log(roomId, "^^^^^^^^^^^^^");
-    try {
-      // Get token from user object in AuthContext
-      const token = user?.token || localStorage.getItem("authToken");
-
-      const headers = {
-        "Content-Type": "application/json",
-      };
-
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-
-      const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/calls/accept`,
-        {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ callSessionId }),
-        },
-      );
-
-      const result = await response.json();
-
-      if (result.success) {
-        // Build dynamic URL based on roomId from notification
-        let url;
-        if (roomId) {
-          // Encode both roomId and rest id together using base64
-          console.log(roomId, "this is roomId");
-          const combinedId =
-            callType === "audio"
-              ? `${roomId}-69c517c510b8b0a2780f69c3`
-              : `${roomId}-69b7a7f601742c5c950b3e8e`;
-          const encodedCombinedId = btoa(combinedId);
-          // Use encoded combined id in URL
-          url =
-            callType === "audio"
-              ? `${AUDIO_CALL_URL}${encodedCombinedId}?name=${user?.name}&landing=no`
-              : `${VIDEO_CALL_URL}${encodedCombinedId}?name=${user?.name}&landing=no&my_virtual_img=https://res.cloudinary.com/dgpstba9n/image/upload/v1774511122/matebackground_wuqx9h.jpg`;
-          console.log("Using dynamic room URL:", url);
-        } else {
-          // Fallback to static URLs
-          url = callType === "audio" ? AUDIO_CALL_URL : VIDEO_CALL_URL;
-          console.log("Using static fallback URL:", url);
-        }
-        setCallUrl(url);
-        setShowCallIframe(true);
-      } else {
-        toast.error("Failed to accept call");
-      }
-    } catch (error) {
-      console.error("Accept call error:", error);
-      toast.error("Failed to accept call");
-    }
-  };
-  const handleDeclineCall = async (callSessionId) => {
-    try {
-      // Get token from user object in AuthContext
-      const token = user?.token || localStorage.getItem("authToken");
-
-      const headers = {
-        "Content-Type": "application/json",
-      };
-
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-
-      const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL}/calls/reject`,
-        {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ callSessionId }),
-        },
-      );
-
-      const result = await response.json();
-
-      if (!result.success) {
-        toast.error("Failed to decline call");
-      }
-    } catch (error) {
-      console.error("Decline call error:", error);
-      toast.error("Failed to decline call");
-    }
-  };
-  const handleEndCall = async () => {
-    // Call end API when closing iframe
-    if (incomingCall?.callSessionId) {
-      try {
-        const token = user?.token || localStorage.getItem("authToken");
-        const headers = {
-          "Content-Type": "application/json",
-        };
-        if (token) {
-          headers["Authorization"] = `Bearer ${token}`;
-        }
-
-        await fetch(`${import.meta.env.VITE_API_BASE_URL}/calls/end`, {
-          method: "POST",
-          headers,
-          body: JSON.stringify({ callSessionId: incomingCall.callSessionId }),
-        });
-        console.log("Call ended successfully");
-      } catch (error) {
-        console.error("Error ending call:", error);
-      }
-    }
-    setShowCallIframe(false);
-    setCallUrl("");
   };
 
   const totalCalls = globalStats.totalCalls;
@@ -447,7 +348,7 @@ function MateDashboard() {
                         <thead className="bg-blue-50">
                           <tr>
                             <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
-                              Mentor
+                              User
                             </th>
                             <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">
                               Type
@@ -475,7 +376,7 @@ function MateDashboard() {
                                     <FaUser className="text-blue-600" />
                                   </div>
                                   <span className="font-medium capitalize text-gray-900">
-                                    {capitalizeName(call.mentorName)}
+                                    {formatDisplayLabel(call.userName)}
                                   </span>
                                 </div>
                               </td>
@@ -593,8 +494,7 @@ function MateDashboard() {
                                   </div>
                                   <div className="ml-4">
                                     <div className="text-sm font-medium text-gray-900">
-                                      {capitalizeName(chat.otherUser?.name) ||
-                                        "Guest User"}
+                                      {formatDisplayLabel(chat.otherUser?.name)}
                                     </div>
                                   </div>
                                 </div>
