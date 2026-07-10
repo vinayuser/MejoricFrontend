@@ -36,6 +36,7 @@ import { Toaster } from 'react-hot-toast';
 import MateDetailsPage from './components/MateDetailsPage';
 import VerifyEmail from './components/VerifyEmail';
 import Community from './components/Community';
+import { getRouterBasename } from './utils/basePath';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
@@ -141,7 +142,7 @@ function App() {
   return (
     <AuthProvider>
     <MentorBookingProvider>
-    <Router>
+    <Router basename={getRouterBasename()}>
       <AnalyticsTracker />
       <ScrollToTop />
       <InAppBrowserBanner />

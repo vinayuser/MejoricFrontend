@@ -13,6 +13,10 @@ import Swal from "sweetalert2";
 import { capitalizeName } from "../utils/formatters";
 import { showLoginSignupAlert } from "../utils/authAlert";
 import { useAuth } from "../context/AuthContext";
+import {
+  isMockPaymentsEnabled,
+  buildMockWalletVerifyPayload,
+} from "../utils/mockPayments";
 
 const SOCKET_SERVER_URL = import.meta.env.VITE_SOCKET_SERVER_URL || "https://mejoric.com";
 
@@ -826,23 +830,18 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
         return;
       }
 
-      // Check if we are in local development environment
-      const isLocal =
-        import.meta.env.VITE_APP_ENV === "local" ||
-        window.location.hostname === "localhost" ||
-        window.location.hostname === "127.0.0.1";
+      const useMock =
+        orderData.data?.mockPayments === true || isMockPaymentsEnabled();
 
-      if (isLocal) {
-        console.log("Local development environment detected. Simulating mock payment...");
+      if (useMock) {
+        console.log("Mock payments enabled. Simulating wallet recharge...");
         setTimeout(async () => {
           try {
-            const verifyData = {
-              razorpayOrderId: orderId,
-              razorpayPaymentId: `mock_pay_${Date.now()}`,
-              razorpaySignature: "mock_signature",
-              amount: parseFloat(rechargeAmount),
-              currency: "INR",
-            };
+            const verifyData = buildMockWalletVerifyPayload(
+              orderId,
+              rechargeAmount,
+              "INR",
+            );
 
             const result = await apiPost("/wallet/verify", verifyData);
             if (result.success) {

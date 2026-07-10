@@ -1,14 +1,17 @@
-/** Router basename: `/staging` when Vite base is `/staging/`. */
+/** Router basename derived from Vite `base` (e.g. `/staging/` → `/staging`). */
 export function getRouterBasename() {
-  return "/staging";
+  const base = import.meta.env.BASE_URL || "/";
+  if (!base || base === "/") return undefined;
+  return base.replace(/\/$/, "");
 }
 
-/** Build an app URL under the staging base path, e.g. `/staging/login`. */
+/** Build an app URL under the Vite base path, e.g. `/staging/login`. */
 export function appPath(path = "/") {
-  const base = "/staging/";
+  const base = import.meta.env.BASE_URL || "/";
   const normalized = path.startsWith("/") ? path.slice(1) : path;
   if (!normalized) {
-    return base;
+    return base.endsWith("/") ? base : `${base}/`;
   }
-  return `${base}${normalized}`.replace(/([^:])\/{2,}/g, "$1/");
+  const prefix = base.endsWith("/") ? base : `${base}/`;
+  return `${prefix}${normalized}`.replace(/([^:])\/{2,}/g, "$1/");
 }

@@ -28,6 +28,7 @@ import { apiGet, apiPost } from "../utils/api";
 import Swal from "sweetalert2";
 import toast from "react-hot-toast";
 import { capitalizeName } from "../utils/formatters";
+import { createLocalCallTracks, releaseLocalTracks } from "../utils/agoraMedia";
 
 const CALL_TIMEOUT_MS = 60000;
 const DISMISS_INCOMING_TTL_MS = 120000;
@@ -39,6 +40,7 @@ const CallNotification = () => {
   const [incomingCall, setIncomingCall] = useState(null);
   const [showCallIframe, setShowCallIframe] = useState(false);
   const [agoraSession, setAgoraSession] = useState(null);
+  const [initialCallTracks, setInitialCallTracks] = useState(null);
   const [activeCallType, setActiveCallType] = useState("video");
   const [activeCallerName, setActiveCallerName] = useState("");
   const [audioError, setAudioError] = useState(false);
@@ -166,22 +168,38 @@ const CallNotification = () => {
 
   const handleAcceptCall = async () => {
     if (!incomingCall) return;
-    const { callSessionId, callType, roomId } = incomingCall;
+    const { callSessionId, callType, callerName } = incomingCall;
     stopRingtone();
     clearIncomingState();
     broadcastChannelRef.current?.postMessage({
       type: FCM_EVENTS.SYNC_STOP_RINGING,
     });
 
+    const normalizedType = (callType || "video").toLowerCase();
+    let localTracks;
+    try {
+      localTracks = await createLocalCallTracks(normalizedType);
+    } catch (mediaError) {
+      console.error(mediaError);
+      Swal.fire({
+        icon: "error",
+        text: "Microphone access is required to accept calls. Please allow mic/camera permissions.",
+        confirmButtonColor: "#9333ea",
+      });
+      return;
+    }
+
     try {
       const result = await apiPost("/calls/accept", { callSessionId });
       if (result.success && result.data?.agora) {
         activeCallSessionIdRef.current = callSessionId;
-        setActiveCallType(callType || result.data.callType || "video");
-        setActiveCallerName(incomingCall?.callerName || "Caller");
+        setActiveCallType(normalizedType || result.data.callType || "video");
+        setActiveCallerName(callerName || "Caller");
+        setInitialCallTracks(localTracks);
         setAgoraSession(result.data.agora);
         setShowCallIframe(true);
       } else {
+        releaseLocalTracks(localTracks);
         Swal.fire({
           icon: "error",
           text: result.message || "Invalid session",
@@ -189,6 +207,7 @@ const CallNotification = () => {
         });
       }
     } catch (error) {
+      releaseLocalTracks(localTracks);
       console.error(error);
       Swal.fire({
         icon: "error",
@@ -211,7 +230,12 @@ const CallNotification = () => {
     activeCallSessionIdRef.current = null;
     setShowCallIframe(false);
     setAgoraSession(null);
+    setInitialCallTracks(null);
     clearIncomingState();
+    broadcastChannelRef.current?.postMessage({
+      type: "CALL_ENDED",
+      callSessionId: sessionToEnd,
+    });
   };
 
   useEffect(() => {
@@ -229,6 +253,7 @@ const CallNotification = () => {
         } else if (event.data.type === "CALL_ENDED") {
           setShowCallIframe(false);
           setAgoraSession(null);
+          setInitialCallTracks(null);
           activeCallSessionIdRef.current = null;
           clearIncomingState();
         }
@@ -252,6 +277,7 @@ const CallNotification = () => {
         data.type === "call_cancelled" ||
         data.type === "end_call" ||
         data.event === "ENDED" ||
+        data.event === "REJECTED" ||
         data.event === "CHAT_ENDED" ||
         data.type === "CHAT_ENDED" ||
         data.event === "CHAT_DECLINED" ||
@@ -278,6 +304,9 @@ const CallNotification = () => {
         clearIncomingState();
         setIncomingChat(null);
         setShowCallIframe(false);
+        setAgoraSession(null);
+        setInitialCallTracks(null);
+        activeCallSessionIdRef.current = null;
         // Broadcast to other components (like Mentor.jsx or InstantChat.jsx) to close their modals
         broadcastChannelRef.current?.postMessage({
           type:
@@ -308,13 +337,15 @@ const CallNotification = () => {
       // Process ended calls for everyone, but incoming calls only for mates
       if (event.data?.type === "CALL_ENDED") {
         setShowCallIframe(false);
+        setAgoraSession(null);
+        setInitialCallTracks(null);
+        activeCallSessionIdRef.current = null;
         clearIncomingState();
         broadcastChannelRef.current?.postMessage({
           type: "CALL_ENDED",
           callSessionId: event.data.data?.callSessionId,
         });
         return;
-        ``;
       }
 
       if (!isCallReceiverRole) return;
@@ -382,6 +413,9 @@ const CallNotification = () => {
           processIncomingCall(payload);
         } else if (payload.type === "CALL_ENDED") {
           setShowCallIframe(false);
+          setAgoraSession(null);
+          setInitialCallTracks(null);
+          activeCallSessionIdRef.current = null;
           clearIncomingState();
           broadcastChannelRef.current?.postMessage({
             type: "CALL_ENDED",
@@ -590,11 +624,13 @@ const CallNotification = () => {
           </div>
           <AgoraCallUI
             agoraSession={agoraSession}
+            initialTracks={initialCallTracks}
             callType={activeCallType}
             localLabel={user?.name || "You"}
             remoteLabel={activeCallerName || "Caller"}
             className="flex-1 min-h-0"
             onLeave={handleEndCall}
+            onRemoteLeave={handleEndCall}
           />
         </div>
       )}

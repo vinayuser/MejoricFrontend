@@ -1,15 +1,11 @@
 import { apiPost, getAuthToken } from "./api";
+import {
+  isMockPaymentsEnabled,
+  buildMockBookingVerifyPayload,
+} from "./mockPayments";
 
 const RAZORPAY_KEY =
   import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_live_SVXnEDUa7IpGc8";
-
-function isLocalDev() {
-  return (
-    import.meta.env.VITE_APP_ENV === "local" ||
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1"
-  );
-}
 
 function buildBookingPayload({
   mentorId,
@@ -49,11 +45,7 @@ async function verifyBookingPayment(verifyData) {
 
 async function runMockPayment(orderId) {
   await new Promise((resolve) => setTimeout(resolve, 800));
-  return verifyBookingPayment({
-    razorpayOrderId: orderId,
-    razorpayPaymentId: `mock_${Date.now()}`,
-    razorpaySignature: "mock_signature",
-  });
+  return verifyBookingPayment(buildMockBookingVerifyPayload(orderId));
 }
 
 function openRazorpayCheckout({
@@ -135,10 +127,11 @@ export async function payAndBookMentorSession({
     throw new Error(orderResult?.message || "Failed to create payment order");
   }
 
-  const { razorpayOrderId, amount, keyId } = orderResult.data;
+  const { razorpayOrderId, amount, keyId, mockPayments } = orderResult.data;
   const payAmount = amount ?? sessionPrice;
+  const useMock = mockPayments === true || isMockPaymentsEnabled();
 
-  if (isLocalDev()) {
+  if (useMock) {
     return runMockPayment(razorpayOrderId);
   }
 

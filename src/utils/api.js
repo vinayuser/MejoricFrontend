@@ -7,14 +7,17 @@ export const getAuthToken = () => {
   return localStorage.getItem("authToken");
 };
 
+import { appPath } from "./basePath";
+
 // Cleanup session and redirect to login
 export const cleanupAndRedirect = () => {
   console.log("🚨 Auth token missing or invalid. Cleaning up session...");
   localStorage.removeItem("user");
   localStorage.removeItem("authToken");
   localStorage.removeItem("walletBalance");
-  if (window.location.pathname !== "/login") {
-    window.location.href = "/login";
+  const loginPath = appPath("login");
+  if (!window.location.pathname.endsWith("/login")) {
+    window.location.href = loginPath;
   }
 };
 

@@ -131,6 +131,12 @@ try {
           client.postMessage({ type: "CHAT_MESSAGE", data: d });
         } else if (d?.type === "incoming_call" || d?.type === "CALL" || d?.event === "RINGING") {
           client.postMessage({ type: "INCOMING_CALL", data: d });
+        } else if (
+          d?.event === "ENDED" ||
+          d?.event === "REJECTED" ||
+          d?.type === "CALL_ENDED"
+        ) {
+          client.postMessage({ type: "CALL_ENDED", data: d });
         } else if (d?.event === "MATE_STATUS_CHANGED") {
           client.postMessage({ type: "MATE_STATUS_CHANGED", data: d });
         }

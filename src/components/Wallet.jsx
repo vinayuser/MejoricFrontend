@@ -12,6 +12,10 @@ import { useAuth } from "../context/AuthContext";
 import { trackPixel, trackPixelCustom } from "../utils/metaPixel";
 import { apiPost, apiGet } from "../utils/api";
 import toast from "react-hot-toast";
+import {
+  isMockPaymentsEnabled,
+  buildMockWalletVerifyPayload,
+} from "../utils/mockPayments";
 
 const Wallet = () => {
   const { walletBalance, addToWallet, refreshWalletBalance, refreshSignupTrialStatus } =
@@ -84,16 +88,11 @@ const Wallet = () => {
     fetchTransactions();
   }, []);
 
-  // Automatic mock recharge for local development conversion flow
+  // Automatic mock recharge for local / staging conversion flow
   useEffect(() => {
-    const isLocal =
-      import.meta.env.VITE_APP_ENV === "local" ||
-      window.location.hostname === "localhost" ||
-      window.location.hostname === "127.0.0.1";
-
     const redirectMateId = localStorage.getItem("redirect_mate_id");
 
-    if (isLocal && redirectMateId && !loading) {
+    if (isMockPaymentsEnabled() && redirectMateId && !loading) {
       console.log("Auto-recharging 10 INR for local conversion flow...");
       // Set amount to 10 for the mock flow
       setAmount("10");
@@ -124,25 +123,17 @@ const Wallet = () => {
       }
 
       console.log("Auto order created:", orderId);
-      const mockResponse = {
-        razorpay_order_id: orderId,
-        razorpay_payment_id: `mock_pay_${Date.now()}`,
-        razorpay_signature: "mock_signature",
-      };
-
-      const verifyData = {
-        razorpayOrderId: mockResponse.razorpay_order_id,
-        razorpayPaymentId: mockResponse.razorpay_payment_id,
-        razorpaySignature: mockResponse.razorpay_signature,
-        amount: parseFloat(rechargeAmount),
-        currency: "INR",
-      };
+      const verifyData = buildMockWalletVerifyPayload(
+        orderId,
+        rechargeAmount,
+        "INR",
+      );
 
       const result = await apiPost("/wallet/verify", verifyData);
       if (result.success) {
         console.log("Auto mock verification success!");
         onPaymentSuccess(
-          mockResponse.razorpay_payment_id,
+          verifyData.razorpayPaymentId,
           parseFloat(rechargeAmount),
         );
       } else {
@@ -204,7 +195,9 @@ const Wallet = () => {
       return;
     }
 
-    if (!window.Razorpay) {
+    const useMockPayments = isMockPaymentsEnabled();
+
+    if (!useMockPayments && !window.Razorpay) {
       toast.error("Payment gateway is loading. Please try again in a moment.");
       return;
     }
@@ -239,33 +232,23 @@ const Wallet = () => {
         return;
       }
 
-      // Local mock payment bypass
-      const isLocal =
-        import.meta.env.VITE_APP_ENV === "local" ||
-        window.location.hostname === "localhost" ||
-        window.location.hostname === "127.0.0.1";
+      // Mock payment bypass (staging / local when ALLOW_MOCK_PAYMENTS=true)
+      const useMock =
+        orderData.data?.mockPayments === true || isMockPaymentsEnabled();
 
-      if (isLocal) {
-        console.log("Local environment detected, using mock payment...");
+      if (useMock) {
+        console.log("Mock payments enabled, skipping Razorpay checkout...");
         setTimeout(async () => {
           try {
-            const mockResponse = {
-              razorpay_order_id: orderId,
-              razorpay_payment_id: `mock_pay_${Date.now()}`,
-              razorpay_signature: "mock_signature",
-            };
-
-            const verifyData = {
-              razorpayOrderId: mockResponse.razorpay_order_id,
-              razorpayPaymentId: mockResponse.razorpay_payment_id,
-              razorpaySignature: mockResponse.razorpay_signature,
-              amount: parseFloat(amount), // Send amount for mock verification
-              currency: "INR",
-            };
+            const verifyData = buildMockWalletVerifyPayload(
+              orderId,
+              amount,
+              "INR",
+            );
 
             const result = await apiPost("/wallet/verify", verifyData);
             if (result.success) {
-              onPaymentSuccess(mockResponse.razorpay_payment_id);
+              onPaymentSuccess(verifyData.razorpayPaymentId);
             } else {
               toast.error("Mock payment verification failed");
             }
@@ -275,7 +258,7 @@ const Wallet = () => {
           } finally {
             setLoading(false);
           }
-        }, 1500);
+        }, 800);
         return;
       }
 

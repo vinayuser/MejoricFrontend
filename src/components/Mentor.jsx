@@ -29,11 +29,16 @@ import BannerSlider from "./BannerSlider";
 import InstantChat from "./InstantChat";
 import AgoraCallUI from "./AgoraCallUI";
 import { showLoginSignupAlert } from "../utils/authAlert";
+import { createLocalCallTracks, releaseLocalTracks } from "../utils/agoraMedia";
+import { io } from "socket.io-client";
 import {
   canStartUserChat,
   getSignupChatBlockMessage,
   resolveUserChatAccess,
 } from "../utils/chatAccess";
+
+const SOCKET_SERVER_URL =
+  import.meta.env.VITE_SOCKET_SERVER_URL || "https://mejoric.com";
 
 const mateBannerSlides = [
   { src: homeDesktopBanner, alt: "Mejoric Hero", showHeroContent: true },
@@ -104,7 +109,9 @@ export default function Mentor() {
   const [callType, setCallType] = useState(""); // 'video' or 'audio'
   const [selectedMentorId, setSelectedMentorId] = useState("");
   const [agoraSession, setAgoraSession] = useState(null);
+  const [initialCallTracks, setInitialCallTracks] = useState(null);
   const [callSessionId, setCallSessionId] = useState("");
+  const callSessionIdRef = useRef("");
   const [showFeedbackModal, setShowFeedbackModal] = useState(false); // Show feedback modal
   const [feedbackRating, setFeedbackRating] = useState(0); // Rating 1-5
   const [feedbackDescription, setFeedbackDescription] = useState(""); // Feedback description
@@ -112,6 +119,33 @@ export default function Mentor() {
     useState(null); // Mentor for feedback
   const [selectedMentorForChat, setSelectedMentorForChat] = useState(null);
   const [showInstantChat, setShowInstantChat] = useState(false);
+
+  useEffect(() => {
+    callSessionIdRef.current = callSessionId;
+  }, [callSessionId]);
+
+  const closeCallUi = React.useCallback((showFeedback = true) => {
+    setShowCallModal(false);
+    setAgoraSession(null);
+    setCallSessionId("");
+    setInitialCallTracks(null);
+    if (showFeedback) setShowFeedbackModal(true);
+  }, []);
+
+  const endActiveCall = React.useCallback(
+    async (showFeedback = true) => {
+      const sessionId = callSessionIdRef.current;
+      if (sessionId) {
+        try {
+          await apiPost("/calls/end", { callSessionId: sessionId });
+        } catch (error) {
+          console.error("Error ending call:", error);
+        }
+      }
+      closeCallUi(showFeedback);
+    },
+    [closeCallUi],
+  );
 
   useEffect(() => {
     if (user?.role === "user") {
@@ -300,13 +334,25 @@ export default function Mentor() {
     setCallType(type);
     setSelectedMentorId(mentor._id);
 
+    let localTracks;
+    try {
+      localTracks = await createLocalCallTracks(type);
+    } catch (mediaError) {
+      console.error(mediaError);
+      Swal.fire({
+        icon: "error",
+        text: "Microphone access is required for calls. Please allow mic/camera permissions.",
+        confirmButtonColor: "#9333ea",
+      });
+      return;
+    }
+
     try {
       const result = await apiPost("/calls/initiate", {
         receiverId: mentor._id,
         callType: type.toUpperCase(),
       });
 
-      // Track Meta Pixel Schedule event (initiating call)
       trackPixel("Schedule", {
         content_name: mentor.name,
         content_category: `${type.charAt(0).toUpperCase() + type.slice(1)} Call`,
@@ -314,6 +360,7 @@ export default function Mentor() {
 
       if (result.success && result.data?.agora) {
         if (result.data.remainingMinutes === 0) {
+          releaseLocalTracks(localTracks);
           await apiPost("/calls/end", {
             callSessionId: result.data.callSessionId || result.data._id || "",
           });
@@ -325,11 +372,13 @@ export default function Mentor() {
           return;
         }
 
+        setInitialCallTracks(localTracks);
         setAgoraSession(result.data.agora);
         setCallSessionId(result.data.callSessionId || result.data._id || "");
         setTimeLeft((result.data.remainingMinutes || 0) * 60);
         setShowCallModal(true);
       } else {
+        releaseLocalTracks(localTracks);
         Swal.fire({
           icon: "error",
           text: result.message || "Failed to initiate call.",
@@ -337,6 +386,7 @@ export default function Mentor() {
         });
       }
     } catch (error) {
+      releaseLocalTracks(localTracks);
       Swal.fire({
         icon: "warning",
         text: error.message || "Failed to initiate call.",
@@ -475,12 +525,9 @@ export default function Mentor() {
           `📡 [FCM] Mate status changed: ${data.mateName} → ${data.isAvailable === "true" ? "Online" : "Offline"}`,
         );
         fetchMatesRef.current?.();
-      } else if (data.event === "ENDED") {
+      } else if (data.event === "ENDED" || data.event === "REJECTED") {
         console.log("📡 [FCM] Call ended by other party");
-        setShowCallModal(false);
-        setAgoraSession(null);
-        setCallSessionId("");
-        setShowFeedbackModal(true);
+        closeCallUi(true);
       }
     });
 
@@ -494,10 +541,7 @@ export default function Mentor() {
         fetchMatesRef.current?.();
       } else if (event.data?.type === "CALL_ENDED") {
         console.log("📡 [SW] Call ended by other party");
-        setShowCallModal(false);
-        setAgoraSession(null);
-        setCallSessionId("");
-        setShowFeedbackModal(true);
+        closeCallUi(true);
       }
     };
 
@@ -523,10 +567,7 @@ export default function Mentor() {
           fetchMatesRef.current?.();
         } else if (event.data?.type === "CALL_ENDED") {
           console.log("📡 [BroadcastChannel] Call ended by other party");
-          setShowCallModal(false);
-          setAgoraSession(null);
-          setCallSessionId("");
-          setShowFeedbackModal(true);
+          closeCallUi(true);
         }
       };
     } catch (e) {
@@ -548,7 +589,37 @@ export default function Mentor() {
         broadcastChannel.close();
       }
     };
-  }, []);
+  }, [closeCallUi]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !(user?._id || user?.id)) return undefined;
+
+    const socket = io(SOCKET_SERVER_URL, {
+      transports: ["websocket", "polling"],
+      reconnection: true,
+    });
+
+    const userId = user._id || user.id;
+    socket.on("connect", () => {
+      socket.emit("register_user", userId);
+    });
+
+    socket.on("notification", (payload) => {
+      if (payload.type !== "CALL_ENDED") return;
+      const activeId = callSessionIdRef.current;
+      if (
+        !activeId ||
+        !payload.callSessionId ||
+        payload.callSessionId === activeId
+      ) {
+        closeCallUi(true);
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [isAuthenticated, user?._id, user?.id, closeCallUi]);
 
   // Memoized Mentor Card Component
   const MentorCard = memo(
@@ -911,22 +982,7 @@ export default function Mentor() {
                 {callType === "video" ? "Video Call" : "Audio Call"}
               </h3>
               <button
-                onClick={async () => {
-                  // Call end API when closing modal
-                  if (callSessionId) {
-                    try {
-                      await apiPost("/calls/end", { callSessionId });
-                      console.log("Call ended successfully");
-                    } catch (error) {
-                      console.error("Error ending call:", error);
-                    }
-                  }
-                  setShowCallModal(false);
-                  setAgoraSession(null);
-                  setCallSessionId("");
-                  // Show feedback modal after call ends
-                  setShowFeedbackModal(true);
-                }}
+                onClick={() => endActiveCall(true)}
                 className="text-white hover:text-gray-200"
               >
                 <FaTimes className="text-xl" />
@@ -937,6 +993,7 @@ export default function Mentor() {
               {agoraSession ? (
                 <AgoraCallUI
                   agoraSession={agoraSession}
+                  initialTracks={initialCallTracks}
                   callType={callType}
                   localLabel={user?.name || "You"}
                   remoteLabel={
@@ -944,19 +1001,8 @@ export default function Mentor() {
                     "Mate"
                   }
                   className="w-full h-full"
-                  onLeave={async () => {
-                    if (callSessionId) {
-                      try {
-                        await apiPost("/calls/end", { callSessionId });
-                      } catch (error) {
-                        console.error("Error ending call:", error);
-                      }
-                    }
-                    setShowCallModal(false);
-                    setAgoraSession(null);
-                    setCallSessionId("");
-                    setShowFeedbackModal(true);
-                  }}
+                  onLeave={() => endActiveCall(true)}
+                  onRemoteLeave={() => endActiveCall(true)}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-slate-950 text-white">
