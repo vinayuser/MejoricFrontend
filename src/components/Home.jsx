@@ -15,9 +15,8 @@ import Layout from "../components/Layout";
 import { trackPixel } from "../utils/metaPixel";
 import { useNavigate } from "react-router-dom";
 import Footer from "../components/Footer";
-import image from "../assets/img/segment.webp";
-import bannerImages from "../assets/img/2.webp";
-import heroMobileBanner from "../assets/img/hero_mobile.webp";
+import bannerImages from "../assets/img/1.webp";
+import heroMobileBanner from "../assets/img/1.webp";
 import HeroBannerOverlay, { HERO_MOBILE_GRADIENT } from "./HeroBannerOverlay";
 
 import StepsSection from "./StepsSection";
@@ -45,7 +44,6 @@ export default function Home() {
             alt="Mejoric Mobile Hero"
             fetchPriority="high"
           />
-          <div className={`absolute inset-0 ${HERO_MOBILE_GRADIENT} pointer-events-none`} />
         </div>
 
         <HeroBannerOverlay onCtaClick={() => navigate("/mate")} />
@@ -111,60 +109,66 @@ export default function Home() {
                 <p className="text-lg md:text-xl text-center lg:text-left text-gray-700 mb-4 leading-relaxed font-semibold">
                   No waiting lists. No pressure. No judgment.
                 </p>
-                <p className="text-lg md:text-xl text-center lg:text-left text-gray-700 mb-12 leading-relaxed">
+                <p className="text-lg md:text-xl text-center lg:text-left text-gray-700 leading-relaxed">
                   Just a safe space to feel lighter or a clear path to move
                   forward.
                 </p>
-
-                {/* CTAs - Side by side, equal weight */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl mx-auto lg:mx-0">
-                  <button
-                    onClick={() => {
-                      trackPixel("ViewContent");
-                      if (typeof window.gtag === "function") {
-                        window.gtag("event", "select_content", {
-                          content_type: "CTA Button",
-                          content_id: "i_want_to_talk",
-                        });
-                      }
-                      navigate("/mate");
-                    }}
-                    className="bg-purple-600 text-white px-8 py-4 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 font-semibold text-lg hover:scale-105"
-                  >
-                    I Want To Talk
-                    <br />
-                    <span className="text-sm opacity-90">
-                      (Connect with a Mate)
-                    </span>
-                  </button>
-                  {/* <button
-                    onClick={() => {
-                      trackPixel("ViewContent");
-                      if (typeof window.gtag === "function") {
-                        window.gtag("event", "select_content", {
-                          content_type: "CTA Button",
-                          content_id: "clarity_direction",
-                        });
-                      }
-                      navigate("/mentors");
-                    }}
-                    className="bg-purple-600 text-white px-8 py-4 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 font-semibold text-lg hover:scale-105"
-                  >
-                    I Need Clarity & Direction
-                    <br />
-                    <span className="text-sm opacity-90">(Find a Mentor)</span>
-                  </button> */}
-                </div>
               </div>
 
-              {/* Image - Right */}
+              {/* CTA panel - Right */}
               <div className="lg:block">
-                <img
-                  src={image}
-                  alt="Mejoric Support"
-                  className="rounded-2xl shadow-2xl w-full h-auto "
-                  loading="lazy"
-                />
+                <div className="relative overflow-hidden rounded-2xl shadow-2xl bg-purple-600 min-h-[420px] md:min-h-[480px] flex flex-col justify-between p-8 md:p-10">
+                  <div>
+                    <p className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-[1.15] tracking-tight">
+                      Pause.
+                      <br />
+                      Breathe.
+                      <br />
+                      Talk.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-4 mt-10">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        trackPixel("ViewContent");
+                        if (typeof window.gtag === "function") {
+                          window.gtag("event", "select_content", {
+                            content_type: "CTA Button",
+                            content_id: "connect_mate_panel",
+                          });
+                        }
+                        navigate("/mate");
+                      }}
+                      className="flex-1 bg-white text-purple-700 px-6 py-4 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 font-semibold text-lg hover:scale-[1.02]"
+                    >
+                      Mate
+                      <span className="block text-sm font-medium opacity-80 mt-0.5">
+                        Connect & talk
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        trackPixel("ViewContent");
+                        if (typeof window.gtag === "function") {
+                          window.gtag("event", "select_content", {
+                            content_type: "CTA Button",
+                            content_id: "find_mentor_panel",
+                          });
+                        }
+                        navigate("/mentors");
+                      }}
+                      className="flex-1 bg-white/15 text-white border border-white/40 px-6 py-4 rounded-2xl shadow-lg hover:bg-white/25 transition-all duration-300 font-semibold text-lg hover:scale-[1.02]"
+                    >
+                      Mentor
+                      <span className="block text-sm font-medium opacity-90 mt-0.5">
+                        Get clarity
+                      </span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

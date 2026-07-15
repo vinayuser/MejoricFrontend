@@ -64,7 +64,7 @@ function BookingCard({ booking, showJoin }) {
             </p>
             <p className="text-sm text-slate-500 mt-1">
               {booking.durationMinutes || 45} min ·{" "}
-              {isAudio ? "Audio call" : "Video call"} via Agora
+              {isAudio ? "Audio call" : "Video call"}
             </p>
             {booking.sessionPrice != null && (
               <p className="text-sm text-slate-600 mt-1">
@@ -167,7 +167,7 @@ export default function MyAppointments() {
               </div>
               <p className="text-purple-200">
                 {user?.name ? `Hi ${capitalizeName(user.name)}, ` : ""}
-                join your session from here when it&apos;s time — calls run on Agora.
+                join your session from here when it&apos;s time.
               </p>
             </div>
 

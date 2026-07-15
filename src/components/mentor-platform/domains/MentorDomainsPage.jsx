@@ -69,7 +69,7 @@ export default function MentorDomainsPage() {
   const domainName = activeDomain?.name || "All Mentors";
   const domainSub =
     activeDomainId === "all"
-      ? `All ${cfg.label.toLowerCase()} — browse and find your match`
+      ? `All ${cfg.label.toLowerCase()}. Browse and find your match`
       : `${cfg.label} specialising in ${domainName}`;
 
   return (

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import AgoraRTC from "agora-rtc-sdk-ng";
 import {
   FaMicrophone,
@@ -10,176 +10,271 @@ import {
 import { capitalizeName } from "../utils/formatters";
 import { releaseLocalTracks } from "../utils/agoraMedia";
 
+const JOIN_TIMEOUT_MS = 20000;
+
+function withTimeout(promise, ms, message) {
+  let timerId;
+  const timeout = new Promise((_, reject) => {
+    timerId = setTimeout(() => reject(new Error(message)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timerId));
+}
+
+function friendlyCallError(err) {
+  const raw = String(err?.message || err?.code || err || "");
+  const lower = raw.toLowerCase();
+  if (lower.includes("uid_conflict") || lower.includes("uid conflict")) {
+    return "Could not connect to the call. Please close other call tabs and try again.";
+  }
+  if (
+    lower.includes("permission") ||
+    lower.includes("notallowed") ||
+    lower.includes("device")
+  ) {
+    return "Microphone/camera permission is required. Please allow access and try again.";
+  }
+  if (
+    lower.includes("timeout") ||
+    lower.includes("network") ||
+    lower.includes("gateway")
+  ) {
+    return "Could not connect to the call. Please check your network and try again.";
+  }
+  return (
+    raw
+      .replace(/^AgoraRTCError\s*/i, "")
+      .replace(/^RTCError\s*/i, "")
+      .replace(/_/g, " ")
+      .trim() || "Could not join the call. Please try again."
+  );
+}
+
 /**
- * In-app Agora RTC call UI for mate instant audio/video calls.
- * Pass `initialTracks` from a click handler so mic/camera keep browser permission.
+ * Simple 1:1 call UI — join once, publish mic/camera, subscribe to peer.
  */
 export default function AgoraCallUI({
   agoraSession,
   callType = "video",
-  initialTracks = null,
   localLabel = "You",
   remoteLabel = "Mate",
   onLeave,
   onConnected,
   onError,
-  onRemoteLeave,
   className = "",
 }) {
+  const isAudioOnly = String(callType || "video").toLowerCase() === "audio";
+
   const [connecting, setConnecting] = useState(true);
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState("");
+  const [statusText, setStatusText] = useState("Connecting…");
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
-  const [isVideoEnabled, setIsVideoEnabled] = useState(callType !== "audio");
-  const [remoteVideoOn, setRemoteVideoOn] = useState(false);
-  const [remoteAudioOn, setRemoteAudioOn] = useState(false);
+  const [isVideoEnabled, setIsVideoEnabled] = useState(!isAudioOnly);
+  const [remoteJoined, setRemoteJoined] = useState(false);
 
   const clientRef = useRef(null);
-  const localTracksRef = useRef([]);
+  const tracksRef = useRef([]);
   const localVideoRef = useRef(null);
   const remoteVideoRef = useRef(null);
+  const remoteUserRef = useRef(null);
   const onLeaveRef = useRef(onLeave);
   const onConnectedRef = useRef(onConnected);
   const onErrorRef = useRef(onError);
-  const onRemoteLeaveRef = useRef(onRemoteLeave);
-  const initialTracksRef = useRef(initialTracks);
-
-  const isAudioOnly = callType === "audio";
-  const remotePresent = isAudioOnly ? remoteAudioOn : remoteVideoOn || remoteAudioOn;
 
   useEffect(() => {
     onLeaveRef.current = onLeave;
     onConnectedRef.current = onConnected;
     onErrorRef.current = onError;
-    onRemoteLeaveRef.current = onRemoteLeave;
-  }, [onLeave, onConnected, onError, onRemoteLeave]);
-
-  const playLocalVideo = useCallback(() => {
-    const cam = localTracksRef.current.find((t) => t.trackMediaType === "video");
-    if (cam && localVideoRef.current) {
-      cam.play(localVideoRef.current);
-    }
-  }, []);
-
-  const playRemoteUser = useCallback((remoteUser) => {
-    if (remoteUser.videoTrack && remoteVideoRef.current) {
-      remoteUser.videoTrack.play(remoteVideoRef.current);
-      setRemoteVideoOn(true);
-    }
-    if (remoteUser.audioTrack) {
-      remoteUser.audioTrack.play();
-      setRemoteAudioOn(true);
-    }
-  }, []);
-
-  const playAllRemoteUsers = useCallback(
-    (client) => {
-      (client?.remoteUsers || []).forEach((remoteUser) => {
-        playRemoteUser(remoteUser);
-      });
-    },
-    [playRemoteUser],
-  );
+  }, [onLeave, onConnected, onError]);
 
   useEffect(() => {
-    if (!connecting && connected) {
-      playLocalVideo();
-      playAllRemoteUsers(clientRef.current);
+    const appId = agoraSession?.appId;
+    const channelName = agoraSession?.channelName;
+    const token = agoraSession?.token;
+    const uid = Number(agoraSession?.uid);
+
+    if (!appId || !channelName || !token) {
+      setError("Missing call session credentials");
+      setConnecting(false);
+      return undefined;
     }
-  }, [connecting, connected, playLocalVideo, playAllRemoteUsers]);
-
-  useEffect(() => {
-    initialTracksRef.current = initialTracks;
-  }, [initialTracks]);
-
-  useEffect(() => {
-    if (!agoraSession?.appId || !agoraSession?.channelName || !agoraSession?.token) {
-      setError("Missing Agora session credentials");
+    if (token === "mock_agora_token") {
+      setError("Voice/video calling is not configured on the server.");
+      setConnecting(false);
+      return undefined;
+    }
+    if (!Number.isFinite(uid) || uid <= 0) {
+      setError("Invalid call session. Please try again.");
       setConnecting(false);
       return undefined;
     }
 
     let cancelled = false;
+    let client = null;
 
-    const joinChannel = async () => {
-      setConnecting(true);
-      setError("");
-      try {
-        const client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
-        clientRef.current = client;
-
-        client.on("user-published", async (remoteUser, mediaType) => {
-          await client.subscribe(remoteUser, mediaType);
-          if (mediaType === "video") {
-            playRemoteUser(remoteUser);
-          }
-          if (mediaType === "audio") {
-            remoteUser.audioTrack?.play();
-            setRemoteAudioOn(true);
-          }
-        });
-
-        client.on("user-unpublished", (_remoteUser, mediaType) => {
-          if (mediaType === "video") setRemoteVideoOn(false);
-          if (mediaType === "audio") setRemoteAudioOn(false);
-        });
-
-        client.on("user-left", () => {
-          setRemoteVideoOn(false);
-          setRemoteAudioOn(false);
-          onRemoteLeaveRef.current?.();
-        });
-
-        await client.join(
-          agoraSession.appId,
-          agoraSession.channelName,
-          agoraSession.token,
-          agoraSession.uid,
-        );
-
-        let tracks = Array.isArray(initialTracksRef.current)
-          ? initialTracksRef.current.filter(Boolean)
-          : [];
-
-        if (tracks.length === 0) {
-          const micTrack = await AgoraRTC.createMicrophoneAudioTrack();
-          tracks = [micTrack];
-          if (!isAudioOnly) {
-            tracks.push(await AgoraRTC.createCameraVideoTrack());
-          }
-        }
-
-        localTracksRef.current = tracks;
-        await client.publish(tracks);
-
-        if (!cancelled) {
-          setConnected(true);
-          setConnecting(false);
-          playLocalVideo();
-          playAllRemoteUsers(client);
-          onConnectedRef.current?.();
-        }
-      } catch (err) {
-        if (!cancelled) {
-          const message = err?.message || "Could not join call";
-          setError(message);
-          setConnecting(false);
-          onErrorRef.current?.(err);
+    const playLocalVideo = () => {
+      const cam = tracksRef.current.find((t) => t.trackMediaType === "video");
+      if (cam && localVideoRef.current) {
+        try {
+          cam.play(localVideoRef.current);
+        } catch {
+          // ignore
         }
       }
     };
 
-    joinChannel();
+    const playRemote = async (user, mediaType) => {
+      remoteUserRef.current = user;
+      if (!cancelled) setRemoteJoined(true);
+
+      if (mediaType === "audio" && user.audioTrack) {
+        try {
+          await user.audioTrack.play();
+        } catch {
+          // autoplay may require a click; still mark joined
+        }
+      }
+      if (mediaType === "video" && user.videoTrack && remoteVideoRef.current) {
+        try {
+          user.videoTrack.play(remoteVideoRef.current);
+        } catch {
+          // ignore
+        }
+      }
+    };
+
+    const subscribeExisting = async (rtc) => {
+      for (const user of rtc.remoteUsers || []) {
+        try {
+          if (user.hasAudio) {
+            await rtc.subscribe(user, "audio");
+            await playRemote(user, "audio");
+          }
+          if (!isAudioOnly && user.hasVideo) {
+            await rtc.subscribe(user, "video");
+            await playRemote(user, "video");
+          }
+        } catch (err) {
+          console.error("[Call] subscribe existing failed", err);
+        }
+      }
+    };
+
+    const teardown = async () => {
+      const tracks = tracksRef.current;
+      tracksRef.current = [];
+      releaseLocalTracks(tracks);
+
+      const rtc = client || clientRef.current;
+      client = null;
+      clientRef.current = null;
+      if (!rtc) return;
+      try {
+        rtc.removeAllListeners();
+      } catch {
+        // ignore
+      }
+      try {
+        await rtc.leave();
+      } catch {
+        // ignore
+      }
+    };
+
+    const start = async () => {
+      setConnecting(true);
+      setConnected(false);
+      setRemoteJoined(false);
+      setError("");
+      setStatusText("Connecting…");
+
+      try {
+        client = AgoraRTC.createClient({ mode: "rtc", codec: "vp8" });
+        clientRef.current = client;
+
+        client.on("user-published", async (user, mediaType) => {
+          try {
+            await client.subscribe(user, mediaType);
+            await playRemote(user, mediaType);
+          } catch (err) {
+            console.error("[Call] subscribe failed", err);
+          }
+        });
+
+        client.on("user-left", (user) => {
+          if (remoteUserRef.current?.uid === user.uid) {
+            remoteUserRef.current = null;
+          }
+          if ((client?.remoteUsers || []).length === 0 && !cancelled) {
+            setRemoteJoined(false);
+          }
+        });
+
+        setStatusText("Joining…");
+        const joinOnce = () =>
+          withTimeout(
+            client.join(appId, channelName, token, uid),
+            JOIN_TIMEOUT_MS,
+            "Could not connect to the call. Please check your network and try again.",
+          );
+
+        try {
+          await joinOnce();
+        } catch (joinErr) {
+          const msg = String(joinErr?.message || joinErr || "").toLowerCase();
+          if (msg.includes("uid_conflict") || msg.includes("uid conflict")) {
+            try {
+              await client.leave();
+            } catch {
+              // ignore
+            }
+            await new Promise((r) => setTimeout(r, 400));
+            await joinOnce();
+          } else {
+            throw joinErr;
+          }
+        }
+
+        if (cancelled) return;
+
+        setStatusText(isAudioOnly ? "Starting microphone…" : "Starting camera…");
+        const tracks = [await AgoraRTC.createMicrophoneAudioTrack()];
+        if (!isAudioOnly) {
+          tracks.push(await AgoraRTC.createCameraVideoTrack());
+        }
+        if (cancelled) {
+          releaseLocalTracks(tracks);
+          return;
+        }
+
+        tracksRef.current = tracks;
+        setStatusText("Connecting audio…");
+        await client.publish(tracks);
+
+        if (cancelled) return;
+
+        setConnected(true);
+        setConnecting(false);
+        setStatusText("");
+        playLocalVideo();
+        await subscribeExisting(client);
+        onConnectedRef.current?.();
+      } catch (err) {
+        console.error("[Call] failed", err);
+        if (!cancelled) {
+          setError(friendlyCallError(err));
+          setConnecting(false);
+          onErrorRef.current?.(err);
+        }
+        await teardown();
+      }
+    };
+
+    start();
 
     return () => {
       cancelled = true;
-      releaseLocalTracks(localTracksRef.current);
-      localTracksRef.current = [];
-      if (clientRef.current) {
-        clientRef.current.leave().catch(() => {});
-        clientRef.current.removeAllListeners();
-        clientRef.current = null;
-      }
+      void teardown();
     };
   }, [
     agoraSession?.appId,
@@ -187,43 +282,73 @@ export default function AgoraCallUI({
     agoraSession?.token,
     agoraSession?.uid,
     isAudioOnly,
-    playAllRemoteUsers,
-    playLocalVideo,
-    playRemoteUser,
   ]);
 
+  useEffect(() => {
+    if (!connected || connecting) return;
+    const cam = tracksRef.current.find((t) => t.trackMediaType === "video");
+    if (cam && localVideoRef.current) {
+      try {
+        cam.play(localVideoRef.current);
+      } catch {
+        // ignore
+      }
+    }
+    const remote = remoteUserRef.current;
+    if (remote?.videoTrack && remoteVideoRef.current) {
+      try {
+        remote.videoTrack.play(remoteVideoRef.current);
+      } catch {
+        // ignore
+      }
+    }
+  }, [connected, connecting, remoteJoined]);
+
   const toggleAudio = async () => {
-    const mic = localTracksRef.current.find((t) => t.trackMediaType === "audio");
+    const mic = tracksRef.current.find((t) => t.trackMediaType === "audio");
     if (!mic) return;
-    await mic.setEnabled(!isAudioEnabled);
-    setIsAudioEnabled(!isAudioEnabled);
+    const next = !isAudioEnabled;
+    await mic.setEnabled(next);
+    setIsAudioEnabled(next);
   };
 
   const toggleVideo = async () => {
-    const cam = localTracksRef.current.find((t) => t.trackMediaType === "video");
+    const cam = tracksRef.current.find((t) => t.trackMediaType === "video");
     if (!cam) return;
-    await cam.setEnabled(!isVideoEnabled);
-    setIsVideoEnabled(!isVideoEnabled);
-    if (!isVideoEnabled) {
-      playLocalVideo();
+    const next = !isVideoEnabled;
+    await cam.setEnabled(next);
+    setIsVideoEnabled(next);
+    if (next && localVideoRef.current) {
+      try {
+        cam.play(localVideoRef.current);
+      } catch {
+        // ignore
+      }
     }
   };
 
   const handleLeave = () => {
-    releaseLocalTracks(localTracksRef.current);
-    localTracksRef.current = [];
-    if (clientRef.current) {
-      clientRef.current.leave().catch(() => {});
-      clientRef.current.removeAllListeners();
-      clientRef.current = null;
+    releaseLocalTracks(tracksRef.current);
+    tracksRef.current = [];
+    const client = clientRef.current;
+    clientRef.current = null;
+    if (client) {
+      try {
+        client.removeAllListeners();
+      } catch {
+        // ignore
+      }
+      client.leave().catch(() => {});
     }
     onLeaveRef.current?.();
   };
 
   if (error) {
     return (
-      <div className={`flex flex-col items-center justify-center bg-slate-950 text-white p-8 ${className}`}>
-        <p className="text-red-300 mb-6 text-center">{error}</p>
+      <div
+        className={`flex flex-col items-center justify-center bg-slate-950 text-white p-8 ${className}`}
+      >
+        <p className="text-red-300 mb-6 text-center max-w-md">{error}</p>
         <button
           type="button"
           onClick={handleLeave}
@@ -240,7 +365,7 @@ export default function AgoraCallUI({
       {connecting && (
         <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-slate-950/90">
           <div className="w-10 h-10 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mb-4" />
-          <p className="text-slate-300">Connecting…</p>
+          <p className="text-slate-300">{statusText || "Connecting…"}</p>
         </div>
       )}
 
@@ -271,16 +396,24 @@ export default function AgoraCallUI({
                   <FaMicrophone className="text-3xl text-purple-300" />
                 </div>
                 <p className="text-lg font-semibold">
-                  {remotePresent ? capitalizeName(remoteLabel) : `Waiting for ${capitalizeName(remoteLabel)}…`}
+                  {remoteJoined
+                    ? capitalizeName(remoteLabel)
+                    : connected
+                      ? `Waiting for ${capitalizeName(remoteLabel)}…`
+                      : "Connecting…"}
                 </p>
                 {connected && (
-                  <p className="text-sm text-slate-400 mt-2">Audio call · Agora</p>
+                  <p className="text-sm text-slate-400 mt-2">
+                    {remoteJoined ? "Connected" : "Audio call"}
+                  </p>
                 )}
               </div>
             )}
             {!isAudioOnly && (
               <span className="absolute bottom-3 left-3 text-xs bg-black/60 px-2 py-1 rounded">
-                {remotePresent ? capitalizeName(remoteLabel) : `Waiting for ${capitalizeName(remoteLabel)}…`}
+                {remoteJoined
+                  ? capitalizeName(remoteLabel)
+                  : `Waiting for ${capitalizeName(remoteLabel)}…`}
               </span>
             )}
           </div>
@@ -293,6 +426,7 @@ export default function AgoraCallUI({
           onClick={toggleAudio}
           className={`p-4 rounded-full ${isAudioEnabled ? "bg-slate-800" : "bg-red-600"}`}
           aria-label="Toggle microphone"
+          disabled={connecting}
         >
           {isAudioEnabled ? <FaMicrophone /> : <FaMicrophoneSlash />}
         </button>
@@ -302,6 +436,7 @@ export default function AgoraCallUI({
             onClick={toggleVideo}
             className={`p-4 rounded-full ${isVideoEnabled ? "bg-slate-800" : "bg-red-600"}`}
             aria-label="Toggle camera"
+            disabled={connecting}
           >
             {isVideoEnabled ? <FaVideo /> : <FaVideoSlash />}
           </button>

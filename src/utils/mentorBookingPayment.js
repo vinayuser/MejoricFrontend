@@ -129,7 +129,13 @@ export async function payAndBookMentorSession({
 
   const { razorpayOrderId, amount, keyId, mockPayments } = orderResult.data;
   const payAmount = amount ?? sessionPrice;
-  const useMock = mockPayments === true || isMockPaymentsEnabled();
+  const useMock = isMockPaymentsEnabled();
+
+  if (mockPayments === true && !useMock) {
+    throw new Error(
+      "Server is still in mock payment mode. Set ALLOW_MOCK_PAYMENTS=false and IS_STAGING=false on the API, then restart.",
+    );
+  }
 
   if (useMock) {
     return runMockPayment(razorpayOrderId);

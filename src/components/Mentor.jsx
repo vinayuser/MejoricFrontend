@@ -23,13 +23,13 @@ import { initializeFCM, getFCMToken } from "../utils/fcm";
 import { onForegroundMessage } from "../firebase/firebase";
 import banner from "../assets/img/mateguide.webp";
 import banners from "../assets/img/mates_hero.webp";
-import homeDesktopBanner from "../assets/img/2.webp";
-import heroMobileBanner from "../assets/img/hero_mobile.webp";
+import homeDesktopBanner from "../assets/img/1.webp";
+import heroMobileBanner from "../assets/img/1.webp";
 import BannerSlider from "./BannerSlider";
 import InstantChat from "./InstantChat";
 import AgoraCallUI from "./AgoraCallUI";
 import { showLoginSignupAlert } from "../utils/authAlert";
-import { createLocalCallTracks, releaseLocalTracks } from "../utils/agoraMedia";
+import { ensureCallMediaPermission } from "../utils/agoraMedia";
 import { io } from "socket.io-client";
 import {
   canStartUserChat,
@@ -109,7 +109,6 @@ export default function Mentor() {
   const [callType, setCallType] = useState(""); // 'video' or 'audio'
   const [selectedMentorId, setSelectedMentorId] = useState("");
   const [agoraSession, setAgoraSession] = useState(null);
-  const [initialCallTracks, setInitialCallTracks] = useState(null);
   const [callSessionId, setCallSessionId] = useState("");
   const callSessionIdRef = useRef("");
   const [showFeedbackModal, setShowFeedbackModal] = useState(false); // Show feedback modal
@@ -128,7 +127,6 @@ export default function Mentor() {
     setShowCallModal(false);
     setAgoraSession(null);
     setCallSessionId("");
-    setInitialCallTracks(null);
     if (showFeedback) setShowFeedbackModal(true);
   }, []);
 
@@ -334,14 +332,16 @@ export default function Mentor() {
     setCallType(type);
     setSelectedMentorId(mentor._id);
 
-    let localTracks;
     try {
-      localTracks = await createLocalCallTracks(type);
+      await ensureCallMediaPermission(type);
     } catch (mediaError) {
       console.error(mediaError);
       Swal.fire({
         icon: "error",
-        text: "Microphone access is required for calls. Please allow mic/camera permissions.",
+        text:
+          type === "video"
+            ? "Camera and microphone access are required for video calls."
+            : "Microphone access is required for audio calls.",
         confirmButtonColor: "#9333ea",
       });
       return;
@@ -351,6 +351,7 @@ export default function Mentor() {
       const result = await apiPost("/calls/initiate", {
         receiverId: mentor._id,
         callType: type.toUpperCase(),
+        deferRing: true,
       });
 
       trackPixel("Schedule", {
@@ -360,7 +361,6 @@ export default function Mentor() {
 
       if (result.success && result.data?.agora) {
         if (result.data.remainingMinutes === 0) {
-          releaseLocalTracks(localTracks);
           await apiPost("/calls/end", {
             callSessionId: result.data.callSessionId || result.data._id || "",
           });
@@ -372,13 +372,11 @@ export default function Mentor() {
           return;
         }
 
-        setInitialCallTracks(localTracks);
         setAgoraSession(result.data.agora);
         setCallSessionId(result.data.callSessionId || result.data._id || "");
         setTimeLeft((result.data.remainingMinutes || 0) * 60);
         setShowCallModal(true);
       } else {
-        releaseLocalTracks(localTracks);
         Swal.fire({
           icon: "error",
           text: result.message || "Failed to initiate call.",
@@ -386,7 +384,6 @@ export default function Mentor() {
         });
       }
     } catch (error) {
-      releaseLocalTracks(localTracks);
       Swal.fire({
         icon: "warning",
         text: error.message || "Failed to initiate call.",
@@ -993,7 +990,6 @@ export default function Mentor() {
               {agoraSession ? (
                 <AgoraCallUI
                   agoraSession={agoraSession}
-                  initialTracks={initialCallTracks}
                   callType={callType}
                   localLabel={user?.name || "You"}
                   remoteLabel={
@@ -1002,7 +998,30 @@ export default function Mentor() {
                   }
                   className="w-full h-full"
                   onLeave={() => endActiveCall(true)}
-                  onRemoteLeave={() => endActiveCall(true)}
+                  onConnected={async () => {
+                    const sessionId = callSessionIdRef.current;
+                    if (!sessionId) return;
+                    try {
+                      await apiPost("/calls/ring", { callSessionId: sessionId });
+                    } catch (err) {
+                      console.error("Failed to ring mate after media ready", err);
+                      toast.error(
+                        err.message ||
+                          "Connected, but could not notify the mate. Please try again.",
+                      );
+                    }
+                  }}
+                  onError={async () => {
+                    // Media/channel failed — end quietly so mate was never rung.
+                    const sessionId = callSessionIdRef.current;
+                    if (sessionId) {
+                      try {
+                        await apiPost("/calls/end", { callSessionId: sessionId });
+                      } catch {
+                        // ignore
+                      }
+                    }
+                  }}
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-slate-950 text-white">

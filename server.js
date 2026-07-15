@@ -39,13 +39,18 @@ app.use(
         connectSrc: [
           "'self'",
           "https:",
+          "wss:",
           "http://localhost:*",
           "http://192.168.1.9:*",
           "ws://localhost:*",
+          "wss://*.agora.io",
+          "https://*.agora.io",
+          "wss://*.sd-rtn.com",
+          "https://*.sd-rtn.com",
           "https://lumberjack.razorpay.com",
           "https://www.google-analytics.com",
-          "https://firebaseinstallations.googleapis.com", // Firebase API
-          "https://fcmregistrations.googleapis.com", // FCM API
+          "https://firebaseinstallations.googleapis.com",
+          "https://fcmregistrations.googleapis.com",
         ],
         frameSrc: [
           "'self'",
@@ -56,7 +61,13 @@ app.use(
           "https://mateandmentors.yourvideo.live",
           "https://matenmentor.yourvideo.live",
         ],
-        mediaSrc: ["'self'", "https://mejoric.com", "https://*.mejoric.com"], // 🛡️ Allow audio/video files
+        mediaSrc: [
+          "'self'",
+          "blob:",
+          "mediastream:",
+          "https://mejoric.com",
+          "https://*.mejoric.com",
+        ],
         upgradeInsecureRequests: null,
       },
     },

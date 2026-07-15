@@ -17,7 +17,12 @@ const QUICK_LINKS = [
   { name: "Mates", path: "/mate" },
   { name: "Mentors", path: "/mentors" },
   { name: "About Us", path: "/about" },
-  { name: "Contact", path: "/contact" },
+];
+
+const LEGAL_LINKS = [
+  { name: "Terms & Conditions", path: "/terms-and-conditions" },
+  { name: "Privacy Policy", path: "/privacy-policy" },
+  { name: "Certificate Course", path: "/certificate" },
 ];
 
 const SOCIAL_LINKS = [
@@ -51,10 +56,8 @@ export default function Footer() {
   const isMate = isAuthenticated && user?.role === "mate";
   const isMentor = isAuthenticated && user?.role === "mentor";
 
-  const legalLinks = [
-    { name: "Terms & Conditions", path: "/terms-and-conditions" },
-    { name: "Privacy Policy", path: "/privacy-policy" },
-    { name: "Certificate Course", path: "/certificate" },
+  const quickLinks = [
+    ...QUICK_LINKS,
     !isMate && { name: "Mate Login", path: "/login?role=mate" },
     !isMentor && { name: "Mentor Login", path: "/login?role=mentor" },
   ].filter(Boolean);
@@ -100,7 +103,7 @@ export default function Footer() {
           <div>
             <FooterHeading>Quick Links</FooterHeading>
             <ul>
-              {QUICK_LINKS.map((item) => (
+              {quickLinks.map((item) => (
                 <li key={item.name}>
                   <FooterLink to={item.path}>{item.name}</FooterLink>
                 </li>
@@ -110,9 +113,9 @@ export default function Footer() {
 
           {/* Legal */}
           <div>
-            <FooterHeading>Legal & More</FooterHeading>
+            <FooterHeading>Legal</FooterHeading>
             <ul>
-              {legalLinks.map((item) => (
+              {LEGAL_LINKS.map((item) => (
                 <li key={item.name}>
                   <FooterLink to={item.path}>{item.name}</FooterLink>
                 </li>
@@ -124,6 +127,9 @@ export default function Footer() {
           <div>
             <FooterHeading>Contact</FooterHeading>
             <ul className="space-y-3">
+              <li>
+                <FooterLink to="/contact">Contact Us</FooterLink>
+              </li>
               <li>
                 <a
                   href="https://wa.me/919204235079"

@@ -232,9 +232,15 @@ const Wallet = () => {
         return;
       }
 
-      // Mock payment bypass (staging / local when ALLOW_MOCK_PAYMENTS=true)
-      const useMock =
-        orderData.data?.mockPayments === true || isMockPaymentsEnabled();
+      const useMock = isMockPaymentsEnabled();
+
+      if (orderData.data?.mockPayments === true && !useMock) {
+        toast.error(
+          "Server is still in mock payment mode. Disable ALLOW_MOCK_PAYMENTS / IS_STAGING on the API and restart.",
+        );
+        setLoading(false);
+        return;
+      }
 
       if (useMock) {
         console.log("Mock payments enabled, skipping Razorpay checkout...");

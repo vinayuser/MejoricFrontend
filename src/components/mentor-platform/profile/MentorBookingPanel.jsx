@@ -296,7 +296,7 @@ export default function MentorBookingPanel({
         {isMyBookedSlot ? "Session confirmed ✓" : "Book Session →"}
       </button>
       <div className="mp-bc-note">
-        Free cancellation up to 24 hours before · Mejoric platform fee: 40%
+        Free cancellation up to 24 hours before.
       </div>
     </div>
   );

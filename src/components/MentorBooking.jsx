@@ -603,10 +603,10 @@ function BookingSuccess({ booking, onDone }) {
         <div className="mt-6 pt-6 border-t border-slate-100">
           <div className="flex items-center gap-2 text-purple-700 font-semibold mb-3">
             <FaVideo />
-            Session via Agora
+            Secure video session
           </div>
           <p className="text-xs text-slate-500 mb-3">
-            Audio/video call opens in the Mejoric app — no external Zoom link needed.
+            Audio/video call opens in the Mejoric app. No external Zoom link needed.
           </p>
           <Link
             to="/my-appointments"
@@ -920,7 +920,7 @@ export default function MentorBookingModal({
       });
       setBooking(result);
       setStep("success");
-      toast.success("Payment successful — appointment booked!");
+      toast.success("Payment successful. Appointment booked!");
       onBookingSuccess?.(result);
     } catch (error) {
       console.error(error);

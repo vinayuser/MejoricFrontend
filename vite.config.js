@@ -38,14 +38,43 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
   const defines = viteEnvDefines();
   const base = env.VITE_BASE || stagingConfig.base;
+  const isStagingBase =
+    base.includes("/staging") || base.replace(/\/$/, "").endsWith("staging");
 
-  // Allow front/.env to override staging defaults during local dev
-  if (env.VITE_API_BASE_URL) {
-    defines["import.meta.env.VITE_API_BASE_URL"] = JSON.stringify(env.VITE_API_BASE_URL);
+  // front/.env overrides staging.config defaults (critical for production builds)
+  const envOverrides = [
+    "VITE_API_BASE_URL",
+    "VITE_SOCKET_SERVER_URL",
+    "VITE_APP_ENV",
+    "VITE_ALLOW_MOCK_PAYMENTS",
+    "VITE_IS_STAGING",
+    "VITE_PIXEL_ID",
+    "VITE_GA_ID",
+    "VITE_TRIAL_CHAT_DURATION",
+    "VITE_FREE_WALLET_RECHARGE",
+    "VITE_CHAT_PRICE_PER_MIN",
+    "VITE_AUDIO_CALL_PRICE_PER_MIN",
+    "VITE_VIDEO_CALL_PRICE_PER_MIN",
+    "VITE_AGORA_APP_ID",
+    "VITE_AGORA_APP_CERTIFICATE",
+    "VITE_AGORA_TOKEN_TTL_SECONDS",
+    "VITE_FCM_VAPID_KEY",
+  ];
+  for (const key of envOverrides) {
+    if (env[key] !== undefined && env[key] !== "") {
+      defines[`import.meta.env.${key}`] = JSON.stringify(env[key]);
+    }
   }
-  if (env.VITE_SOCKET_SERVER_URL) {
-    defines["import.meta.env.VITE_SOCKET_SERVER_URL"] = JSON.stringify(
-      env.VITE_SOCKET_SERVER_URL,
+
+  // Production base (/) must not inherit staging mock-payment defaults
+  if (env.VITE_ALLOW_MOCK_PAYMENTS === undefined) {
+    defines["import.meta.env.VITE_ALLOW_MOCK_PAYMENTS"] = JSON.stringify(
+      String(isStagingBase),
+    );
+  }
+  if (env.VITE_IS_STAGING === undefined) {
+    defines["import.meta.env.VITE_IS_STAGING"] = JSON.stringify(
+      String(isStagingBase),
     );
   }
 
@@ -64,7 +93,7 @@ export default defineConfig(({ mode }) => {
       port: stagingConfig.devPort,
       cors: true,
       allowedHosts: ["mejoric.com", "www.mejoric.com", "localhost"],
-      open: "/staging/",
+      open: base === "/" || base === "" ? "/" : base,
       // Proxy API + sockets to local Server during `npm run dev`
       proxy: {
         "/mateandmentors": {

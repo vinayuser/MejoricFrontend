@@ -9,9 +9,9 @@ export const TYPE_ROUTE = {
 };
 
 export const LANDING_CHIPS = [
-  { label: "I'm anxious or overwhelmed", type: "emotional" },
-  { label: "Going through a breakup or loss", type: "emotional" },
-  { label: "Burnt out from work", type: "emotional" },
+  // { label: "I'm anxious or overwhelmed", type: "emotional" },
+  // { label: "Going through a breakup or loss", type: "emotional" },
+  // { label: "Burnt out from work", type: "emotional" },
   { label: "Want to switch careers", type: "professional" },
   { label: "Preparing for an interview", type: "professional" },
   { label: "Confused about my next role", type: "professional" },
@@ -19,16 +19,16 @@ export const LANDING_CHIPS = [
 
 export const TRUST_CONTENT = {
   yes: [
-    "Real, credentialed people who have lived through what you're facing — emotionally or professionally.",
+    "Real, credentialed people who have lived through what you're facing, emotionally or professionally.",
     "A private, 1-to-1 conversation you can book in minutes, on your schedule.",
-    "Honest, specific, and practical — built around your exact situation, not a generic script.",
+    "Honest, specific, and practical guidance built around your exact situation, not a generic script.",
     "A safe space to rehearse a hard conversation, process a hard feeling, or plan a hard decision.",
   ],
   no: [
-    "Not licensed therapy or clinical treatment — Emotional Mentors will guide you toward that if you need it.",
-    "Not a job guarantee — Professional Mentors give direction, not placement.",
-    "Not a chatbot or script — every Mentor is a verified human, every session is private.",
-    "Not a long-term commitment — book one session, see if it helps, decide from there.",
+    "Not licensed therapy or clinical treatment. Emotional Mentors will guide you toward that if you need it.",
+    "Not a job guarantee. Professional Mentors give direction, not placement.",
+    "Not a chatbot or script. Every Mentor is a verified human, and every session is private.",
+    "Not a long-term commitment. Book one session, see if it helps, and decide from there.",
   ],
 };
 
@@ -36,17 +36,12 @@ export const PROOF_CARDS = [
   {
     type: "emotional",
     before: '"I don\'t even know why I feel this anxious all the time. I just push through it."',
-    after: '"I can finally name what\'s happening in my body — and I have one tool to use tonight."',
+    after: '"I can finally name what\'s happening in my body, and I have one tool to use tonight."',
   },
   {
     type: "professional",
     before: '"I want to move into product management but I don\'t even know where to start."',
     after: '"I have a 90-day plan, three skills to build first, and someone who\'ll check my progress."',
-  },
-  {
-    type: "emotional",
-    before: '"My partner and I keep having the same fight. I don\'t know how to say what I mean."',
-    after: '"I understand the pattern now — and I have the exact words to try next time."',
   },
 ];
 
@@ -57,7 +52,7 @@ export const MENTOR_PLATFORM_CONFIG = {
     pill: "🌿 Emotional Support",
     title: "Emotional Mentor",
     tagline:
-      "A trained, credentialed guide who holds space for your emotional life — not a therapist, not a friend. Something more useful than both.",
+      "A trained, credentialed guide who holds space for your emotional life. Not a therapist, not a friend. Something more useful than both.",
     grid: [
       {
         dark: false,
@@ -67,12 +62,12 @@ export const MENTOR_PLATFORM_CONFIG = {
       {
         dark: false,
         head: "WHAT THEY DO",
-        body: "They provide structured emotional guidance across 22 domains — anxiety, grief, relationships, confidence, burnout, identity, and more — in private 1-to-1 sessions.",
+        body: "They provide structured emotional guidance across 22 domains including anxiety, grief, relationships, confidence, burnout, and identity, in private 1-to-1 sessions.",
       },
       {
         dark: true,
         head: "WHAT THEY ARE NOT",
-        body: "They are not therapists and will not diagnose, treat, or prescribe. If you need clinical support, they will guide you toward it — clearly and without making you feel dismissed.",
+        body: "They are not therapists and will not diagnose, treat, or prescribe. If you need clinical support, they will guide you toward it clearly, without making you feel dismissed.",
       },
       {
         dark: false,
@@ -119,17 +114,17 @@ export const MENTOR_PLATFORM_CONFIG = {
     pill: "💼 Career & Professional",
     title: "Professional Mentor",
     tagline:
-      "An experienced professional who gives you the honest picture of your career — what to do next, how to get there, and what the path actually feels like from the inside.",
+      "An experienced professional who gives you the honest picture of your career: what to do next, how to get there, and what the path actually feels like from the inside.",
     grid: [
       {
         dark: false,
         head: "WHO THEY ARE",
-        body: "Senior professionals with 7+ years of real experience across HR, IT, data, UX, product management, and business analysis — people who have done the work, not just studied it.",
+        body: "Senior professionals with 10+ years of real experience across HR, IT, data, product management, and business analysis. People who have done the work, not just studied it.",
       },
       {
         dark: false,
         head: "WHAT THEY DO",
-        body: "They map your current skills, identify your gap, and give you a concrete plan for your next career move — in 2 to 3 focused sessions.",
+        body: "They map your current skills, identify your gap, and give you a concrete plan for your next career move in 2 to 3 focused sessions.",
       },
       {
         dark: true,
@@ -143,9 +138,9 @@ export const MENTOR_PLATFORM_CONFIG = {
       },
     ],
     steps: [
-      { n: "01", t: "Choose a domain", b: "HR, IT, data, UX, product, BA — pick yours." },
+      { n: "01", t: "Choose a domain", b: "HR, IT, data, UX, product, or BA. Pick yours." },
       { n: "02", t: "Browse mentors", b: "Each mentor shows their background and specialisation." },
-      { n: "03", t: "Book a slot", b: "First session from ₹199. 45 or 60 minutes." },
+      { n: "03", t: "Book a slot", b: "First session from ₹199." },
       { n: "04", t: "Come prepared", b: "One clear question or situation. Leave with a plan." },
     ],
     cta: "Browse Professional Mentors →",
@@ -162,9 +157,9 @@ export const MENTOR_PLATFORM_CONFIG = {
       { id: "p09", name: "Study Abroad & Academic Mentor", count: 0, section: "Education & Growth" },
       { id: "p10", name: "Personal Finance & Wealth Planning", count: 0, section: "Education & Growth" },
       { id: "p11", name: "Communication & Public Speaking", count: 0, section: "Education & Growth" },
-      { id: "hr-startup", name: "HR Mentor — Startup", count: 0, section: "Human Resources" },
-      { id: "hr-mnc", name: "HR Mentor — MNC", count: 0, section: "Human Resources" },
-      { id: "hr-switch", name: "HR Mentor — Career Switcher", count: 0, section: "Human Resources" },
+      { id: "hr-startup", name: "HR Mentor (Startup)", count: 0, section: "Human Resources" },
+      { id: "hr-mnc", name: "HR Mentor (MNC)", count: 0, section: "Human Resources" },
+      { id: "hr-switch", name: "HR Mentor (Career Switcher)", count: 0, section: "Human Resources" },
       { id: "p12", name: "Product Management", count: 0, section: "Information Technology" },
       { id: "p13", name: "Data Analytics & Business Intelligence", count: 0, section: "Information Technology" },
       { id: "p14", name: "UX & Product Design", count: 0, section: "Information Technology" },

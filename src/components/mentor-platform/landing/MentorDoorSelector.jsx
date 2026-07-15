@@ -33,7 +33,7 @@ export default function MentorDoorSelector() {
           <span className="mp-door-tag mp-mono">💼 Career & Professional</span>
           <h2 className="mp-door-title mp-serif">Professional Mentors</h2>
           <p className="mp-door-sub">
-            For career moves, interview prep, HR, product, data, UX — honest guidance from people who&apos;ve done it.
+            For career moves, interview prep, HR, product, data, honest guidance from people who&apos;ve done it.
           </p>
           <span className="mp-door-cta">
             Explore Professional Mentors <span className="mp-door-arrow">→</span>

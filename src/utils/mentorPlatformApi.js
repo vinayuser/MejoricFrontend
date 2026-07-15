@@ -1,13 +1,7 @@
 import { apiGet } from "./api";
-import {
-  filterByType,
-  transformMentorData,
-  buildMentorsApiQuery,
-} from "./mentorData";
-import { DEMO_MENTORS } from "../data/demoMentors";
+import { buildMentorsApiQuery } from "./mentorData";
 import {
   getInitials,
-  parseRateNumber,
   mentorMatchesDomain,
 } from "../data/mentorPlatformConfig";
 
@@ -40,18 +34,6 @@ function resolveMentorPrices(profile = {}) {
   );
 
   return { audioCallPrice, videoCallPrice, video60CallPrice };
-}
-
-function enrichDemoMentor(mentor) {
-  if (mentor.audioCallPrice && mentor.videoCallPrice) return mentor;
-  const legacy = parseRateNumber(mentor.rate);
-  const perMin = legacy > 100 ? Math.max(1, Math.round(legacy / 45)) : legacy || DEFAULT_VIDEO_PER_MIN;
-  return {
-    ...mentor,
-    audioCallPrice: mentor.audioCallPrice ?? Math.max(1, perMin - 2),
-    videoCallPrice: mentor.videoCallPrice ?? perMin,
-    video60CallPrice: mentor.video60CallPrice ?? perMin,
-  };
 }
 
 function mapApiMentor(user, type) {
@@ -89,13 +71,21 @@ function mapApiMentor(user, type) {
       profile.education ||
       specs.join(", ") ||
       "Verified mentor",
-    tags: domainNames.slice(0, 3).length ? domainNames.slice(0, 3) : specs.slice(0, 3).length ? specs.slice(0, 3) : ["Mentor"],
+    tags: domainNames.slice(0, 3).length
+      ? domainNames.slice(0, 3)
+      : specs.slice(0, 3).length
+        ? specs.slice(0, 3)
+        : ["Mentor"],
     bio: profile.bio || "",
     img: user.image || null,
     av: getInitials(name),
     avColor: type === "professional" ? "#2D2D6B" : "#2D5C42",
     slots: profile.availableSlots || ["Mon 10am", "Wed 2pm", "Fri 4pm"],
-    specs: domainNames.length ? domainNames : specs.length ? specs : ["Personalised 1-to-1 guidance"],
+    specs: domainNames.length
+      ? domainNames
+      : specs.length
+        ? specs
+        : ["Personalised 1-to-1 guidance"],
     approach:
       profile.approach ||
       "Focused, practical sessions tailored to your situation.",
@@ -110,18 +100,15 @@ export async function fetchPlatformMentors(type) {
   try {
     const data = await apiGet(buildMentorsApiQuery({ type }), true);
     if (data?.success && Array.isArray(data?.data?.data)) {
-      const apiUsers = data.data.data;
-      if (apiUsers.length > 0) {
-        return apiUsers
-          .filter((u) => u.role === "mentor")
-          .map((u) => mapApiMentor(u, type));
-      }
+      return data.data.data
+        .filter((u) => u.role === "mentor")
+        .map((u) => mapApiMentor(u, type));
     }
   } catch (err) {
     console.error("Failed to fetch mentors:", err);
   }
 
-  return (DEMO_MENTORS[type] || []).map((m) => enrichDemoMentor({ ...m, isDemo: true }));
+  return [];
 }
 
 export function getFormatDuration(formatId) {
@@ -129,17 +116,16 @@ export function getFormatDuration(formatId) {
 }
 
 export function getFormatPricePerMin(mentor, formatId) {
-  const m = mentor?.isDemo ? enrichDemoMentor(mentor) : mentor;
   if (formatId === "audio") {
-    return normalizePerMinPrice(m?.audioCallPrice, DEFAULT_AUDIO_PER_MIN);
+    return normalizePerMinPrice(mentor?.audioCallPrice, DEFAULT_AUDIO_PER_MIN);
   }
   if (formatId === "video60") {
     return normalizePerMinPrice(
-      m?.video60CallPrice ?? m?.videoCallPrice,
+      mentor?.video60CallPrice ?? mentor?.videoCallPrice,
       DEFAULT_VIDEO_PER_MIN,
     );
   }
-  return normalizePerMinPrice(m?.videoCallPrice, DEFAULT_VIDEO_PER_MIN);
+  return normalizePerMinPrice(mentor?.videoCallPrice, DEFAULT_VIDEO_PER_MIN);
 }
 
 export function getFormatPrice(mentor, formatId) {
@@ -184,25 +170,7 @@ export function getFormatLabel(formatId) {
 }
 
 export async function fetchMentorProfile(mentorId, type) {
-  const isObjectId = /^[a-f0-9]{24}$/i.test(String(mentorId || ""));
-
-  if (isObjectId) {
-    try {
-      const data = await apiGet(`/users/profile/${mentorId}`, true);
-      if (data?.success && data?.data) {
-        return mapApiMentor(data.data, type);
-      }
-    } catch (err) {
-      console.error("Failed to fetch mentor profile:", err);
-    }
-    return null;
-  }
-
-  const demo = [
-    ...(DEMO_MENTORS.emotional || []),
-    ...(DEMO_MENTORS.professional || []),
-  ].find((m) => m.id === mentorId || m._id === mentorId);
-  if (demo) return enrichDemoMentor({ ...demo, isDemo: true });
+  if (!mentorId) return null;
 
   try {
     const data = await apiGet(`/users/profile/${mentorId}`, true);

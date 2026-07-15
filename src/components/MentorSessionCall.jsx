@@ -186,7 +186,7 @@ export default function MentorSessionCall() {
             {sessionMeta?.booking?.slotLabel && (
               <p className="text-slate-400 mt-1">
                 {sessionMeta.booking.slotLabel} ·{" "}
-                {isAudioOnly ? "Audio call" : "Video call"} · Powered by Agora
+                {isAudioOnly ? "Audio call" : "Video call"}
               </p>
             )}
           </div>

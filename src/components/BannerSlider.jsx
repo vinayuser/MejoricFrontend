@@ -14,26 +14,28 @@ export default function BannerSlider({
   const [currentIndex, setCurrentIndex] = useState(1);
   const [transitionEnabled, setTransitionEnabled] = useState(true);
   const jumpTimeoutRef = useRef(null);
+  const lockedRef = useRef(false);
 
   const activeSlides = isMobile ? mobileSlides : slides;
-  const slideCount = activeSlides.length;
+  const slideCount = activeSlides?.length || 0;
 
   const extendedSlides =
     slideCount > 1
       ? [activeSlides[slideCount - 1], ...activeSlides, activeSlides[0]]
-      : activeSlides;
+      : activeSlides || [];
 
   const getRealIndex = useCallback(
     (extendedIdx) => {
       if (slideCount <= 1) return 0;
-      if (extendedIdx === 0) return slideCount - 1;
-      if (extendedIdx === slideCount + 1) return 0;
+      if (extendedIdx <= 0) return slideCount - 1;
+      if (extendedIdx >= slideCount + 1) return 0;
       return extendedIdx - 1;
     },
     [slideCount],
   );
 
   const realIndex = getRealIndex(currentIndex);
+  const maxExtendedIndex = Math.max(extendedSlides.length - 1, 0);
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 1024);
@@ -43,6 +45,7 @@ export default function BannerSlider({
   }, []);
 
   useEffect(() => {
+    lockedRef.current = false;
     setTransitionEnabled(true);
     setCurrentIndex(slideCount > 1 ? 1 : 0);
   }, [isMobile, slideCount]);
@@ -53,18 +56,24 @@ export default function BannerSlider({
     };
   }, []);
 
+  // Seamless loop: when on a clone, jump to the real slide without animation
   useEffect(() => {
     if (slideCount <= 1) return;
 
-    if (currentIndex === 0 || currentIndex === slideCount + 1) {
-      jumpTimeoutRef.current = setTimeout(() => {
-        setTransitionEnabled(false);
-        setCurrentIndex(currentIndex === 0 ? slideCount : 1);
+    const onClone = currentIndex === 0 || currentIndex === slideCount + 1;
+    if (!onClone) return;
+
+    lockedRef.current = true;
+    jumpTimeoutRef.current = setTimeout(() => {
+      setTransitionEnabled(false);
+      setCurrentIndex(currentIndex === 0 ? slideCount : 1);
+      requestAnimationFrame(() => {
         requestAnimationFrame(() => {
-          requestAnimationFrame(() => setTransitionEnabled(true));
+          setTransitionEnabled(true);
+          lockedRef.current = false;
         });
-      }, TRANSITION_MS);
-    }
+      });
+    }, TRANSITION_MS);
 
     return () => {
       if (jumpTimeoutRef.current) clearTimeout(jumpTimeoutRef.current);
@@ -72,18 +81,24 @@ export default function BannerSlider({
   }, [currentIndex, slideCount]);
 
   const goToNext = useCallback(() => {
-    if (slideCount <= 1) return;
-    setCurrentIndex((prev) => prev + 1);
+    if (slideCount <= 1 || lockedRef.current) return;
+    setCurrentIndex((prev) => {
+      if (prev >= slideCount + 1) return prev;
+      return Math.min(prev + 1, slideCount + 1);
+    });
   }, [slideCount]);
 
   const goToPrevious = useCallback(() => {
-    if (slideCount <= 1) return;
-    setCurrentIndex((prev) => prev - 1);
+    if (slideCount <= 1 || lockedRef.current) return;
+    setCurrentIndex((prev) => {
+      if (prev <= 0) return prev;
+      return Math.max(prev - 1, 0);
+    });
   }, [slideCount]);
 
   const goToSlide = useCallback(
     (targetRealIndex) => {
-      if (slideCount <= 1) return;
+      if (slideCount <= 1 || lockedRef.current) return;
       setTransitionEnabled(true);
       setCurrentIndex(targetRealIndex + 1);
     },
@@ -96,7 +111,9 @@ export default function BannerSlider({
     return () => clearInterval(timer);
   }, [goToNext, interval, slideCount]);
 
-  if (!activeSlides.length) return null;
+  if (!activeSlides?.length) return null;
+
+  const safeIndex = Math.min(Math.max(currentIndex, 0), maxExtendedIndex);
 
   return (
     <section
@@ -108,35 +125,43 @@ export default function BannerSlider({
             ? "transition-transform duration-700 ease-in-out"
             : ""
         }`}
-        style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+        style={{ transform: `translateX(-${safeIndex * 100}%)` }}
       >
         {extendedSlides.map((slide, index) => {
           const isHeroMobile = isMobile && slide.showHeroContent;
+          const objectFit = slide.objectFit || "cover";
 
           return (
-          <div
-            key={`${slide.alt}-${index}`}
-            className={`relative w-full flex-shrink-0 h-full ${HEIGHT_CLASSES}`}
-          >
-            <img
-              className="absolute inset-0 w-full h-full object-cover"
+            <div
+              key={`${slide.alt}-${index}`}
+              className={`relative flex-shrink-0 h-full ${HEIGHT_CLASSES}`}
               style={{
-                objectPosition: slide.objectPosition ?? "center",
+                width: "100%",
+                minWidth: "100%",
+                backgroundColor: slide.backgroundColor || "#1a1028",
               }}
-              src={slide.src}
-              alt={slide.alt}
-              fetchPriority={index === 1 ? "high" : "auto"}
-            />
-            {isHeroMobile && (
-              <div
-                className={`absolute inset-0 z-[5] ${HERO_MOBILE_GRADIENT} pointer-events-none`}
+            >
+              <img
+                className={`absolute inset-0 w-full h-full ${
+                  objectFit === "contain" ? "object-contain" : "object-cover"
+                }`}
+                style={{
+                  objectPosition: slide.objectPosition ?? "center",
+                }}
+                src={slide.src}
+                alt={slide.alt}
+                fetchPriority={index === 1 ? "high" : "auto"}
               />
-            )}
-            {slide.showHeroContent && (
-              <HeroBannerOverlay onCtaClick={onCtaClick} />
-            )}
-          </div>
-        );
+              {isHeroMobile && (
+                <div
+                  className={`absolute inset-0 z-[5] ${HERO_MOBILE_GRADIENT} pointer-events-none`}
+                />
+              )}
+              {slide.showHeroContent && (
+                <HeroBannerOverlay onCtaClick={onCtaClick} />
+              )}
+            </div>
+          );
         })}
       </div>
 

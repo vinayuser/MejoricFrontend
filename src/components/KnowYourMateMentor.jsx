@@ -47,7 +47,7 @@ export default function KnowYourMateMentor() {
               Two Paths, One Goal: Your Well-being
             </h2>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Both Mates and Mentors are here to support you — they just do it in different ways.
+              Both Mates and Mentors are here to support you. They just do it in different ways.
             </p>
           </div>
 
@@ -212,7 +212,7 @@ export default function KnowYourMateMentor() {
               in their journey.
             </p>
             <p className="text-xl font-semibold text-purple-600 mb-10">
-              There's no wrong choice — only the choice that feels right for you right now.
+              There's no wrong choice, only the choice that feels right for you right now.
             </p>
 
             <div className="flex flex-col sm:flex-row justify-center gap-4">

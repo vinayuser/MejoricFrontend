@@ -5,7 +5,7 @@ export default function MentorProfileSections({ mentor }) {
 
   const specs = mentor.specs || [];
   const expectItems = [
-    "A private 1-to-1 session — video or audio",
+    "A private 1-to-1 session on video or audio",
     "You lead the conversation at your pace",
     "Completely confidential",
     "Verified by Mejoric before going live",

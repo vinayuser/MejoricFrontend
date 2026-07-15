@@ -7,7 +7,7 @@ export default function MentorTrustBand() {
       <div className="mp-trust-inner">
         <div className="mp-trust-head">
           <p className="mp-trust-eyebrow">Before you book</p>
-          <h2 className="mp-trust-title mp-serif">What Mejoric Mentors are — and what they are not</h2>
+          <h2 className="mp-trust-title mp-serif">What Mejoric Mentors are and what they are not</h2>
         </div>
 
         <div className="mp-trust-grid">
