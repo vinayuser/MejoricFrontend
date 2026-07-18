@@ -1,23 +1,38 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, {
+  useState,
+  useMemo,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { io } from "socket.io-client";
 import toast from "react-hot-toast";
-import {
-  COMMUNITIES,
-  THERAPY_COHORTS,
-  FEED_POSTS,
-  CALLS,
-  MY_COMMUNITIES,
-  DISCOVER_COMMUNITIES,
-  TABS,
-} from "../data/communityData";
+import { apiGet, apiPost, getAuthToken } from "../utils/api";
+import { ensureCommunityUnlocked } from "../utils/communityUnlockPayment";
+import { enrollInTherapyCohort } from "../utils/therapyEnrollmentPayment";
+import { appPath } from "../utils/basePath";
 import "./Community.css";
 
-const ONLINE_COUNTS = COMMUNITIES.slice(0, 5).map((c) => ({
-  ...c,
-  online: Math.floor(Math.random() * 12 + 2),
-}));
+const SOCKET_SERVER_URL =
+  import.meta.env.VITE_SOCKET_SERVER_URL || "https://mejoric.com";
 
-function CommunityCard({ community, joined, onToggleJoin }) {
+const TABS = [
+  { id: "communities", label: "🏡 Communities" },
+  { id: "therapy", label: "🌱 Group Therapy", badge: "New" },
+  { id: "feed", label: "💬 Community Feed" },
+];
+
+function timeAgo(date) {
+  if (!date) return "";
+  const s = Math.floor((Date.now() - new Date(date).getTime()) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
+}
+
+function CommunityCard({ community, joined, unlocking, onToggleJoin }) {
   return (
     <div className="community-card">
       <div
@@ -39,7 +54,7 @@ function CommunityCard({ community, joined, onToggleJoin }) {
         <div className="community-cc-foot">
           <div className="community-cc-members">
             <div className="community-cc-avatars">
-              {community.avs.map((color) => (
+              {(community.avs || []).slice(0, 3).map((color) => (
                 <div
                   key={color}
                   className="community-cc-av-mini"
@@ -49,18 +64,21 @@ function CommunityCard({ community, joined, onToggleJoin }) {
                 </div>
               ))}
             </div>
-            {(community.members / 1000).toFixed(1)}k members
+            {community.members === 1
+              ? "1 member"
+              : `${community.members || 0} members`}
           </div>
           <button
             type="button"
             className="community-cc-join-btn"
+            disabled={unlocking}
             style={{
               background: joined ? "var(--warm3)" : community.col,
-              color: joined ? "var(--muted)" : "var(--warm)",
+              color: joined ? "var(--muted)" : "#ffffff",
             }}
-            onClick={() => onToggleJoin(community.id, community.name, joined)}
+            onClick={() => onToggleJoin(community)}
           >
-            {joined ? "Joined ✓" : "Join →"}
+            {joined ? "Joined ✓" : unlocking ? "…" : "Join →"}
           </button>
         </div>
       </div>
@@ -68,9 +86,16 @@ function CommunityCard({ community, joined, onToggleJoin }) {
   );
 }
 
-function TherapyCard({ cohort, onEnrol, onWaitlist }) {
-  const pct = Math.round((cohort.taken / cohort.total) * 100);
-  const full = cohort.taken >= cohort.total;
+function TherapyCard({ cohort, busy, onEnrol }) {
+  const taken = cohort.taken ?? cohort.takenSeats ?? 0;
+  const total = cohort.total ?? cohort.totalSeats ?? 8;
+  const pct = Math.round((taken / Math.max(total, 1)) * 100);
+  const full = taken >= total;
+  const enrolled = Boolean(cohort.enrolled);
+  const waitlisted = Boolean(cohort.waitlisted);
+  const priceLabel =
+    cohort.priceLabel ||
+    (cohort.price != null ? `₹${cohort.price}` : cohort.price);
 
   return (
     <div className="community-therapy-card">
@@ -89,10 +114,14 @@ function TherapyCard({ cohort, onEnrol, onWaitlist }) {
           {cohort.tag}
         </div>
         <div className="community-tc-title">{cohort.theme}</div>
-        <div className="community-tc-sub">{cohort.sub}</div>
+        <div className="community-tc-sub">
+          {cohort.sub || cohort.description}
+        </div>
         <div className="community-tc-stats">
           <div className="community-tc-stat">
-            <div className="community-tc-sv">{cohort.sessions}</div>
+            <div className="community-tc-sv">
+              {cohort.sessions ?? cohort.sessionsCount}
+            </div>
             <div className="community-tc-sl">Sessions</div>
           </div>
           <div className="community-tc-stat">
@@ -100,7 +129,7 @@ function TherapyCard({ cohort, onEnrol, onWaitlist }) {
             <div className="community-tc-sl">Each</div>
           </div>
           <div className="community-tc-stat">
-            <div className="community-tc-sv">{cohort.day}</div>
+            <div className="community-tc-sv">{cohort.day || cohort.dayLabel}</div>
             <div className="community-tc-sl">Day</div>
           </div>
         </div>
@@ -109,10 +138,10 @@ function TherapyCard({ cohort, onEnrol, onWaitlist }) {
             <span>
               {full
                 ? "Full — join waitlist"
-                : `${cohort.total - cohort.taken} of ${cohort.total} seats left`}
+                : `${total - taken} of ${total} seats left`}
             </span>
             <span>
-              {cohort.taken}/{cohort.total}
+              {taken}/{total}
             </span>
           </div>
           <div className="community-tc-seat-bar">
@@ -127,27 +156,44 @@ function TherapyCard({ cohort, onEnrol, onWaitlist }) {
         </div>
         <div className="community-tc-foot">
           <div>
-            <div className="community-tc-price">{cohort.price}</div>
+            <div className="community-tc-price">{priceLabel}</div>
             <div className="community-tc-price-sub">
-              ₹400/session · 6 weeks
+              Full cohort · join from Mejoric only
             </div>
           </div>
-          {full ? (
+          {enrolled ? (
+            <button
+              type="button"
+              className="community-tc-btn"
+              style={{ background: cohort.band }}
+              onClick={() =>
+                onEnrol(cohort, { openSessions: true })
+              }
+            >
+              My sessions →
+            </button>
+          ) : waitlisted ? (
+            <button type="button" className="community-tc-waitlist" disabled>
+              Waitlisted
+            </button>
+          ) : full ? (
             <button
               type="button"
               className="community-tc-waitlist"
-              onClick={() => onWaitlist(cohort.theme)}
+              disabled={busy}
+              onClick={() => onEnrol(cohort)}
             >
-              Join Waitlist
+              {busy ? "…" : "Join Waitlist"}
             </button>
           ) : (
             <button
               type="button"
               className="community-tc-btn"
               style={{ background: cohort.band }}
-              onClick={() => onEnrol(cohort.theme)}
+              disabled={busy}
+              onClick={() => onEnrol(cohort)}
             >
-              Enrol Now →
+              {busy ? "…" : "Enrol Now →"}
             </button>
           )}
         </div>
@@ -156,126 +202,75 @@ function TherapyCard({ cohort, onEnrol, onWaitlist }) {
   );
 }
 
-function FeedPost({ post, liked, onLike, onReply }) {
+function FeedPost({ post, communityName, communityColor }) {
+  const author = post.author || {};
+  const isAnon = Boolean(author.isAnonymous);
   return (
     <div className="community-feed-post">
       <div className="community-fp-hdr">
         <div
           className="community-fp-av"
-          style={{ background: post.avcol }}
+          style={{ background: communityColor || "#7c6ba8" }}
         >
-          A
+          {author.avatarInitial || (isAnon ? "A" : "M")}
         </div>
         <div>
           <div className="community-fp-nm">
-            Anonymous{" "}
-            <span className="community-anon-badge">anon</span>
+            {author.displayName || "Member"}{" "}
+            {isAnon && (
+              <span className="community-anon-badge">anon</span>
+            )}
           </div>
-          <div className="community-fp-time">{post.time}</div>
+          <div className="community-fp-time">{timeAgo(post.createdAt)}</div>
         </div>
-        <div
-          className="community-post-community-badge"
-          style={{ color: post.ccol }}
-        >
-          {post.community}
-        </div>
-      </div>
-      <div className="community-fp-body">{post.body}</div>
-      <div className="community-fp-foot">
-        <button
-          type="button"
-          className="community-fp-act"
-          onClick={onLike}
-        >
-          {liked ? "❤️" : "🤍"} {liked ? post.hearts + 1 : post.hearts}
-        </button>
-        <button
-          type="button"
-          className="community-fp-act"
-          onClick={onReply}
-        >
-          💬 Reply
-        </button>
-        <button type="button" className="community-fp-act">
-          🔖 Save
-        </button>
-      </div>
-      <div className="community-fp-replies">
-        {post.replies.map((reply) => (
-          <div key={`${reply.name}-${reply.body.slice(0, 20)}`} className="community-fp-reply">
-            <div
-              className="community-fp-reply-av"
-              style={{ background: reply.avcol }}
-            >
-              {reply.name.slice(0, 2)}
-            </div>
-            <div className="community-fp-reply-body">
-              <div className="community-fp-reply-name">
-                {reply.name}
-                {reply.mate && (
-                  <span className="community-mate-badge"> Mate</span>
-                )}
-              </div>
-              {reply.body}
-            </div>
+        {communityName && (
+          <div
+            className="community-post-community-badge"
+            style={{ color: communityColor }}
+          >
+            {communityName}
           </div>
-        ))}
+        )}
       </div>
+      <div className="community-fp-body">{post.content}</div>
     </div>
   );
 }
 
-function CallCard({ call, onRegister }) {
-  return (
-    <div className="community-call-card">
-      <div className="community-call-date">
-        <div className="community-call-day">{call.date}</div>
-        <div className="community-call-month">{call.month}</div>
-      </div>
-      <div className="community-call-body">
-        <div
-          className="community-call-community"
-          style={{ color: call.ccol }}
-        >
-          {call.community}
-        </div>
-        <div className="community-call-title">{call.title}</div>
-        <div className="community-call-meta">
-          <span className="community-call-time">🕗 {call.time}</span>
-          <span style={{ fontSize: 11, color: "var(--muted)" }}>
-            · {call.fac}
-          </span>
-        </div>
-        <div className="community-call-desc">{call.desc}</div>
-        <div className="community-call-foot">
-          <span
-            className={`community-call-spots${call.few ? " few" : ""}`}
-          >
-            {call.few
-              ? `⚡ ${call.left} spots left`
-              : `${call.left} spots available`}
-          </span>
-          <span className="community-call-free">Free</span>
-          <button
-            type="button"
-            className="community-call-reg"
-            onClick={() => onRegister(call.title)}
-          >
-            Register →
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+function getStoredUser() {
+  try {
+    return JSON.parse(localStorage.getItem("user") || "null");
+  } catch {
+    return null;
+  }
 }
 
 export default function Community() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("communities");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [activeSidebar, setActiveSidebar] = useState("The Spiral Space");
-  const [postAnonymous, setPostAnonymous] = useState(true);
+  const [activeCommunityId, setActiveCommunityId] = useState(null);
+  const [postAnonymous, setPostAnonymous] = useState(false);
   const [postText, setPostText] = useState("");
+  const [chatText, setChatText] = useState("");
+
+  const [communities, setCommunities] = useState([]);
+  const [therapyCohorts, setTherapyCohorts] = useState([]);
+  const [unlocked, setUnlocked] = useState(false);
+  const [unlockAmount, setUnlockAmount] = useState(100);
+  const [loadingList, setLoadingList] = useState(true);
+  const [loadingTherapy, setLoadingTherapy] = useState(true);
+  const [busyId, setBusyId] = useState(null);
+  const [busyTherapyId, setBusyTherapyId] = useState(null);
+  const [posts, setPosts] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [loadingFeed, setLoadingFeed] = useState(false);
+  const [onlineByCommunity, setOnlineByCommunity] = useState({});
+  const [sendingChat, setSendingChat] = useState(false);
+
+  const socketRef = useRef(null);
+  const activeCommunityIdRef = useRef(null);
+  const chatEndRef = useRef(null);
 
   useEffect(() => {
     const prevOverflow = document.body.style.overflow;
@@ -285,43 +280,416 @@ export default function Community() {
     };
   }, []);
 
-  const initialJoined = useMemo(
-    () =>
-      COMMUNITIES.reduce((acc, c) => {
-        acc[c.id] = c.joined;
-        return acc;
-      }, {}),
-    [],
+  const loadCommunities = useCallback(async () => {
+    setLoadingList(true);
+    try {
+      const token = getAuthToken();
+      const res = await apiGet("/communities/list", !token);
+      if (res?.success && res.data) {
+        setCommunities(res.data.communities || []);
+        setUnlocked(Boolean(res.data.unlocked));
+        if (res.data.unlockAmount) {
+          setUnlockAmount(res.data.unlockAmount);
+        }
+      }
+      if (token) {
+        try {
+          const status = await apiGet("/communities/access/status");
+          if (status?.success && status.data) {
+            setUnlocked(Boolean(status.data.unlocked));
+            if (status.data.unlockAmount) {
+              setUnlockAmount(status.data.unlockAmount);
+            }
+          }
+        } catch {
+          /* ignore if unauthenticated edge */
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || "Failed to load communities");
+    } finally {
+      setLoadingList(false);
+    }
+  }, []);
+
+  const loadTherapy = useCallback(async () => {
+    setLoadingTherapy(true);
+    try {
+      const token = getAuthToken();
+      const res = await apiGet("/therapy/list", !token);
+      if (res?.success) {
+        setTherapyCohorts(res.data?.cohorts || []);
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || "Failed to load therapy cohorts");
+    } finally {
+      setLoadingTherapy(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCommunities();
+  }, [loadCommunities]);
+
+  useEffect(() => {
+    loadTherapy();
+  }, [loadTherapy]);
+
+  const joinedCommunities = useMemo(
+    () => communities.filter((c) => c.joined),
+    [communities],
   );
-  const [joinedMap, setJoinedMap] = useState(initialJoined);
-  const [likedPosts, setLikedPosts] = useState({});
+  const discoverCommunities = useMemo(
+    () => communities.filter((c) => !c.joined).slice(0, 8),
+    [communities],
+  );
+
+  const activeCommunity = useMemo(() => {
+    if (!activeCommunityId) return joinedCommunities[0] || communities[0] || null;
+    return (
+      communities.find((c) => c.id === activeCommunityId) ||
+      joinedCommunities[0] ||
+      null
+    );
+  }, [activeCommunityId, communities, joinedCommunities]);
+
+  activeCommunityIdRef.current =
+    activeTab === "feed" && activeCommunity?.joined
+      ? activeCommunity.id
+      : null;
+
+  const currentUserId = useMemo(() => {
+    const u = getStoredUser();
+    return String(u?._id || u?.id || u?.user?._id || u?.user?.id || "");
+  }, [unlocked, communities.length]);
+
+  const loadFeedAndChat = useCallback(async (communityId) => {
+    if (!communityId || !getAuthToken()) {
+      setPosts([]);
+      setMessages([]);
+      return;
+    }
+    setLoadingFeed(true);
+    try {
+      const [postsRes, msgRes] = await Promise.all([
+        apiGet(`/communities/${communityId}/posts?limit=30`),
+        apiGet(`/communities/${communityId}/messages?limit=50`),
+      ]);
+      if (postsRes?.success) setPosts(postsRes.data?.data || []);
+      if (msgRes?.success) setMessages(msgRes.data?.data || []);
+    } catch (err) {
+      if (err.status === 403 || err.status === 402) {
+        setPosts([]);
+        setMessages([]);
+      } else {
+        console.error(err);
+      }
+    } finally {
+      setLoadingFeed(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "feed" && activeCommunity?.joined) {
+      loadFeedAndChat(activeCommunity.id);
+    }
+  }, [activeTab, activeCommunity?.id, activeCommunity?.joined, loadFeedAndChat]);
+
+  // Socket: connect once while logged in; watch joined communities for online counts
+  useEffect(() => {
+    if (!getAuthToken() || !currentUserId) {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+      setOnlineByCommunity({});
+      return undefined;
+    }
+
+    const socket = io(SOCKET_SERVER_URL, {
+      transports: ["websocket", "polling"],
+    });
+    socketRef.current = socket;
+
+    const joinActiveRoom = () => {
+      const cid = activeCommunityIdRef.current;
+      if (cid) {
+        socket.emit("join_community", {
+          communityId: cid,
+          userId: currentUserId,
+        });
+        socket.__joinedCommunityId = String(cid);
+      }
+    };
+
+    socket.on("connect", () => {
+      socket.emit("register_user", currentUserId);
+      const ids = joinedCommunities.map((c) => c.id);
+      if (ids.length) socket.emit("community_watch", { communityIds: ids });
+      joinActiveRoom();
+    });
+
+    socket.on("community_online_counts", (counts) => {
+      if (counts && typeof counts === "object") {
+        setOnlineByCommunity((prev) => ({ ...prev, ...counts }));
+      }
+    });
+
+    socket.on("community_online", ({ communityId, online } = {}) => {
+      if (!communityId) return;
+      setOnlineByCommunity((prev) => ({
+        ...prev,
+        [String(communityId)]: Number(online) || 0,
+      }));
+    });
+
+    socket.on("community_new_message", ({ communityId, message } = {}) => {
+      if (!message?.id || !communityId) return;
+      if (String(communityId) !== String(activeCommunityIdRef.current)) return;
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === message.id)) return prev;
+        const isMine =
+          String(message.authorId || "") === String(currentUserId);
+        return [...prev, { ...message, isMine }];
+      });
+    });
+
+    socket.on("community_error", ({ message } = {}) => {
+      if (message) toast.error(message);
+    });
+
+    return () => {
+      socket.removeAllListeners();
+      socket.disconnect();
+      if (socketRef.current === socket) socketRef.current = null;
+    };
+    // Reconnect when user id changes; watch list updated in separate effect
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUserId]);
+
+  // Keep watch rooms in sync with memberships
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket?.connected) return;
+    const ids = joinedCommunities.map((c) => c.id);
+    socket.emit("community_watch", { communityIds: ids });
+  }, [joinedCommunities]);
+
+  // Join / leave community chat room when feed community changes
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket || !currentUserId) return;
+
+    const prevId = socket.__joinedCommunityId;
+    const nextId =
+      activeTab === "feed" && activeCommunity?.joined
+        ? String(activeCommunity.id)
+        : null;
+
+    if (prevId && prevId !== nextId) {
+      socket.emit("leave_community", {
+        communityId: prevId,
+        userId: currentUserId,
+      });
+      socket.__joinedCommunityId = null;
+    }
+
+    if (nextId) {
+      socket.emit("join_community", {
+        communityId: nextId,
+        userId: currentUserId,
+      });
+      socket.__joinedCommunityId = nextId;
+    }
+  }, [activeTab, activeCommunity?.id, activeCommunity?.joined, currentUserId]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView?.({ behavior: "smooth" });
+  }, [messages]);
+
+  const requireLogin = () => {
+    toast.error("Please log in to continue");
+    navigate(appPath("login"));
+  };
+
+  const handleTherapyEnrol = async (cohort, opts = {}) => {
+    if (!getAuthToken()) {
+      requireLogin();
+      return;
+    }
+
+    if (opts.openSessions || cohort.enrolled) {
+      if (cohort.enrollmentId) {
+        const nextSlot = (cohort.slots || []).find(
+          (s) => new Date(s.scheduledAt).getTime() > Date.now() - 2 * 60 * 60 * 1000,
+        );
+        const qs = nextSlot ? `?slot=${nextSlot.id}` : "";
+        navigate(`/therapy-session/${cohort.enrollmentId}${qs}`);
+        return;
+      }
+      toast("Open your confirmation email for join links");
+      return;
+    }
+
+    setBusyTherapyId(cohort.id);
+    try {
+      const user = getStoredUser();
+      toast.loading(`Enrolling in ${cohort.theme}…`, { id: "therapy-enrol" });
+      const result = await enrollInTherapyCohort({
+        cohortId: cohort.id,
+        theme: cohort.theme,
+        price: cohort.price,
+        user,
+      });
+      toast.dismiss("therapy-enrol");
+      if (result.waitlisted) {
+        toast.success("Added to waitlist");
+      } else {
+        toast.success("Enrollment confirmed — check your email for join links");
+      }
+      await loadTherapy();
+    } catch (err) {
+      toast.dismiss("therapy-enrol");
+      if (err.message === "Payment cancelled") toast.error("Payment cancelled");
+      else toast.error(err.message || "Enrollment failed");
+    } finally {
+      setBusyTherapyId(null);
+    }
+  };
+
+  const featuredTherapyPrice = therapyCohorts[0]?.priceLabel || "₹—";
+
+  const currentUser = getStoredUser();
+  const displayName =
+    currentUser?.name?.trim() ||
+    currentUser?.email?.trim() ||
+    (getAuthToken() ? "Member" : "Guest");
+  const displayInitial = String(displayName).charAt(0).toUpperCase() || "M";
 
   const showTab = (tabId) => {
     setActiveTab(tabId);
     setSidebarOpen(false);
   };
 
-  const toggleJoin = (id, name, wasJoined) => {
-    setJoinedMap((prev) => {
-      const next = { ...prev, [id]: !wasJoined };
-      toast.success(
-        wasJoined ? `Left ${name}` : `Joined ${name} ✓`,
-      );
-      return next;
-    });
+  const toggleJoin = async (community) => {
+    if (!getAuthToken()) {
+      requireLogin();
+      return;
+    }
+
+    const id = community.id;
+    const wasJoined = community.joined;
+    setBusyId(id);
+
+    try {
+      if (wasJoined) {
+        const res = await apiPost(`/communities/${id}/leave`, {});
+        if (!res?.success) throw new Error(res?.message || "Failed to leave");
+        toast.success(`Left ${community.name}`);
+        await loadCommunities();
+        return;
+      }
+
+      if (!unlocked) {
+        const user = getStoredUser();
+        toast.loading(`Unlocking communities (₹${unlockAmount})…`, {
+          id: "community-unlock",
+        });
+        await ensureCommunityUnlocked(user);
+        toast.success("Community access unlocked!", { id: "community-unlock" });
+        setUnlocked(true);
+      }
+
+      const joinRes = await apiPost(`/communities/${id}/join`, {});
+      if (!joinRes?.success) {
+        throw new Error(joinRes?.message || "Failed to join");
+      }
+      toast.success(`Joined ${community.name} ✓`);
+      setActiveCommunityId(id);
+      await loadCommunities();
+    } catch (err) {
+      toast.dismiss("community-unlock");
+      if (err.message === "Payment cancelled") {
+        toast.error("Payment cancelled");
+      } else {
+        toast.error(err.message || "Something went wrong");
+      }
+    } finally {
+      setBusyId(null);
+    }
   };
 
-  const handlePost = () => {
+  const handlePost = async () => {
     if (!postText.trim()) return;
-    toast.success("Post shared anonymously ✓");
-    setPostText("");
+    if (!getAuthToken()) {
+      requireLogin();
+      return;
+    }
+    if (!activeCommunity?.joined) {
+      toast.error("Join a community first to post");
+      return;
+    }
+    try {
+      const res = await apiPost(`/communities/${activeCommunity.id}/posts`, {
+        content: postText.trim(),
+        isAnonymous: postAnonymous,
+      });
+      if (!res?.success) throw new Error(res?.message || "Failed to post");
+      setPostText("");
+      toast.success("Post shared ✓");
+      setPosts((prev) => [res.data, ...prev]);
+    } catch (err) {
+      toast.error(err.message || "Failed to post");
+    }
   };
 
-  const toggleLike = (index) => {
-    setLikedPosts((prev) => ({
-      ...prev,
-      [index]: !prev[index],
-    }));
+  const handleSendChat = async () => {
+    if (!chatText.trim() || sendingChat) return;
+    if (!getAuthToken()) {
+      requireLogin();
+      return;
+    }
+    if (!activeCommunity?.joined) {
+      toast.error("Join a community first to chat");
+      return;
+    }
+
+    const text = chatText.trim();
+    const communityId = activeCommunity.id;
+    const socket = socketRef.current;
+
+    setChatText("");
+    setSendingChat(true);
+
+    try {
+      if (socket?.connected) {
+        socket.emit("community_send_message", {
+          communityId,
+          userId: currentUserId,
+          text,
+          isAnonymous: false,
+        });
+        // Message arrives via community_new_message for everyone in the room
+        return;
+      }
+
+      const res = await apiPost(`/communities/${communityId}/messages`, {
+        text,
+        isAnonymous: false,
+      });
+      if (!res?.success) throw new Error(res?.message || "Failed to send");
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === res.data?.id)) return prev;
+        return [...prev, res.data];
+      });
+    } catch (err) {
+      setChatText(text);
+      toast.error(err.message || "Failed to send");
+    } finally {
+      setSendingChat(false);
+    }
   };
 
   return (
@@ -339,11 +707,25 @@ export default function Community() {
           <Link to="/" className="community-nav-mark" style={{ textDecoration: "none" }}>
             M
           </Link>
-          <span className="community-nav-name">
+          <Link
+            to="/"
+            className="community-nav-name"
+            style={{ textDecoration: "none", color: "inherit" }}
+          >
             Mejoric <span>Community</span>
-          </span>
+          </Link>
         </div>
         <div className="community-nav-r">
+          {!unlocked && (
+            <span className="community-nav-pill" style={{ cursor: "default" }}>
+              ₹{unlockAmount} one-time unlock
+            </span>
+          )}
+          {unlocked && (
+            <span className="community-nav-pill" style={{ cursor: "default" }}>
+              Unlocked ✓
+            </span>
+          )}
           <button
             type="button"
             className="community-nav-pill"
@@ -377,45 +759,59 @@ export default function Community() {
 
         <aside className={`community-sidebar${sidebarOpen ? " open" : ""}`}>
           <div className="community-sb-me">
-            <div className="community-sb-av">A</div>
+            <div className="community-sb-av">{displayInitial}</div>
             <div>
-              <div className="community-sb-nm">Anonymous</div>
-              <div className="community-sb-rl">Community member</div>
+              <div className="community-sb-nm">{displayName}</div>
+              <div className="community-sb-rl">
+                {unlocked ? "Community member" : "Unlock to join"}
+              </div>
             </div>
           </div>
           <div className="community-sb-divider" />
 
           <div className="community-sb-section">
             <span className="community-sb-lbl">My Communities</span>
-            {MY_COMMUNITIES.map((item) => (
-              <button
-                key={item.name}
-                type="button"
-                className={`community-sb-item${activeSidebar === item.name ? " on" : ""}`}
-                onClick={() => {
-                  setActiveSidebar(item.name);
-                  showTab("communities");
-                }}
-              >
-                <div
-                  className="community-sb-i-dot"
-                  style={{ background: item.col }}
-                />
-                <span className="community-sb-i-name">{item.name}</span>
-                <span className="community-sb-i-count">{item.count}</span>
-              </button>
-            ))}
+            {joinedCommunities.length === 0 && (
+              <div className="community-sb-i-name" style={{ padding: "8px 12px", opacity: 0.6 }}>
+                None yet — join below
+              </div>
+            )}
+            {joinedCommunities.map((item) => {
+              const online = onlineByCommunity[String(item.id)] || 0;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`community-sb-item${activeCommunity?.id === item.id ? " on" : ""}`}
+                  onClick={() => {
+                    setActiveCommunityId(item.id);
+                    showTab("feed");
+                  }}
+                >
+                  <div
+                    className="community-sb-i-dot"
+                    style={{
+                      background: online > 0 ? "#22c55e" : item.col,
+                    }}
+                  />
+                  <span className="community-sb-i-name">{item.name}</span>
+                  <span className="community-sb-i-count">
+                    {online > 0 ? `${online} online` : `${item.members || 0}`}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           <div className="community-sb-section">
             <span className="community-sb-lbl">Discover</span>
-            {DISCOVER_COMMUNITIES.map((item) => (
+            {discoverCommunities.map((item) => (
               <button
-                key={`discover-${item.name}`}
+                key={`discover-${item.id}`}
                 type="button"
-                className={`community-sb-item${activeSidebar === item.name ? " on" : ""}`}
+                className={`community-sb-item${activeCommunity?.id === item.id ? " on" : ""}`}
                 onClick={() => {
-                  setActiveSidebar(item.name);
+                  setActiveCommunityId(item.id);
                   showTab("communities");
                 }}
               >
@@ -424,7 +820,9 @@ export default function Community() {
                   style={{ background: item.col }}
                 />
                 <span className="community-sb-i-name">{item.name}</span>
-                <span className="community-sb-i-count">{item.count}</span>
+                <span className="community-sb-i-count">
+                  {item.members || 0}
+                </span>
               </button>
             ))}
           </div>
@@ -432,14 +830,11 @@ export default function Community() {
           <button
             type="button"
             className="community-sb-join-cta"
-            onClick={() => {
-              showTab("calls");
-              toast("Opening calls schedule");
-            }}
+            onClick={() => showTab("therapy")}
           >
-            <div className="community-sb-jt">Wednesday calls are free ✦</div>
+            <div className="community-sb-jt">Group therapy cohorts ✦</div>
             <div className="community-sb-js">
-              Join your community call this week →
+              Enrol in a closed group with verified join access →
             </div>
           </button>
         </aside>
@@ -461,15 +856,16 @@ export default function Community() {
             ))}
           </div>
 
-          {/* Communities */}
           <div
             className={`community-view${activeTab === "communities" ? " on" : ""}`}
           >
             <div className="community-funnel-strip">
               <div className="community-fs-item">
                 <span className="community-fs-step">Step 1</span>
-                <span className="community-fs-label">Join a Community</span>
-                <span className="community-fs-free">Free forever</span>
+                <span className="community-fs-label">Unlock Communities</span>
+                <span className="community-fs-paid">
+                  ₹{unlockAmount} one-time
+                </span>
               </div>
               <span className="community-fs-arrow">→</span>
               <div className="community-fs-item">
@@ -488,67 +884,72 @@ export default function Community() {
             <div className="community-wed-banner">
               <div>
                 <div className="community-wb-eyebrow">
-                  <div className="community-wb-live-dot" />
-                  THIS WEDNESDAY · 8PM IST
+                  PEER COMMUNITIES · FEED &amp; CHAT
                 </div>
                 <div className="community-wb-title">
-                  Weekly Community Calls — Free
+                  Join communities that fit you
                 </div>
                 <div className="community-wb-sub">
-                  16 communities · 8 calls · every Wednesday · facilitated by
-                  a Mate
+                  Unlock once · join any community · feed &amp; chat included
                 </div>
               </div>
               <button
                 type="button"
                 className="community-wb-btn"
-                onClick={() => {
-                  showTab("calls");
-                  toast("Opening calls schedule");
-                }}
+                onClick={() => showTab("therapy")}
               >
-                See this week&apos;s calls →
+                Explore group therapy →
               </button>
             </div>
 
             <div className="community-sec-hdr">
               <span className="community-sec-t">All Communities</span>
               <span className="community-sec-s">
-                Free to join · Anonymous posting
+                ₹{unlockAmount} one-time unlock · then join any · optional anonymous posts
               </span>
             </div>
 
-            <div className="community-grid">
-              {COMMUNITIES.map((c) => (
-                <CommunityCard
-                  key={c.id}
-                  community={c}
-                  joined={joinedMap[c.id]}
-                  onToggleJoin={toggleJoin}
-                />
-              ))}
-            </div>
+            {loadingList ? (
+              <p style={{ padding: 24, color: "var(--muted)" }}>Loading communities…</p>
+            ) : communities.length === 0 ? (
+              <p style={{ padding: 24, color: "var(--muted)" }}>
+                No communities yet. Check back soon.
+              </p>
+            ) : (
+              <div className="community-grid">
+                {communities.map((c) => (
+                  <CommunityCard
+                    key={c.id}
+                    community={c}
+                    joined={c.joined}
+                    unlocking={busyId === c.id}
+                    onToggleJoin={toggleJoin}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Therapy */}
           <div
             className={`community-view${activeTab === "therapy" ? " on" : ""}`}
           >
             <div className="community-wed-banner" style={{ marginBottom: 22 }}>
               <div>
                 <div className="community-wb-eyebrow">
-                  STRUCTURED · 6 WEEKS · MAX 8 PEOPLE
+                  STRUCTURED · CLOSED GROUPS · PURCHASE GATED
                 </div>
                 <div className="community-wb-title">Group Therapy Cohorts</div>
                 <div className="community-wb-sub">
-                  Led by MA/MPhil psychologists · Certified · Safe closed
-                  groups
+                  Enrol on Mejoric · join from the platform only · meeting
+                  access verified against your purchase
                 </div>
               </div>
               <div className="community-therapy-price-block">
-                <div className="community-therapy-price">₹400</div>
+                <div className="community-therapy-price">
+                  {featuredTherapyPrice}
+                </div>
                 <div className="community-therapy-price-sub">
-                  per session · ₹2,400 full cohort
+                  Admin-set cohort price · seat limits enforced
                 </div>
               </div>
             </div>
@@ -556,25 +957,32 @@ export default function Community() {
             <div className="community-sec-hdr">
               <span className="community-sec-t">Open Cohorts</span>
               <span className="community-sec-s">
-                Next cohorts start 1st &amp; 15th every month
+                Login required · email with platform join links after payment
               </span>
             </div>
 
-            <div className="community-therapy-grid">
-              {THERAPY_COHORTS.map((t) => (
-                <TherapyCard
-                  key={t.theme}
-                  cohort={t}
-                  onEnrol={(theme) => toast(`Enrolling in ${theme}...`)}
-                  onWaitlist={(theme) =>
-                    toast(`Added to waitlist for ${theme}`)
-                  }
-                />
-              ))}
-            </div>
+            {loadingTherapy ? (
+              <p style={{ padding: 24, color: "var(--muted)" }}>
+                Loading cohorts…
+              </p>
+            ) : therapyCohorts.length === 0 ? (
+              <p style={{ padding: 24, color: "var(--muted)" }}>
+                No open cohorts right now. Check back soon.
+              </p>
+            ) : (
+              <div className="community-therapy-grid">
+                {therapyCohorts.map((t) => (
+                  <TherapyCard
+                    key={t.id}
+                    cohort={t}
+                    busy={busyTherapyId === t.id}
+                    onEnrol={handleTherapyEnrol}
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* Feed */}
           <div
             className={`community-view${activeTab === "feed" ? " on" : ""}`}
           >
@@ -582,88 +990,234 @@ export default function Community() {
               <div>
                 <div style={{ marginBottom: 14 }}>
                   <div className="community-feed-hdr-title">
-                    Community Feed
+                    {activeCommunity?.joined
+                      ? activeCommunity.name
+                      : "Community Feed"}
                   </div>
                   <div className="community-feed-hdr-sub">
-                    Posts are anonymous by default · Mate responses are
-                    badged
+                    {activeCommunity?.joined
+                      ? "Feed & chat for members · anonymous posts available"
+                      : "Join a community to read and post"}
                   </div>
                 </div>
 
-                <div className="community-post-composer">
-                  <div className="community-pc-top">
-                    <div className="community-pc-av">A</div>
-                    <textarea
-                      className="community-pc-input"
-                      placeholder="Share what's on your mind. No judgment here."
-                      value={postText}
-                      onChange={(e) => setPostText(e.target.value)}
-                    />
+                {joinedCommunities.length > 0 && (
+                  <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 14 }}>
+                    {joinedCommunities.map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        className="community-nav-pill"
+                        style={{
+                          background:
+                            activeCommunity?.id === c.id ? c.col : undefined,
+                          color:
+                            activeCommunity?.id === c.id ? "#fff" : undefined,
+                        }}
+                        onClick={() => setActiveCommunityId(c.id)}
+                      >
+                        {c.emoji} {c.name}
+                      </button>
+                    ))}
                   </div>
-                  <div className="community-pc-foot">
-                    <label className="community-pc-anon">
-                      <input
-                        type="checkbox"
-                        checked={postAnonymous}
-                        onChange={(e) =>
-                          setPostAnonymous(e.target.checked)
-                        }
-                      />
-                      Post anonymously
-                    </label>
-                    <button
-                      type="button"
-                      className="community-pc-post"
-                      onClick={handlePost}
-                    >
-                      Share →
-                    </button>
-                  </div>
-                </div>
+                )}
 
-                {FEED_POSTS.map((post, i) => (
-                  <FeedPost
-                    key={`${post.community}-${post.time}`}
-                    post={post}
-                    liked={!!likedPosts[i]}
-                    onLike={() => toggleLike(i)}
-                    onReply={() => toast("Reply posted anonymously")}
-                  />
-                ))}
+                {activeCommunity?.joined ? (
+                  <>
+                    <div className="community-post-composer">
+                      <div className="community-pc-top">
+                        <div className="community-pc-av">{displayInitial}</div>
+                        <textarea
+                          className="community-pc-input"
+                          placeholder="Share what's on your mind. No judgment here."
+                          value={postText}
+                          onChange={(e) => setPostText(e.target.value)}
+                        />
+                      </div>
+                      <div className="community-pc-foot">
+                        <label className="community-pc-anon">
+                          <input
+                            type="checkbox"
+                            checked={postAnonymous}
+                            onChange={(e) =>
+                              setPostAnonymous(e.target.checked)
+                            }
+                          />
+                          Post anonymously
+                        </label>
+                        <button
+                          type="button"
+                          className="community-pc-post"
+                          onClick={handlePost}
+                        >
+                          Share →
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="community-post-composer" style={{ marginTop: 12 }}>
+                      <div className="community-feed-hdr-sub" style={{ marginBottom: 8 }}>
+                        Community chat
+                      </div>
+                      <div
+                        style={{
+                          maxHeight: 220,
+                          overflowY: "auto",
+                          marginBottom: 10,
+                          padding: "8px 0",
+                        }}
+                      >
+                        {loadingFeed && messages.length === 0 && (
+                          <div className="community-feed-hdr-sub">Loading…</div>
+                        )}
+                        {!loadingFeed && messages.length === 0 && (
+                          <div className="community-feed-hdr-sub">
+                            No messages yet — say hello
+                          </div>
+                        )}
+                        {messages.map((m) => (
+                          <div
+                            key={m.id}
+                            style={{
+                              marginBottom: 8,
+                              textAlign: m.isMine ? "right" : "left",
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: "inline-block",
+                                maxWidth: "85%",
+                                padding: "8px 12px",
+                                borderRadius: 12,
+                                background: m.isMine
+                                  ? "rgba(144,67,181,0.15)"
+                                  : "var(--warm3, #f5f0fa)",
+                                fontSize: 13,
+                              }}
+                            >
+                              <div style={{ fontSize: 11, opacity: 0.7, marginBottom: 2 }}>
+                                {m.author?.displayName || "Member"} · {timeAgo(m.createdAt)}
+                              </div>
+                              {m.text}
+                            </div>
+                          </div>
+                        ))}
+                        <div ref={chatEndRef} />
+                      </div>
+                      <div className="community-pc-top">
+                        <input
+                          className="community-pc-input"
+                          style={{ minHeight: 40, resize: "none" }}
+                          placeholder="Write a message…"
+                          value={chatText}
+                          onChange={(e) => setChatText(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleSendChat();
+                            }
+                          }}
+                        />
+                        <button
+                          type="button"
+                          className="community-pc-post"
+                          onClick={handleSendChat}
+                          disabled={sendingChat}
+                        >
+                          {sendingChat ? "…" : "Send"}
+                        </button>
+                      </div>
+                    </div>
+
+                    {loadingFeed && posts.length === 0 ? (
+                      <p className="community-feed-hdr-sub">Loading posts…</p>
+                    ) : posts.length === 0 ? (
+                      <p className="community-feed-hdr-sub" style={{ marginTop: 16 }}>
+                        No posts yet — be the first
+                      </p>
+                    ) : (
+                      posts.map((post) => (
+                        <FeedPost
+                          key={post.id}
+                          post={post}
+                          communityName={activeCommunity.name}
+                          communityColor={activeCommunity.col}
+                        />
+                      ))
+                    )}
+                  </>
+                ) : (
+                  <p className="community-feed-hdr-sub">
+                    Join a community from the Communities tab
+                    {!unlocked
+                      ? ` (₹${unlockAmount} one-time unlock required first)`
+                      : ""}
+                    .
+                  </p>
+                )}
               </div>
 
               <div className="community-feed-sidebar">
                 <div className="community-fa-card">
                   <div className="community-fa-title">Active now</div>
-                  {ONLINE_COUNTS.map((c) => (
-                    <div key={c.id} className="community-ac-item">
-                      <div
-                        className="community-ac-dot"
-                        style={{ background: c.col }}
-                      />
-                      <span className="community-ac-name">{c.name}</span>
-                      <span className="community-ac-cnt">
-                        {c.online} online
-                      </span>
+                  {joinedCommunities.length === 0 ? (
+                    <div className="community-ac-cnt">
+                      Join a community to see who&apos;s online
                     </div>
-                  ))}
+                  ) : (
+                    joinedCommunities.map((item) => {
+                      const online = onlineByCommunity[String(item.id)] || 0;
+                      return (
+                        <div
+                          key={item.id}
+                          className="community-ac-item"
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => {
+                            setActiveCommunityId(item.id);
+                            setActiveTab("feed");
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setActiveCommunityId(item.id);
+                              setActiveTab("feed");
+                            }
+                          }}
+                        >
+                          <span
+                            className="community-ac-dot"
+                            style={{
+                              background:
+                                online > 0
+                                  ? "#22c55e"
+                                  : "var(--muted, #c4c4c4)",
+                            }}
+                          />
+                          <span className="community-ac-name">
+                            {item.emoji} {item.name}
+                          </span>
+                          <span className="community-ac-cnt">
+                            {online === 1
+                              ? "1 online"
+                              : `${online} online`}
+                          </span>
+                        </div>
+                      );
+                    })
+                  )}
                 </div>
 
                 <div className="community-fa-card">
-                  <div
-                    className="community-fa-title"
-                    style={{ marginBottom: 8 }}
-                  >
-                    How this works
-                  </div>
+                  <div className="community-fa-title">How this works</div>
                   <div className="community-how-works">
-                    ✦ Anonymous by default
+                    ✦ ₹{unlockAmount} one-time unlock (wallet or Razorpay)
                     <br />
-                    ✦ Mates respond within 2 hours
+                    ✦ Welcome wallet balance cannot be used
                     <br />
-                    ✦ No advice unless asked
+                    ✦ Then join any community free
                     <br />
-                    ✦ No screenshots
+                    ✦ Your name shows unless you post anonymously
                     <br />✦ Moderated for safety
                   </div>
                 </div>
@@ -673,7 +1227,7 @@ export default function Community() {
                     Need more than a post?
                   </div>
                   <div className="community-dark-cta-text">
-                    Talk to a Mate 1-to-1. First session ₹199.
+                    Talk to a Mate 1-to-1.
                   </div>
                   <button
                     type="button"
@@ -687,31 +1241,6 @@ export default function Community() {
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-
-          {/* Calls */}
-          <div
-            className={`community-view${activeTab === "calls" ? " on" : ""}`}
-          >
-            <div className="community-sec-hdr" style={{ marginBottom: 6 }}>
-              <span className="community-sec-t">Wednesday Night Calls</span>
-              <span className="community-sec-s">
-                Free · Every Wednesday · 8PM IST
-              </span>
-            </div>
-            <div className="community-calls-intro">
-              Each call has a specific theme. A Mate facilitates. Max 20 people.
-              Peer-led, not clinical. Safe and anonymous.
-            </div>
-            <div className="community-calls-grid">
-              {CALLS.map((call) => (
-                <CallCard
-                  key={`${call.title}-${call.time}`}
-                  call={call}
-                  onRegister={(title) => toast(`Registered: ${title}`)}
-                />
-              ))}
             </div>
           </div>
         </main>

@@ -67,9 +67,12 @@ export const apiGet = async (endpoint, skipAuth = false) => {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-      throw new Error(
+      const error = new Error(
         errorData.message || `HTTP error! status: ${response.status}`,
       );
+      error.response = errorData;
+      error.status = response.status;
+      throw error;
     }
 
     const data = await response.json();

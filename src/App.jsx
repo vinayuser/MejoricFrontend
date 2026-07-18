@@ -35,6 +35,7 @@ import { Toaster } from 'react-hot-toast';
 import MateDetailsPage from './components/MateDetailsPage';
 import VerifyEmail from './components/VerifyEmail';
 import Community from './components/Community';
+import TherapySessionJoin from './components/TherapySessionJoin';
 import { getRouterBasename } from './utils/basePath';
 
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -187,7 +188,11 @@ function App() {
             <Route path="/dashboard" element={<MateDashboard />} />
             <Route path="/dashboard/profile" element={<MateProfile />} />
             <Route path="/mentor-dashboard" element={<MentorDashboard />} />
-            {/* <Route path="/community" element={<Community />} /> */}
+            <Route path="/community" element={<Community />} />
+            <Route
+              path="/therapy-session/:enrollmentId"
+              element={<TherapySessionJoin />}
+            />
           </Routes>
         </div>
       </EmailVerificationGate>

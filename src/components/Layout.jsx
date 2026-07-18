@@ -159,21 +159,20 @@ const Layout = ({ children, activePage }) => {
           },
           { name: "Wallet", icon: <FaWallet />, path: "/wallet", badge: null },
           {
-            name: "Contact",
-            icon: <FaWhatsapp />,
-            path: "/contact",
+            name: "Community",
+            icon: <FaComments />,
+            path: "/community",
             badge: null,
           },
         ]
       : [
           { name: "Home", icon: <FaHome />, path: "/", badge: null },
           { name: "Mate", icon: <FaHeart />, path: "/mate", badge: "" },
-          // { name: "Community", icon: <FaComments />, path: "/community", badge: "" },
           { name: "Mentors", icon: <FaUsers />, path: "/mentors/professional/browse", badge: "" },
           {
-            name: "Contact",
-            icon: <FaWhatsapp />,
-            path: "/contact",
+            name: "Community",
+            icon: <FaComments />,
+            path: "/community",
             badge: null,
           },
         ];
