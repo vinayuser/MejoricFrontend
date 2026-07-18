@@ -15,7 +15,7 @@ import { useAuth } from "../context/AuthContext";
 const QUICK_LINKS = [
   { name: "Home", path: "/" },
   { name: "Mates", path: "/mate" },
-  { name: "Mentors", path: "/mentors" },
+  { name: "Mentors", path: "/mentors/professional/browse" },
   { name: "About Us", path: "/about" },
 ];
 

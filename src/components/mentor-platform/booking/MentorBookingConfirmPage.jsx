@@ -68,7 +68,7 @@ export default function MentorBookingConfirmPage() {
           <Link to={`${base}/browse`} className="mp-btn-primary">
             Book Another Session
           </Link>
-          <Link to="/mentors" className="mp-btn-secondary">
+          <Link to="/mentors/professional/browse" className="mp-btn-secondary">
             Back to mentors
           </Link>
         </div>

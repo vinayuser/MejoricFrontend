@@ -109,10 +109,10 @@ export const MENTOR_PLATFORM_CONFIG = {
     ],
   },
   professional: {
-    label: "Professional Mentors",
-    breadcrumbLabel: "Career & Professional",
-    pill: "💼 Career & Professional",
-    title: "Professional Mentor",
+    label: "Mentors",
+    breadcrumbLabel: "Mentors",
+    pill: "💼 Career Mentors",
+    title: "Mentor",
     tagline:
       "An experienced professional who gives you the honest picture of your career: what to do next, how to get there, and what the path actually feels like from the inside.",
     grid: [
@@ -143,9 +143,9 @@ export const MENTOR_PLATFORM_CONFIG = {
       { n: "03", t: "Book a slot", b: "First session from ₹199." },
       { n: "04", t: "Come prepared", b: "One clear question or situation. Leave with a plan." },
     ],
-    cta: "Browse Professional Mentors →",
+    cta: "Browse Mentors →",
     domains: [
-      { id: "all", name: "All Professional Mentors", count: 0 },
+      { id: "all", name: "All Mentors", count: 0 },
       { id: "p01", name: "Career Transition Coach", count: 0, section: "Career & Leadership" },
       { id: "p02", name: "HR & Workplace Mentor", count: 0, section: "Career & Leadership" },
       { id: "p03", name: "CA / Financial Clarity Mentor", count: 0, section: "Career & Leadership" },
@@ -177,7 +177,7 @@ export const SESSION_FORMATS = [
 ];
 
 export function getConfig(type) {
-  return MENTOR_PLATFORM_CONFIG[type] || MENTOR_PLATFORM_CONFIG.emotional;
+  return MENTOR_PLATFORM_CONFIG[type] || MENTOR_PLATFORM_CONFIG.professional;
 }
 
 export function mentorMatchesDomain(mentor, domainId, domainName) {

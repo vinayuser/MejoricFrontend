@@ -22,7 +22,7 @@ export default function MentorProfilePage() {
   const { setBookingDraft } = useMentorBooking();
   const cfg = getConfig(type);
   const base = `/mentors/${type}`;
-  const activePage = type === "professional" ? "Professional Mentors" : "Emotional Mentors";
+  const activePage = "Mentors";
 
   const [mentor, setMentor] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -101,9 +101,7 @@ export default function MentorProfilePage() {
       <div className="mp-profile-wrap">
           <MentorBreadcrumb
             items={[
-              { label: "Mentors", to: "/mentors" },
-              { label: cfg.breadcrumbLabel || cfg.title, to: `${base}/about` },
-              { label: "Browse", to: `${base}/browse` },
+              { label: "Mentors", to: "/mentors/professional/browse" },
               { label: mentor.name },
             ]}
           />

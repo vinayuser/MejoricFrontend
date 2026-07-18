@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { MentorBookingProvider } from './context/MentorBookingContext';
 import Home from './components/Home';
@@ -8,7 +8,6 @@ import Contact from './components/Contact';
 import TermsAndConditions from './components/TermsAndConditions';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import EmotionalCare from './components/EmotionalCare';
-import MentorPlatformLanding from './components/mentor-platform/MentorPlatformLanding';
 import MentorExplainPage from './components/mentor-platform/explain/MentorExplainPage';
 import MentorDomainsPage from './components/mentor-platform/domains/MentorDomainsPage';
 import MentorProfilePage from './components/mentor-platform/profile/MentorProfilePage';
@@ -161,10 +160,11 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/about" element={<About />} />
             <Route path="/mate" element={<Mentor />} />
-            <Route path="/mentor" element={<MentorPlatformLanding />} />
+            <Route path="/mentor" element={<Navigate to="/mentors/professional/browse" replace />} />
 
             <Route path="/emotional-care" element={<EmotionalCare />} />
-            <Route path="/mentors" element={<MentorPlatformLanding />} />
+            <Route path="/mentors" element={<Navigate to="/mentors/professional/browse" replace />} />
+            <Route path="/mentors/emotional/*" element={<Navigate to="/mentors/professional/browse" replace />} />
             <Route path="/mentors/:type/about" element={<MentorTypeGuard><MentorExplainPage /></MentorTypeGuard>} />
             <Route path="/mentors/:type/browse" element={<MentorTypeGuard><MentorDomainsPage /></MentorTypeGuard>} />
             <Route path="/mentors/:type/mentor/:mentorId" element={<MentorTypeGuard><MentorProfilePage /></MentorTypeGuard>} />

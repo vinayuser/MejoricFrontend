@@ -1,8 +1,18 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import MentorPlatformLayout from "../MentorPlatformLayout";
-import MentorDomainSidebar from "./MentorDomainSidebar";
 import MentorCardGrid from "./MentorCardGrid";
+import {
+  CareerMentorHero,
+  CareerNeedsSection,
+  MentorExplanationSection,
+  HowItWorksSection,
+  SessionOutcomesSection,
+  WhyMejoricSection,
+  ExpectationsSection,
+  CareerMentorFaqSection,
+  CareerMentorFinalCta,
+} from "../career/CareerMentorLandingSections";
 import { getConfig } from "../../../data/mentorPlatformConfig";
 import {
   fetchPlatformMentors,
@@ -16,7 +26,6 @@ export default function MentorDomainsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const cfg = getConfig(type);
   const base = `/mentors/${type}`;
-  const activePage = type === "professional" ? "Professional Mentors" : "Emotional Mentors";
 
   const domainFromUrl = searchParams.get("domain") || "all";
   const [activeDomainId, setActiveDomainId] = useState(domainFromUrl);
@@ -66,33 +75,68 @@ export default function MentorDomainsPage() {
     navigate(`${base}/mentor/${mentor.id || mentor._id}`);
   };
 
-  const domainName = activeDomain?.name || "All Mentors";
-  const domainSub =
-    activeDomainId === "all"
-      ? `All ${cfg.label.toLowerCase()}. Browse and find your match`
-      : `${cfg.label} specialising in ${domainName}`;
+  const scrollToMentors = () => {
+    document.getElementById("mentors")?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
 
   return (
-    <MentorPlatformLayout activePage={activePage} type={type}>
-      <div className="mp-domains-layout">
-        <MentorDomainSidebar
-          type={type}
-          domains={domainsWithCounts}
-          activeDomainId={activeDomainId}
-          onSelectDomain={handleDomainSelect}
-          totalCount={mentors.length}
-        />
+    <MentorPlatformLayout activePage="Mentors" type={type}>
+      <CareerMentorHero onExplore={scrollToMentors} />
+      <CareerNeedsSection onSelectNeed={scrollToMentors} />
+      <MentorExplanationSection />
+      <HowItWorksSection />
 
-        <div className="mp-domains-main">
-          <h1 className="mp-dm-title mp-serif">{domainName}</h1>
-          <p className="mp-dm-sub">{domainSub}</p>
+      <section id="mentors" className="mp-disc">
+        <div className="mp-disc-inner">
+          <div className="mp-disc-hero">
+            <span className="mp-disc-eyebrow">Career mentorship</span>
+            <h2 className="mp-disc-heading">Meet Your Mentors</h2>
+            <p className="mp-disc-sub">
+              Our network includes industry experts, executives, and seasoned
+              professionals ready to guide you.
+            </p>
+
+            <div
+              className="mp-disc-filters"
+              role="tablist"
+              aria-label="Mentor categories"
+            >
+              {domainsWithCounts.map((domain) => (
+                <button
+                  key={domain.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeDomainId === domain.id}
+                  className={`mp-disc-filter${
+                    activeDomainId === domain.id ? " active" : ""
+                  }`}
+                  onClick={() => handleDomainSelect(domain.id)}
+                >
+                  {domain.id === "all" ? "All" : domain.name}
+                  {domain.id !== "all" ? (
+                    <span className="mp-disc-filter-count">{domain.count}</span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <MentorCardGrid
             mentors={filteredMentors}
             onSelectMentor={handleSelectMentor}
             loading={loading}
           />
         </div>
-      </div>
+      </section>
+
+      <SessionOutcomesSection />
+      <WhyMejoricSection />
+      <ExpectationsSection />
+      <CareerMentorFaqSection />
+      <CareerMentorFinalCta onFindMentor={scrollToMentors} />
     </MentorPlatformLayout>
   );
 }

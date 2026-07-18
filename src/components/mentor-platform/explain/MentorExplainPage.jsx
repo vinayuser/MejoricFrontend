@@ -39,7 +39,7 @@ export default function MentorExplainPage() {
             <Link to={`${base}/browse`} className="mp-btn-primary">
               {cfg.cta}
             </Link>
-            <Link to="/mentors" className="mp-btn-secondary">
+            <Link to="/mentors/professional/browse" className="mp-btn-secondary">
               ← Back to mentors
             </Link>
           </div>

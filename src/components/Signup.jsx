@@ -180,6 +180,7 @@ export default function Signup() {
 
   const handleStep1Continue = async (e) => {
     e.preventDefault();
+    if (isLoading) return;
     setError("");
     if (!validateStep1()) return;
 
@@ -232,6 +233,7 @@ export default function Signup() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isLoading) return;
     setIsLoading(true);
     setError("");
 
