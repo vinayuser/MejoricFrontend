@@ -940,8 +940,6 @@ export default function Mentor() {
             <div className="text-center py-10">Loading...</div>
           ) : error ? (
             <div className="text-center py-10">{error}</div>
-          ) : filteredMentors.length === 0 ? (
-            <div className="text-center py-10">No mates found</div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
               {filteredMentors.map((mentor, index) => (
@@ -964,6 +962,40 @@ export default function Mentor() {
                   />
                 </div>
               ))}
+
+              {/* CTA → psychologist / mentors browse */}
+              <button
+                type="button"
+                onClick={() => navigate("/mentors/emotional/about")}
+                className="relative overflow-hidden rounded-3xl border border-[#e8d5ec] bg-white shadow-[0_12px_40px_-12px_rgba(144,67,181,0.35)] h-full min-h-[320px] flex flex-col items-center justify-center p-8 text-center group transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_50px_-12px_rgba(144,67,181,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+              >
+                <div
+                  className="pointer-events-none absolute inset-0 opacity-90"
+                  style={{
+                    background:
+                      "radial-gradient(ellipse 80% 60% at 20% 0%, rgba(246,217,222,0.85), transparent 55%), radial-gradient(ellipse 70% 50% at 100% 100%, rgba(239,230,247,0.9), transparent 50%), linear-gradient(165deg, #fffafb 0%, #ffffff 45%, #f8f4fc 100%)",
+                  }}
+                />
+                <div className="relative z-[1] flex flex-col items-center">
+                  <div className="mb-6 flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full border-[3px] border-[#f0dceb] bg-white text-3xl font-bold text-[#9043b5] shadow-[0_8px_24px_-6px_rgba(144,67,181,0.4)] transition-transform duration-300 group-hover:scale-110">
+                    !
+                  </div>
+                  <h3 className="text-xl font-bold tracking-tight text-[#3b1f4a] transition-colors group-hover:text-[#9043b5]">
+                    Talk to our psychologist
+                  </h3>
+                  <p className="mt-3 max-w-[230px] text-sm leading-relaxed text-slate-500">
+                    Need deeper guidance?
+                    <br />
+                    Book a session with a mentor.
+                  </p>
+                  <span className="mt-7 inline-flex items-center gap-2 rounded-full bg-[#9043b5] px-6 py-3 text-sm font-semibold text-white shadow-md shadow-purple-200/80 transition-all duration-300 group-hover:bg-[#7a3599] group-hover:shadow-lg">
+                    Browse Mentors
+                    <span aria-hidden className="translate-x-0 transition-transform group-hover:translate-x-0.5">
+                      →
+                    </span>
+                  </span>
+                </div>
+              </button>
             </div>
           )}
         </div>

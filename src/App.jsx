@@ -165,7 +165,6 @@ function App() {
 
             <Route path="/emotional-care" element={<EmotionalCare />} />
             <Route path="/mentors" element={<Navigate to="/mentors/professional/browse" replace />} />
-            <Route path="/mentors/emotional/*" element={<Navigate to="/mentors/professional/browse" replace />} />
             <Route path="/mentors/:type/about" element={<MentorTypeGuard><MentorExplainPage /></MentorTypeGuard>} />
             <Route path="/mentors/:type/browse" element={<MentorTypeGuard><MentorDomainsPage /></MentorTypeGuard>} />
             <Route path="/mentors/:type/mentor/:mentorId" element={<MentorTypeGuard><MentorProfilePage /></MentorTypeGuard>} />

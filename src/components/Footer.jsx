@@ -56,8 +56,7 @@ export default function Footer() {
   const isMate = isAuthenticated && user?.role === "mate";
   const isMentor = isAuthenticated && user?.role === "mentor";
 
-  const quickLinks = [
-    ...QUICK_LINKS,
+  const loginLinks = [
     !isMate && { name: "Mate Login", path: "/login?role=mate" },
     !isMentor && { name: "Mentor Login", path: "/login?role=mentor" },
   ].filter(Boolean);
@@ -65,9 +64,9 @@ export default function Footer() {
   return (
     <footer className="bg-[#5f4f86] text-white">
       <div className="container mx-auto px-5 sm:px-8 py-12 lg:py-14">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 lg:gap-8">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-10 lg:gap-x-10 lg:gap-y-10">
           {/* Brand */}
-          <div className="sm:col-span-2 lg:col-span-1">
+          <div className="sm:col-span-2 lg:col-span-3">
             <div className="flex items-center gap-3 mb-4">
               <img
                 className="w-12 h-12 rounded-lg object-cover"
@@ -99,20 +98,32 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Quick links */}
-          <div>
+          {/* Quick links — page links + login side by side */}
+          <div className="sm:col-span-2 lg:col-span-4">
             <FooterHeading>Quick Links</FooterHeading>
-            <ul>
-              {quickLinks.map((item) => (
-                <li key={item.name}>
-                  <FooterLink to={item.path}>{item.name}</FooterLink>
-                </li>
-              ))}
-            </ul>
+            <div className="flex items-start gap-8 sm:gap-10">
+              <ul className="flex-1 min-w-0">
+                {QUICK_LINKS.map((item) => (
+                  <li key={item.name}>
+                    <FooterLink to={item.path}>{item.name}</FooterLink>
+                  </li>
+                ))}
+              </ul>
+
+              {loginLinks.length > 0 && (
+                <ul className="flex-1 min-w-0">
+                  {loginLinks.map((item) => (
+                    <li key={item.name}>
+                      <FooterLink to={item.path}>{item.name}</FooterLink>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
 
           {/* Legal */}
-          <div>
+          <div className="lg:col-span-2">
             <FooterHeading>Legal</FooterHeading>
             <ul>
               {LEGAL_LINKS.map((item) => (
@@ -124,7 +135,7 @@ export default function Footer() {
           </div>
 
           {/* Contact */}
-          <div>
+          <div className="lg:col-span-3">
             <FooterHeading>Contact</FooterHeading>
             <ul className="space-y-3">
               <li>
