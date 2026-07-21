@@ -1,0 +1,50 @@
+<svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="lg-wash" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F5F8F0"/>
+      <stop offset="100%" stop-color="#E7EEDD"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="800" height="600" fill="url(#lg-wash)"/>
+
+  <!-- blush blob -->
+  <ellipse cx="80" cy="80" rx="150" ry="120" fill="#EFC9B9" opacity="0.35"/>
+  <!-- dusty blue blob -->
+  <ellipse cx="720" cy="540" rx="170" ry="140" fill="#AFC4D9" opacity="0.35"/>
+
+  <!-- notebook paper card -->
+  <g transform="translate(90,300) rotate(4)">
+    <rect x="0" y="0" width="260" height="150" fill="#FFFDF8" stroke="#DCE3CC" stroke-width="2"/>
+    <line x1="20" y1="24" x2="20" y2="130" stroke="#D98A6E" stroke-width="2" opacity="0.5"/>
+    <line x1="36" y1="30" x2="220" y2="28" stroke="#8A9B7E" stroke-width="3" stroke-linecap="round"/>
+    <line x1="36" y1="60" x2="190" y2="58" stroke="#C7D4B5" stroke-width="3" stroke-linecap="round"/>
+    <line x1="36" y1="90" x2="170" y2="88" stroke="#C7D4B5" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- washi tape -->
+  <rect x="130" y="278" width="110" height="30" fill="#B9C4A8" opacity="0.85" transform="rotate(3 185 293)"/>
+
+  <!-- signature: hand-drawn ascending bar/growth line -->
+  <g transform="translate(420,150)">
+    <line x1="0" y1="330" x2="360" y2="330" stroke="#3E4A3B" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+    <rect x="20" y="250" width="46" height="80" rx="6" fill="#C7D4B5"/>
+    <rect x="90" y="200" width="46" height="130" rx="6" fill="#AEC29A"/>
+    <rect x="160" y="130" width="46" height="200" rx="6" fill="#8A9B7E"/>
+    <rect x="230" y="60" width="46" height="270" rx="6" fill="#6E8460"/>
+    <path d="M20,255 C90,210 160,140 260,55" fill="none" stroke="#C4785B" stroke-width="5" stroke-linecap="round"/>
+    <path d="M260,55 l-28,-6 l10,26 Z" fill="#C4785B"/>
+  </g>
+
+  <!-- sparkle -->
+  <g fill="#E5B4B0">
+    <path d="M660,120 l4,12 l12,4 l-12,4 l-4,12 l-4,-12 l-12,-4 l12,-4 Z"/>
+    <path d="M300,470 l3,9 l9,3 l-9,3 l-3,9 l-3,-9 l-9,-3 l9,-3 Z"/>
+  </g>
+
+  <!-- wavy underline -->
+  <path d="M440,470 q20,-16 40,0 t40,0 t40,0 t40,0" fill="none" stroke="#8A9B7E" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- heart -->
+  <path d="M110,150 c0,-12 -18,-12 -18,0 c0,8 18,20 18,20 s18,-12 18,-20 c0,-12 -18,-12 -18,0 Z" fill="#E5B4B0" opacity="0.75"/>
+</svg>

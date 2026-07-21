@@ -117,18 +117,15 @@ export default function Home() {
 
               {/* CTA panel - Right */}
               <div className="lg:block">
-                <div className="relative overflow-hidden rounded-2xl shadow-2xl bg-purple-600 min-h-[420px] md:min-h-[480px] flex flex-col justify-between p-8 md:p-10">
-                  <div>
-                    <p className="text-4xl md:text-5xl lg:text-6xl font-bold text-white leading-[1.15] tracking-tight">
-                      Pause.
-                      <br />
-                      Breathe.
-                      <br />
-                      Talk.
-                    </p>
-                  </div>
+                <div className="relative overflow-hidden rounded-2xl shadow-2xl min-h-[420px] md:min-h-[480px] flex flex-col justify-end p-8 md:p-10">
+                  <img
+                    src="/pause-breathe-talk.png"
+                    alt="Pause. Breathe. Talk."
+                    className="absolute inset-0 h-full w-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-purple-900/70 via-purple-800/20 to-transparent" />
 
-                  <div className="flex flex-col sm:flex-row gap-4 mt-10">
+                  <div className="relative z-10 flex flex-col sm:flex-row gap-4">
                     <button
                       type="button"
                       onClick={() => {

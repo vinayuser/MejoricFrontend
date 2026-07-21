@@ -1,0 +1,29 @@
+/* Job description HTML from admin editor */
+.careers-prose {
+  color: #374151;
+  font-size: 1rem;
+  line-height: 1.7;
+}
+
+.careers-prose h1,
+.careers-prose h2,
+.careers-prose h3 {
+  color: #111827;
+  font-weight: 700;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.careers-prose ul,
+.careers-prose ol {
+  padding-left: 1.25rem;
+  margin: 0.5rem 0 1rem;
+}
+
+.careers-prose p {
+  margin: 0.65rem 0;
+}
+
+.careers-prose a {
+  color: #7c6ba8;
+  text-decoration: underline;
+}

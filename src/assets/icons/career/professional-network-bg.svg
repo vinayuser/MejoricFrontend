@@ -1,0 +1,49 @@
+<svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="pn-wash" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F5F2FA"/>
+      <stop offset="100%" stop-color="#E6DEF2"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="800" height="600" fill="url(#pn-wash)"/>
+
+  <ellipse cx="90" cy="100" rx="160" ry="120" fill="#F0DDA3" opacity="0.35"/>
+  <ellipse cx="720" cy="520" rx="170" ry="140" fill="#C8B9E0" opacity="0.4"/>
+
+  <!-- torn note card -->
+  <g transform="translate(430,320) rotate(6)">
+    <path d="M0,0 L240,-4 L246,6 L238,140 L4,146 L-6,132 Z" fill="#FFFDF8" stroke="#DDD0EA" stroke-width="2"/>
+    <line x1="18" y1="28" x2="190" y2="26" stroke="#6E5A9B" stroke-width="3" stroke-linecap="round"/>
+    <line x1="18" y1="56" x2="160" y2="54" stroke="#D9C9EC" stroke-width="3" stroke-linecap="round"/>
+    <line x1="18" y1="84" x2="140" y2="82" stroke="#D9C9EC" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <rect x="470" y="300" width="100" height="28" fill="#C8B9E0" opacity="0.85" transform="rotate(6 520 314)"/>
+
+  <!-- signature: hand-drawn handshake with connecting node dots -->
+  <g transform="translate(220,240)" stroke="#6E5A9B" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M-70,10 l40,-24 l30,14 l40,-20 l24,16 l-18,26 l-30,20 l-30,-6 l-40,20 Z" fill="#EFE7F8"/>
+    <path d="M-30,-14 l30,14 l40,-20"/>
+    <path d="M-10,20 l24,-14"/>
+  </g>
+  <!-- connection dots + dashed lines -->
+  <g stroke="#B39DDB" stroke-width="3" stroke-dasharray="2 8" fill="none">
+    <line x1="90" y1="140" x2="220" y2="80"/>
+    <line x1="90" y1="140" x2="60" y2="260"/>
+    <line x1="90" y1="140" x2="260" y2="220"/>
+  </g>
+  <g fill="#6E5A9B">
+    <circle cx="220" cy="80" r="8"/>
+    <circle cx="60" cy="260" r="8"/>
+    <circle cx="260" cy="220" r="8"/>
+  </g>
+
+  <g fill="#E0B454">
+    <path d="M650,140 l4,12 l12,4 l-12,4 l-4,12 l-4,-12 l-12,-4 l12,-4 Z"/>
+    <path d="M120,470 l3,9 l9,3 l-9,3 l-3,9 l-3,-9 l-9,-3 l9,-3 Z"/>
+  </g>
+
+  <path d="M430,480 q20,-16 40,0 t40,0 t40,0 t40,0" fill="none" stroke="#6E5A9B" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
+
+  <path d="M700,470 c0,-12 -18,-12 -18,0 c0,8 18,20 18,20 s18,-12 18,-20 c0,-12 -18,-12 -18,0 Z" fill="#E5B4B0" opacity="0.75"/>
+</svg>

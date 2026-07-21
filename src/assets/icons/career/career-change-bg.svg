@@ -1,0 +1,55 @@
+<svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="cc-wash" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#FBF5EC"/>
+      <stop offset="100%" stop-color="#F3E8D8"/>
+    </linearGradient>
+    <filter id="cc-paper">
+      <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="noise"/>
+      <feColorMatrix in="noise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.02 0"/>
+    </filter>
+  </defs>
+
+  <rect width="800" height="600" fill="url(#cc-wash)"/>
+  <rect width="800" height="600" filter="url(#cc-paper)"/>
+
+  <!-- soft blush blob top right -->
+  <ellipse cx="700" cy="80" rx="160" ry="130" fill="#EFC9B9" opacity="0.45"/>
+  <!-- sage blob bottom left -->
+  <ellipse cx="60" cy="560" rx="180" ry="130" fill="#B9C4A8" opacity="0.35"/>
+
+  <!-- torn paper card, off center -->
+  <g transform="translate(440,340) rotate(-6)">
+    <path d="M0,0 L260,-6 L266,4 L258,150 L4,158 L-6,140 Z" fill="#FFFDF8" stroke="#E4D3BE" stroke-width="2"/>
+    <line x1="20" y1="30" x2="200" y2="26" stroke="#C4785B" stroke-width="3" stroke-linecap="round"/>
+    <line x1="20" y1="60" x2="170" y2="58" stroke="#D9C6A9" stroke-width="3" stroke-linecap="round"/>
+    <line x1="20" y1="90" x2="150" y2="88" stroke="#D9C6A9" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- washi tape -->
+  <rect x="380" y="300" width="120" height="34" fill="#E4A98C" opacity="0.85" transform="rotate(-8 440 317)"/>
+
+  <!-- hand-drawn target + arrow, signature element -->
+  <g transform="translate(160,230)" stroke="#B8654A" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="0" cy="0" r="90" stroke="#C4785B" opacity="0.9"/>
+    <circle cx="0" cy="0" r="58" stroke="#D9906F" opacity="0.85"/>
+    <circle cx="0" cy="0" r="26" stroke="#E4A98C" opacity="0.8"/>
+    <circle cx="0" cy="0" r="6" fill="#8A9B7E" stroke="none"/>
+    <!-- arrow flying in -->
+    <line x1="-220" y1="140" x2="-8" y2="10" stroke="#3E4A3B" stroke-width="5"/>
+    <path d="M-8,10 L-30,4 M-8,10 L-16,30" stroke="#3E4A3B" stroke-width="5"/>
+    <path d="M-220,140 l-22,-4 l6,22 Z" fill="#3E4A3B" stroke="none"/>
+  </g>
+
+  <!-- small sparkles -->
+  <g fill="#8A9B7E">
+    <path d="M600,470 l4,12 l12,4 l-12,4 l-4,12 l-4,-12 l-12,-4 l12,-4 Z"/>
+    <path d="M110,90 l3,9 l9,3 l-9,3 l-3,9 l-3,-9 l-9,-3 l9,-3 Z"/>
+  </g>
+
+  <!-- wavy underline doodle -->
+  <path d="M40,470 q20,-16 40,0 t40,0 t40,0 t40,0" fill="none" stroke="#C4785B" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+
+  <!-- heart doodle -->
+  <path d="M700,520 c0,-14 -22,-14 -22,0 c0,10 22,26 22,26 s22,-16 22,-26 c0,-14 -22,-14 -22,0 Z" fill="#E5B4B0" opacity="0.8"/>
+</svg>

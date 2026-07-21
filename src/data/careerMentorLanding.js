@@ -1,39 +1,46 @@
+import careerChangeBg from "../assets/icons/career/career-change-bg.svg";
+import leadershipGrowthBg from "../assets/icons/career/leadership-growth-bg.svg";
+import skillDevelopmentBg from "../assets/icons/career/skill-development-bg.svg";
+import professionalNetworkBg from "../assets/icons/career/professional-network-bg.svg";
+import careerStrategyBg from "../assets/icons/career/career-strategy-bg.svg";
+import salaryNegotiationBg from "../assets/icons/career/salary-negotiation-bg.svg";
+
 export const CAREER_NEEDS = [
   {
     id: "career-change",
     title: "Career Change",
     description: "Considering a move to a new industry or role",
-    icon: "🎯",
+    bgSrc: careerChangeBg,
   },
   {
     id: "leadership",
     title: "Leadership Growth",
     description: "Stepping into management for the first time",
-    icon: "📈",
+    bgSrc: leadershipGrowthBg,
   },
   {
     id: "skill-development",
     title: "Skill Development",
     description: "Building specific technical or soft skills",
-    icon: "💡",
+    bgSrc: skillDevelopmentBg,
   },
   {
     id: "networking",
     title: "Professional Network",
     description: "Expanding connections in your industry",
-    icon: "🤝",
+    bgSrc: professionalNetworkBg,
   },
   {
     id: "strategy",
     title: "Career Strategy",
     description: "Planning your 5-year career trajectory",
-    icon: "🗺️",
+    bgSrc: careerStrategyBg,
   },
   {
     id: "negotiation",
     title: "Salary Negotiation",
     description: "Preparing for compensation discussions",
-    icon: "💼",
+    bgSrc: salaryNegotiationBg,
   },
 ];
 
@@ -54,7 +61,7 @@ export const HOW_IT_WORKS_STEPS = [
     number: 3,
     title: "Start Learning",
     description:
-      "Book video sessions at your pace. Mentors provide actionable advice tailored to your situation.",
+      "Book sessions at your pace. Mentors provide actionable advice tailored to your situation.",
   },
   {
     number: 4,

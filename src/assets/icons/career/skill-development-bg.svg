@@ -1,0 +1,44 @@
+<svg viewBox="0 0 800 600" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="sd-wash" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#F1F6FA"/>
+      <stop offset="100%" stop-color="#DCE9F2"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="800" height="600" fill="url(#sd-wash)"/>
+
+  <ellipse cx="740" cy="90" rx="160" ry="120" fill="#F0DDA3" opacity="0.4"/>
+  <ellipse cx="60" cy="540" rx="170" ry="130" fill="#EFC9B9" opacity="0.3"/>
+
+  <!-- sticky note card -->
+  <g transform="translate(470,340) rotate(-5)">
+    <rect x="0" y="0" width="220" height="130" fill="#FFF7DE" stroke="#EBD9A0" stroke-width="2"/>
+    <line x1="18" y1="28" x2="180" y2="26" stroke="#7B93AE" stroke-width="3" stroke-linecap="round"/>
+    <line x1="18" y1="56" x2="150" y2="54" stroke="#E0C878" stroke-width="3" stroke-linecap="round"/>
+    <line x1="18" y1="84" x2="130" y2="82" stroke="#E0C878" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <rect x="510" y="322" width="100" height="28" fill="#8FA8C4" opacity="0.8" transform="rotate(-5 560 336)"/>
+
+  <!-- signature: hand-drawn lightbulb with rays -->
+  <g transform="translate(220,230)" stroke-linecap="round">
+    <path d="M0,-70 a70,70 0 1 1 -0.1,0 Z" fill="none" stroke="#E0B454" stroke-width="5"/>
+    <path d="M-26,50 h52 M-20,66 h40 M-14,82 h28" stroke="#7B93AE" stroke-width="6" fill="none"/>
+    <path d="M-18,10 q18,20 36,0" stroke="#E0B454" stroke-width="4" fill="none" opacity="0.7"/>
+    <!-- rays -->
+    <line x1="0" y1="-110" x2="0" y2="-130" stroke="#E0B454" stroke-width="5"/>
+    <line x1="55" y1="-90" x2="70" y2="-104" stroke="#E0B454" stroke-width="5"/>
+    <line x1="-55" y1="-90" x2="-70" y2="-104" stroke="#E0B454" stroke-width="5"/>
+    <line x1="80" y1="-40" x2="98" y2="-46" stroke="#E0B454" stroke-width="5"/>
+    <line x1="-80" y1="-40" x2="-98" y2="-46" stroke="#E0B454" stroke-width="5"/>
+  </g>
+
+  <g fill="#8FA8C4">
+    <path d="M640,470 l4,12 l12,4 l-12,4 l-4,12 l-4,-12 l-12,-4 l12,-4 Z"/>
+    <path d="M120,120 l3,9 l9,3 l-9,3 l-3,9 l-3,-9 l-9,-3 l9,-3 Z"/>
+  </g>
+
+  <path d="M420,500 q20,-16 40,0 t40,0 t40,0 t40,0" fill="none" stroke="#E0B454" stroke-width="4" stroke-linecap="round" opacity="0.6"/>
+
+  <path d="M700,180 c0,-12 -18,-12 -18,0 c0,8 18,20 18,20 s18,-12 18,-20 c0,-12 -18,-12 -18,0 Z" fill="#E5B4B0" opacity="0.75"/>
+</svg>

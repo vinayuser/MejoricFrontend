@@ -75,9 +75,16 @@ export function CareerNeedsSection({ onSelectNeed }) {
               className="mp-cl-need-card"
               onClick={() => onSelectNeed?.(need)}
             >
-              <span className="mp-cl-need-icon">{need.icon}</span>
-              <h3>{need.title}</h3>
-              <p>{need.description}</p>
+              <img
+                className="mp-cl-need-bg"
+                src={need.bgSrc}
+                alt=""
+                aria-hidden="true"
+              />
+              <div className="mp-cl-need-body">
+                <h3>{need.title}</h3>
+                <p>{need.description}</p>
+              </div>
             </button>
           ))}
         </div>

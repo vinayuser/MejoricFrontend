@@ -17,6 +17,7 @@ const QUICK_LINKS = [
   { name: "Mates", path: "/mate" },
   { name: "Mentors", path: "/mentors/professional/browse" },
   { name: "About Us", path: "/about" },
+  { name: "Careers", path: "/careers" },
 ];
 
 const LEGAL_LINKS = [

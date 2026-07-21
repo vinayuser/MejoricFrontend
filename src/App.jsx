@@ -36,6 +36,8 @@ import MateDetailsPage from './components/MateDetailsPage';
 import VerifyEmail from './components/VerifyEmail';
 import Community from './components/Community';
 import TherapySessionJoin from './components/TherapySessionJoin';
+import Careers from './components/Careers';
+import CareerDetail from './components/CareerDetail';
 import { getRouterBasename } from './utils/basePath';
 
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -188,6 +190,8 @@ function App() {
             <Route path="/dashboard/profile" element={<MateProfile />} />
             <Route path="/mentor-dashboard" element={<MentorDashboard />} />
             <Route path="/community" element={<Community />} />
+            <Route path="/careers" element={<Careers />} />
+            <Route path="/careers/:id" element={<CareerDetail />} />
             <Route
               path="/therapy-session/:enrollmentId"
               element={<TherapySessionJoin />}
