@@ -28,7 +28,12 @@ export function isMentorProfile(user) {
   return user?.role === "mentor";
 }
 
-export function buildMentorsApiQuery({ type, page = 1, limit = 100 } = {}) {
+export function buildMentorsApiQuery({
+  type,
+  page = 1,
+  limit = 100,
+  specification,
+} = {}) {
   const params = new URLSearchParams({
     page: String(page),
     limit: String(limit),
@@ -40,6 +45,10 @@ export function buildMentorsApiQuery({ type, page = 1, limit = 100 } = {}) {
 
   if (type) {
     params.set("mentorType", type);
+  }
+
+  if (specification) {
+    params.set("specification", specification);
   }
 
   return `/users/getAll?${params.toString()}`;

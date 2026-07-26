@@ -14,7 +14,7 @@ import {
   fetchMentorProfile,
   getFormatPrice,
 } from "../../../utils/mentorPlatformApi";
-
+import { capitalizeName } from "../../../utils/formatters";
 export default function MentorProfilePage() {
   const { type, mentorId } = useParams();
   const navigate = useNavigate();
@@ -102,7 +102,7 @@ export default function MentorProfilePage() {
           <MentorBreadcrumb
             items={[
               { label: "Mentors", to: "/mentors/professional/browse" },
-              { label: mentor.name },
+              { label: capitalizeName(mentor.name) },
             ]}
           />
 

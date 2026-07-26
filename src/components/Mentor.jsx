@@ -21,11 +21,7 @@ import { trackPixel } from "../utils/metaPixel";
 import { capitalizeName } from "../utils/formatters";
 import { initializeFCM, getFCMToken } from "../utils/fcm";
 import { onForegroundMessage } from "../firebase/firebase";
-import banner from "../assets/img/mateguide.webp";
-import banners from "../assets/img/mates_hero.webp";
-import homeDesktopBanner from "../assets/img/1.webp";
-import heroMobileBanner from "../assets/img/1.webp";
-import BannerSlider from "./BannerSlider";
+import MateBanner from "./MateBanner";
 import InstantChat from "./InstantChat";
 import AgoraCallUI from "./AgoraCallUI";
 import { showLoginSignupAlert } from "../utils/authAlert";
@@ -36,23 +32,10 @@ import {
   getSignupChatBlockMessage,
   resolveUserChatAccess,
 } from "../utils/chatAccess";
+import mateMentorCtaBg from "../assets/img/mate-mentor-cta-bg.png";
 
 const SOCKET_SERVER_URL =
   import.meta.env.VITE_SOCKET_SERVER_URL || "https://mejoric.com";
-
-const mateBannerSlides = [
-  { src: homeDesktopBanner, alt: "Mejoric Hero", showHeroContent: true },
-  { src: banner, alt: "Mate Guide" },
-];
-
-const mateBannerMobileSlides = [
-  {
-    src: heroMobileBanner,
-    alt: "Mejoric Hero",
-    showHeroContent: true,
-  },
-  { src: banners, alt: "Mate Hero" },
-];
 
 // Transform API data
 const transformMateData = (matesData) => {
@@ -355,7 +338,7 @@ export default function Mentor() {
       });
 
       trackPixel("Schedule", {
-        content_name: mentor.name,
+      content_name: capitalizeName(mentor.name),
         content_category: `${type.charAt(0).toUpperCase() + type.slice(1)} Call`,
       });
 
@@ -665,7 +648,7 @@ export default function Mentor() {
                 src={mentor.img}
                 className="w-full h-full object-cover object-[center_20%] transition-transform duration-500 group-hover/card:scale-105"
                 loading="lazy"
-                alt={mentor.name}
+                alt={capitalizeName(mentor.name)}
               />
             </div>
           </div>
@@ -925,10 +908,16 @@ export default function Mentor() {
       {/* Section Content */}
       <section className="bg-gray-50 overflow-hidden pb-12 md:pb-20">
         <div className="w-full">
-          <BannerSlider
-            slides={mateBannerSlides}
-            mobileSlides={mateBannerMobileSlides}
-            onCtaClick={() => {
+          <MateBanner
+            onlineCount={
+              mentorsList.filter((m) => m.online || m.isAvailable).length
+            }
+            onStartTalking={() => {
+              document
+                .getElementById("mates-list")
+                ?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+            onHowItWorks={() => {
               document
                 .getElementById("mates-list")
                 ?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -963,32 +952,34 @@ export default function Mentor() {
                 </div>
               ))}
 
-              {/* CTA → psychologist / mentors browse */}
+              {/* CTA → emotional mentors browse */}
               <button
                 type="button"
-                onClick={() => navigate("/mentors/emotional/about")}
-                className="relative overflow-hidden rounded-3xl border border-[#e8d5ec] bg-white shadow-[0_12px_40px_-12px_rgba(144,67,181,0.35)] h-full min-h-[320px] flex flex-col items-center justify-center p-8 text-center group transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_50px_-12px_rgba(144,67,181,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+                onClick={() => navigate("/mentors/emotional/browse")}
+                className="relative overflow-hidden rounded-3xl border border-[#e8d5ec] shadow-[0_12px_40px_-12px_rgba(144,67,181,0.35)] h-full min-h-[320px] flex flex-col items-center justify-end p-8 text-center group transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_50px_-12px_rgba(144,67,181,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
               >
+                <img
+                  src={mateMentorCtaBg}
+                  alt=""
+                  aria-hidden="true"
+                  className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[center_20%] transition-transform duration-500 group-hover:scale-105"
+                />
                 <div
-                  className="pointer-events-none absolute inset-0 opacity-90"
+                  className="pointer-events-none absolute inset-0"
                   style={{
                     background:
-                      "radial-gradient(ellipse 80% 60% at 20% 0%, rgba(246,217,222,0.85), transparent 55%), radial-gradient(ellipse 70% 50% at 100% 100%, rgba(239,230,247,0.9), transparent 50%), linear-gradient(165deg, #fffafb 0%, #ffffff 45%, #f8f4fc 100%)",
+                      "linear-gradient(to top, rgba(28, 21, 32, 0.82) 0%, rgba(28, 21, 32, 0.45) 45%, rgba(28, 21, 32, 0.15) 100%)",
                   }}
                 />
                 <div className="relative z-[1] flex flex-col items-center">
-                  <div className="mb-6 flex h-[4.5rem] w-[4.5rem] items-center justify-center rounded-full border-[3px] border-[#f0dceb] bg-white text-3xl font-bold text-[#9043b5] shadow-[0_8px_24px_-6px_rgba(144,67,181,0.4)] transition-transform duration-300 group-hover:scale-110">
-                    !
-                  </div>
-                  <h3 className="text-xl font-bold tracking-tight text-[#3b1f4a] transition-colors group-hover:text-[#9043b5]">
+                  <h3 className="text-xl font-bold tracking-tight text-white">
                     Talk to our psychologist
                   </h3>
-                  <p className="mt-3 max-w-[230px] text-sm leading-relaxed text-slate-500">
-                    Need deeper guidance?
+                  <p className="mt-3 max-w-[230px] text-sm leading-relaxed text-white/85">
                     <br />
                     Book a session with a mentor.
                   </p>
-                  <span className="mt-7 inline-flex items-center gap-2 rounded-full bg-[#9043b5] px-6 py-3 text-sm font-semibold text-white shadow-md shadow-purple-200/80 transition-all duration-300 group-hover:bg-[#7a3599] group-hover:shadow-lg">
+                  <span className="mt-7 inline-flex items-center gap-2 rounded-full bg-[#9043b5] px-6 py-3 text-sm font-semibold text-white shadow-md shadow-black/20 transition-all duration-300 group-hover:bg-[#7a3599] group-hover:shadow-lg">
                     Browse Mentors
                     <span aria-hidden className="translate-x-0 transition-transform group-hover:translate-x-0.5">
                       →
@@ -1025,8 +1016,9 @@ export default function Mentor() {
                   callType={callType}
                   localLabel={user?.name || "You"}
                   remoteLabel={
-                    mentorsList.find((m) => m._id === selectedMentorId)?.name ||
-                    "Mate"
+                    capitalizeName(
+                      mentorsList.find((m) => m._id === selectedMentorId)?.name,
+                    ) || "Mate"
                   }
                   className="w-full h-full"
                   onLeave={() => endActiveCall(true)}

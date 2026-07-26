@@ -14,16 +14,15 @@ import { useAuth } from "../context/AuthContext";
 
 const QUICK_LINKS = [
   { name: "Home", path: "/" },
-  { name: "Mates", path: "/mate" },
-  { name: "Mentors", path: "/mentors/professional/browse" },
-  { name: "About Us", path: "/about" },
-  { name: "Careers", path: "/careers" },
+  { name: "Mate", path: "/mate" },
+  { name: "Mentor", path: "/mentors/professional/browse" },
+  { name: "Certificate", path: "/certificate" },
+  { name: "Terms & Conditions", path: "/terms-and-conditions" },
+
+  
 ];
 
 const LEGAL_LINKS = [
-  { name: "Terms & Conditions", path: "/terms-and-conditions" },
-  { name: "Privacy Policy", path: "/privacy-policy" },
-  { name: "Certificate Course", path: "/certificate" },
 ];
 
 const SOCIAL_LINKS = [
@@ -60,6 +59,10 @@ export default function Footer() {
   const loginLinks = [
     !isMate && { name: "Mate Login", path: "/login?role=mate" },
     !isMentor && { name: "Mentor Login", path: "/login?role=mentor" },
+    { name: "About Us", path: "/about" },
+  { name: "Careers", path: "/careers" },
+  { name: "Privacy Policy", path: "/privacy-policy" },
+
   ].filter(Boolean);
 
   return (
@@ -100,8 +103,10 @@ export default function Footer() {
           </div>
 
           {/* Quick links — page links + login side by side */}
-          <div className="sm:col-span-2 lg:col-span-4">
-            <FooterHeading>Quick Links</FooterHeading>
+          <div className="sm:col-span-2 lg:col-span-5">
+            <h4 className="text-base font-semibold text-white mb-5 pb-2 border-b border-white/15">
+                  Quick Links
+          </h4>
             <div className="flex items-start gap-8 sm:gap-10">
               <ul className="flex-1 min-w-0">
                 {QUICK_LINKS.map((item) => (
@@ -120,20 +125,17 @@ export default function Footer() {
                   ))}
                 </ul>
               )}
-            </div>
-          </div>
-
-          {/* Legal */}
-          <div className="lg:col-span-2">
-            <FooterHeading>Legal</FooterHeading>
-            <ul>
+              <ul>
               {LEGAL_LINKS.map((item) => (
                 <li key={item.name}>
                   <FooterLink to={item.path}>{item.name}</FooterLink>
                 </li>
               ))}
             </ul>
+            </div>
           </div>
+
+        
 
           {/* Contact */}
           <div className="lg:col-span-3">

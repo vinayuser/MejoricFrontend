@@ -69,7 +69,7 @@ const inputClass = (hasError) =>
 
 const labelClass = "block text-sm font-medium text-slate-800 mb-2";
 
-function MentorSummary({ mentor, loading }) {
+function MentorSummary({ mentor, loading, sessionFormat = "video" }) {
   if (loading) {
     return (
       <div className="flex items-center gap-4 animate-pulse">
@@ -99,7 +99,8 @@ function MentorSummary({ mentor, loading }) {
           {capitalizeName(mentor.name)}
         </h1>
         <p className="text-sm text-slate-500">
-          {mentor.mentor?.specifications?.[0] || "Mentor"} · 30 min session
+          {mentor.mentor?.specifications?.[0] || "Mentor"} ·{" "}
+          {getFormatDuration(sessionFormat)} min session
         </p>
       </div>
     </div>
@@ -283,7 +284,6 @@ function BookingFormStep({
   const sessionLabel = `Session with ${mentorName}`;
   const formatLabel = getFormatLabel(sessionFormat);
   const durationMinutes = getFormatDuration(sessionFormat);
-  const pricePerMin = sessionPrice != null ? Math.round(sessionPrice / durationMinutes) : null;
   const formatKind = sessionFormat === "audio" ? "Audio call" : "Video call via Zoom";
   const slotLabel = selectedSlot?.label;
 
@@ -490,7 +490,6 @@ function BookingFormStep({
               ₹{Number(sessionPrice).toLocaleString("en-IN")}{" "}
               <span className="text-sm font-medium text-slate-600">
                 · {formatLabel}
-                {pricePerMin ? ` (₹${pricePerMin}/min)` : ""}
               </span>
             </p>
           )}
@@ -517,11 +516,6 @@ function BookingFormStep({
             <p>
               <span className="font-semibold text-slate-800">Format:</span> {formatKind}
             </p>
-            {sessionPrice != null && pricePerMin != null && (
-              <p>
-                <span className="font-semibold text-slate-800">Rate:</span> ₹{pricePerMin}/min
-              </p>
-            )}
             {sessionPrice != null && (
               <p>
                 <span className="font-semibold text-slate-800">Session total:</span> ₹
@@ -962,7 +956,11 @@ export default function MentorBookingModal({
         <div className="flex items-center justify-between gap-4 px-5 md:px-8 py-4 border-b border-slate-100 bg-white shrink-0">
           <div className="min-w-0 flex-1">
             {step === "schedule" ? (
-              <MentorSummary mentor={mentor} loading={loadingMentor} />
+              <MentorSummary
+                mentor={mentor}
+                loading={loadingMentor}
+                sessionFormat={sessionFormat}
+              />
             ) : (
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-purple-600">

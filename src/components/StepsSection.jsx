@@ -129,7 +129,7 @@ export default function StepsSection() {
             </svg>
           </button>
 
-          <h1 className="text-3xl text-center md:text-4xl font-bold text-purple-600 mb-4">
+          <h1 className="text-3xl text-center md:text-4xl font-bold text-black-600 mb-4">
             Your Journey With Us
           </h1>
 

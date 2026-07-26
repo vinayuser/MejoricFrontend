@@ -146,26 +146,23 @@ export const MENTOR_PLATFORM_CONFIG = {
     cta: "Browse Mentors →",
     domains: [
       { id: "all", name: "All Mentors", count: 0 },
-      { id: "p01", name: "Career Transition Coach", count: 0, section: "Career & Leadership" },
-      { id: "p02", name: "HR & Workplace Mentor", count: 0, section: "Career & Leadership" },
-      { id: "p03", name: "CA / Financial Clarity Mentor", count: 0, section: "Career & Leadership" },
-      { id: "p04", name: "Legal Clarity Mentor", count: 0, section: "Career & Leadership" },
-      { id: "p05", name: "Executive & Leadership Coach", count: 0, section: "Career & Leadership" },
-      { id: "p06", name: "Startup & Entrepreneurship Mentor", count: 0, section: "Career & Leadership" },
-      { id: "p07", name: "Sales & Business Development", count: 0, section: "Career & Leadership" },
-      { id: "p08", name: "MBA & Higher Education Guidance", count: 0, section: "Education & Growth" },
-      { id: "p09", name: "Study Abroad & Academic Mentor", count: 0, section: "Education & Growth" },
-      { id: "p10", name: "Personal Finance & Wealth Planning", count: 0, section: "Education & Growth" },
-      { id: "p11", name: "Communication & Public Speaking", count: 0, section: "Education & Growth" },
-      { id: "hr-startup", name: "HR Mentor (Startup)", count: 0, section: "Human Resources" },
-      { id: "hr-mnc", name: "HR Mentor (MNC)", count: 0, section: "Human Resources" },
-      { id: "hr-switch", name: "HR Mentor (Career Switcher)", count: 0, section: "Human Resources" },
-      { id: "p12", name: "Product Management", count: 0, section: "Information Technology" },
-      { id: "p13", name: "Data Analytics & Business Intelligence", count: 0, section: "Information Technology" },
-      { id: "p14", name: "UX & Product Design", count: 0, section: "Information Technology" },
-      { id: "p15", name: "Business Analyst", count: 0, section: "Information Technology" },
-      { id: "p16", name: "Cloud & DevOps", count: 0, section: "Information Technology" },
-      { id: "p17", name: "Cybersecurity Career Path", count: 0, section: "Information Technology" },
+      { id: "p-early", name: "Early Career Mentor", count: 0, section: "The Bedrock" },
+      { id: "p11", name: "Communication & Public Speaking", count: 0, section: "The Bedrock" },
+      { id: "p12", name: "Product & Tech Career Mentor", count: 0, section: "The Bedrock" },
+      { id: "p-health", name: "Health & Lifestyle Mentor", count: 0, section: "The Bedrock" },
+      { id: "p06", name: "Startup & Entrepreneurship Mentor", count: 0, section: "The Catalyst" },
+      { id: "p01", name: "Career Transition Coach", count: 0, section: "The Catalyst" },
+      { id: "p02", name: "HR & Workplace Mentor", count: 0, section: "The Catalyst" },
+      { id: "p-freelance", name: "Freelancer & Creator Mentor", count: 0, section: "The Catalyst" },
+      { id: "p05", name: "Executive & Leadership Coach", count: 0, section: "The Summit" },
+      { id: "p05-sr", name: "Executive & Leadership Coach (Sr.)", count: 0, section: "The Summit" },
+      { id: "p-women-lead", name: "Women Leadership Coach", count: 0, section: "The Summit" },
+      { id: "p-women-work", name: "Women in Workforce Mentor", count: 0, section: "The Summit" },
+      { id: "p03", name: "CA / Financial Clarity Mentor", count: 0, section: "Specialized Guidance" },
+      { id: "p04", name: "Legal Clarity Mentor", count: 0, section: "Specialized Guidance" },
+      { id: "p-parent", name: "Parenting & Family Mentor", count: 0, section: "Specialized Guidance" },
+      { id: "p09", name: "Study Abroad & Academic Mentor", count: 0, section: "Specialized Guidance" },
+      { id: "p-corp", name: "Corporate Performance Mentor", count: 0, section: "Specialized Guidance" },
     ],
   },
 };
@@ -184,13 +181,33 @@ export function mentorMatchesDomain(mentor, domainId, domainName) {
   if (!domainId || domainId === "all") return true;
   const ids = mentor.domainIds?.length
     ? mentor.domainIds
-    : mentor.domainId
+    : mentor.domainId && mentor.domainId !== "all"
       ? [mentor.domainId]
       : [];
   if (ids.includes(domainId)) return true;
-  const text = `${mentor.domain || ""} ${(mentor.domains || []).join(" ")} ${mentor.category || ""} ${mentor.skills || ""} ${(mentor.tags || []).join(" ")}`.toLowerCase();
-  const nameWords = (domainName || "").toLowerCase().split(/\s+/).filter((w) => w.length > 3);
-  return nameWords.some((word) => text.includes(word));
+
+  const needle = (domainName || "").trim().toLowerCase();
+  if (!needle) return false;
+
+  // Exact match only (same as API `specification` $in) — avoid word fuzzy matching
+  // which counted one mentor under every category that shared "Mentor"/"Career"/etc.
+  const specs = [
+    ...(mentor.domains || []),
+    ...(mentor.specs || []),
+    ...(mentor.tags || []),
+    mentor.domain,
+    mentor.category,
+    mentor.skills,
+  ]
+    .filter(Boolean)
+    .flatMap((s) =>
+      String(s)
+        .split(",")
+        .map((part) => part.trim().toLowerCase())
+        .filter(Boolean),
+    );
+
+  return specs.includes(needle);
 }
 
 export function getInitials(name = "") {

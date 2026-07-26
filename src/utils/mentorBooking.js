@@ -1,34 +1,54 @@
 const SLOT_START_HOUR = 9;
 const SLOT_END_HOUR = 18;
 const SLOT_INTERVAL_MINUTES = 15;
+const IST_TIMEZONE = "Asia/Kolkata";
+const IST_OFFSET = "+05:30";
 
 function getApiBaseUrl() {
   return import.meta.env.VITE_API_BASE_URL || "https://mejoric.com/mateandmentors";
 }
 
-export function toDateKey(date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+/** Today / any date → YYYY-MM-DD in IST. */
+export function toDateKey(date = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: IST_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const get = (type) => parts.find((p) => p.type === type)?.value || "";
+  return `${get("year")}-${get("month")}-${get("day")}`;
 }
 
 export function parseDateKey(dateKey) {
-  const [year, month, day] = dateKey.split("-").map(Number);
-  return new Date(year, month - 1, day);
+  const [year, month, day] = String(dateKey || "")
+    .split("-")
+    .map(Number);
+  // Keep calendar widgets using a local Date at noon to avoid DST edge flips
+  return new Date(year, month - 1, day, 12, 0, 0, 0);
+}
+
+function istWallClockToDate(dateKey, hour, minute) {
+  const hh = String(hour).padStart(2, "0");
+  const mm = String(minute).padStart(2, "0");
+  const date = new Date(`${dateKey}T${hh}:${mm}:00${IST_OFFSET}`);
+  if (Number.isNaN(date.getTime())) return null;
+  return date;
 }
 
 export function formatLongDate(date) {
-  return date.toLocaleDateString("en-IN", {
+  return new Date(date).toLocaleDateString("en-IN", {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: IST_TIMEZONE,
   });
 }
 
 export function formatSlotLabel(date) {
-  return date.toLocaleTimeString("en-IN", {
+  return new Date(date).toLocaleTimeString("en-IN", {
+    timeZone: IST_TIMEZONE,
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
@@ -36,13 +56,14 @@ export function formatSlotLabel(date) {
 }
 
 export function formatBookingDateTime(dateKey, slotLabel) {
-  const date = parseDateKey(dateKey);
+  const date = istWallClockToDate(dateKey, 12, 0) || parseDateKey(dateKey);
   const datePart = date.toLocaleDateString("en-IN", {
     day: "numeric",
     month: "long",
     year: "numeric",
+    timeZone: IST_TIMEZONE,
   });
-  return `${datePart} at ${slotLabel.toLowerCase()}`;
+  return `${datePart} at ${String(slotLabel || "").toLowerCase()} (IST)`;
 }
 
 export function getMonthMatrix(viewDate) {
@@ -68,12 +89,11 @@ export function getMonthMatrix(viewDate) {
 
 export function buildAllSlotsForDate(dateKey) {
   const slots = [];
-  const date = parseDateKey(dateKey);
 
   for (let hour = SLOT_START_HOUR; hour < SLOT_END_HOUR; hour += 1) {
     for (let minute = 0; minute < 60; minute += SLOT_INTERVAL_MINUTES) {
-      const slotDate = new Date(date);
-      slotDate.setHours(hour, minute, 0, 0);
+      const slotDate = istWallClockToDate(dateKey, hour, minute);
+      if (!slotDate) continue;
       slots.push({
         id: `${dateKey}-${hour}-${minute}`,
         dateKey,
@@ -238,21 +258,67 @@ export async function fetchMyAppointments(tab = "upcoming", page = 1) {
   return data.data;
 }
 
-export function canJoinMentorSession(booking) {
-  if (!booking || !["scheduled", "in_progress"].includes(booking.status)) {
-    return false;
-  }
-  const now = Date.now();
-  const start = new Date(booking.scheduledAt).getTime();
-  const durationMs = (booking.durationMinutes || 45) * 60 * 1000;
+/** Join opens 15 min before start; stays available until purchased session end. */
+export function getSessionJoinWindow(booking) {
+  const start = new Date(booking?.scheduledAt).getTime();
+  const durationMs = (booking?.durationMinutes || 45) * 60 * 1000;
   const openAt = start - 15 * 60 * 1000;
-  const closeAt = start + durationMs + 15 * 60 * 1000;
-  return now >= openAt && now <= closeAt;
+  const closeAt = start + durationMs;
+  return { start, openAt, closeAt, durationMs };
 }
 
 export function getSessionJoinOpensAt(booking) {
-  const start = new Date(booking.scheduledAt).getTime();
-  return new Date(start - 15 * 60 * 1000);
+  return new Date(getSessionJoinWindow(booking).openAt);
+}
+
+export function getSessionJoinEndsAt(booking) {
+  return new Date(getSessionJoinWindow(booking).closeAt);
+}
+
+/**
+ * Join for the full purchased duration while session is still open.
+ * Once mentor marks completed (or cancelled / no_show), Join is hidden.
+ */
+export function canJoinMentorSession(booking) {
+  if (
+    !booking ||
+    ["cancelled", "no_show", "completed"].includes(booking.status)
+  ) {
+    return false;
+  }
+  const now = Date.now();
+  const { openAt, closeAt } = getSessionJoinWindow(booking);
+  return now >= openAt && now <= closeAt;
+}
+
+export async function markMentorBookingCompleted(bookingId) {
+  const token = localStorage.getItem("authToken");
+  const response = await fetch(
+    `${getApiBaseUrl()}/bookings/${bookingId}/complete`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.message || "Could not mark session completed");
+  }
+  return data.data;
+}
+
+export function formatJoinTime(date) {
+  return new Date(date).toLocaleString("en-IN", {
+    timeZone: IST_TIMEZONE,
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
 }
 
 export async function fetchBookingSessionToken(bookingId) {

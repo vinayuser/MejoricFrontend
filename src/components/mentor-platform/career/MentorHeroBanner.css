@@ -1,0 +1,153 @@
+.mentor-hero {
+  --mh-ink: #1e1a22;
+  --mh-muted: #49454e;
+  --mh-primary: #655388;
+  --mh-surface: #fff7ff;
+
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: min(85vh, 720px);
+  overflow: hidden;
+  background: var(--mh-surface);
+}
+
+.mentor-hero-media {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.mentor-hero-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}
+
+.mentor-hero-fade {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    to left,
+    rgba(255, 247, 255, 0) 30%,
+    rgba(255, 247, 255, 0.7) 55%,
+    rgba(255, 247, 255, 0.95) 75%,
+    rgba(255, 247, 255, 1) 100%
+  );
+}
+
+.mentor-hero-inner {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 4.5rem 2.5rem;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.mentor-hero-copy {
+  width: 100%;
+  max-width: 28rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2rem;
+}
+
+.mentor-hero-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.mentor-hero-title {
+  margin: 0;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: clamp(2rem, 4.5vw, 3rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--mh-primary);
+}
+
+.mentor-hero-sub {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: var(--mh-muted);
+}
+
+.mentor-hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  width: 100%;
+}
+
+.mentor-hero-btn {
+  padding: 1rem 2.35rem;
+  border-radius: 999px;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: #fff;
+  color: var(--mh-primary);
+  border: 1px solid #7a757f;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.mentor-hero-btn:hover {
+  background: #faf1fc;
+}
+
+.mentor-hero-btn:active {
+  transform: scale(0.97);
+}
+
+@media (max-width: 768px) {
+  .mentor-hero {
+    min-height: 560px;
+    align-items: flex-end;
+  }
+
+  .mentor-hero-img {
+    object-position: center top;
+  }
+
+  .mentor-hero-fade {
+    background: linear-gradient(
+      to top,
+      rgba(255, 247, 255, 0.95) 30%,
+      rgba(255, 247, 255, 0.45) 70%,
+      rgba(255, 247, 255, 0.15) 100%
+    );
+  }
+
+  .mentor-hero-inner {
+    justify-content: flex-start;
+    padding: 3rem 1.25rem 2.75rem;
+  }
+
+  .mentor-hero-copy {
+    max-width: 100%;
+    gap: 1.5rem;
+  }
+
+  .mentor-hero-btn {
+    width: 100%;
+    text-align: center;
+  }
+}

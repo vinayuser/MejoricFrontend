@@ -221,15 +221,15 @@ const Layout = ({ children, activePage }) => {
 
       {/* Main Navigation */}
       <nav
-        className={`sticky ${fcmStatus === "denied" && !isDismissed ? "md:top-[68px]" : "top-0"} z-50 bg-white/95 backdrop-blur-xl shadow-lg border-b border-purple-100 px-4 sm:px-6 py-3 transition-all duration-300`}
+        className={`sticky ${fcmStatus === "denied" && !isDismissed ? "md:top-[68px]" : "top-0"} z-50 bg-white/95 backdrop-blur-xl shadow-lg border-b border-purple-100 px-4 sm:px-6 h-16 transition-all duration-300`}
       >
-        <div className="container mx-auto flex items-center justify-between">
+        <div className="container mx-auto flex items-center justify-between h-full">
           {/* Logo Section */}
           <Link to="/" className="flex items-center gap-2 sm:gap-4">
             <div className="relative">
               <div className="absolute -inset-1 rounded-full blur duration-1000 group"></div>
               <img
-                className="relative h-16 sm:h-20 lg:h-24 w-16 sm:w-20 lg:w-24"
+                className="relative h-12 w-12 object-contain"
                 src={logo}
                 alt="Mejoric"
               />

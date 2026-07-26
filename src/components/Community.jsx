@@ -5,22 +5,24 @@ import React, {
   useCallback,
   useRef,
 } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { io } from "socket.io-client";
 import toast from "react-hot-toast";
 import { apiGet, apiPost, getAuthToken } from "../utils/api";
 import { ensureCommunityUnlocked } from "../utils/communityUnlockPayment";
 import { enrollInTherapyCohort } from "../utils/therapyEnrollmentPayment";
 import { appPath } from "../utils/basePath";
+import Layout from "./Layout";
+import communityBanner from "../assets/img/mates_hero.webp";
 import "./Community.css";
 
 const SOCKET_SERVER_URL =
   import.meta.env.VITE_SOCKET_SERVER_URL || "https://mejoric.com";
 
 const TABS = [
-  { id: "communities", label: "🏡 Communities" },
-  { id: "therapy", label: "🌱 Group Therapy", badge: "New" },
-  { id: "feed", label: "💬 Community Feed" },
+  { id: "communities", label: "Communities", icon: "🏡" },
+  { id: "therapy", label: "Group Therapy", icon: "🌱", badge: "Free" },
+  { id: "feed", label: "Community Feed", icon: "💬" },
 ];
 
 function timeAgo(date) {
@@ -93,9 +95,8 @@ function TherapyCard({ cohort, busy, onEnrol }) {
   const full = taken >= total;
   const enrolled = Boolean(cohort.enrolled);
   const waitlisted = Boolean(cohort.waitlisted);
-  const priceLabel =
-    cohort.priceLabel ||
-    (cohort.price != null ? `₹${cohort.price}` : cohort.price);
+  const priceLabel = "Free";
+  const priceSub = "Included with community access";
 
   return (
     <div className="community-therapy-card">
@@ -158,7 +159,7 @@ function TherapyCard({ cohort, busy, onEnrol }) {
           <div>
             <div className="community-tc-price">{priceLabel}</div>
             <div className="community-tc-price-sub">
-              Full cohort · join from Mejoric only
+              {priceSub}
             </div>
           </div>
           {enrolled ? (
@@ -339,10 +340,6 @@ export default function Community() {
 
   const joinedCommunities = useMemo(
     () => communities.filter((c) => c.joined),
-    [communities],
-  );
-  const discoverCommunities = useMemo(
-    () => communities.filter((c) => !c.joined).slice(0, 8),
     [communities],
   );
 
@@ -559,8 +556,6 @@ export default function Community() {
     }
   };
 
-  const featuredTherapyPrice = therapyCohorts[0]?.priceLabel || "₹—";
-
   const currentUser = getStoredUser();
   const displayName =
     currentUser?.name?.trim() ||
@@ -571,6 +566,36 @@ export default function Community() {
   const showTab = (tabId) => {
     setActiveTab(tabId);
     setSidebarOpen(false);
+  };
+
+  const handleUnlockOnly = async () => {
+    if (!getAuthToken()) {
+      requireLogin();
+      return;
+    }
+    if (unlocked) {
+      toast.success("Community already unlocked");
+      return;
+    }
+    try {
+      const user = getStoredUser();
+      toast.loading(`Unlocking for ₹${unlockAmount}…`, {
+        id: "community-unlock",
+      });
+      await ensureCommunityUnlocked(user);
+      toast.success("Community unlocked — everything inside is free", {
+        id: "community-unlock",
+      });
+      setUnlocked(true);
+      await loadCommunities();
+    } catch (err) {
+      toast.dismiss("community-unlock");
+      if (err.message === "Payment cancelled") {
+        toast.error("Payment cancelled");
+      } else {
+        toast.error(err.message || "Unlock failed");
+      }
+    }
   };
 
   const toggleJoin = async (community) => {
@@ -693,273 +718,261 @@ export default function Community() {
   };
 
   return (
-    <div className="community-page">
-      <nav className="community-nav">
-        <div className="community-nav-brand">
+    <Layout activePage="Community">
+      <div className="community-page">
+        <div className="community-layout">
           <button
             type="button"
             className="community-menu-btn"
             onClick={() => setSidebarOpen(true)}
-            aria-label="Open menu"
+            aria-label="Open communities menu"
           >
             ☰
           </button>
-          <Link to="/" className="community-nav-mark" style={{ textDecoration: "none" }}>
-            M
-          </Link>
-          <Link
-            to="/"
-            className="community-nav-name"
-            style={{ textDecoration: "none", color: "inherit" }}
-          >
-            Mejoric <span>Community</span>
-          </Link>
-        </div>
-        <div className="community-nav-r">
-          {!unlocked && (
-            <span className="community-nav-pill" style={{ cursor: "default" }}>
-              ₹{unlockAmount} one-time unlock
-            </span>
-          )}
-          {unlocked && (
-            <span className="community-nav-pill" style={{ cursor: "default" }}>
-              Unlocked ✓
-            </span>
-          )}
-          <button
-            type="button"
-            className="community-nav-pill"
-            onClick={() => navigate("/mate")}
-          >
-            Sessions
-          </button>
-          <button
-            type="button"
-            className="community-nav-pill"
-            onClick={() => navigate("/mentors")}
-          >
-            Mentors
-          </button>
-          <button
-            type="button"
-            className="community-nav-btn"
-            onClick={() => navigate("/mate")}
-          >
-            Book a Session →
-          </button>
-        </div>
-      </nav>
 
-      <div className="community-layout">
-        <div
-          className={`community-sidebar-backdrop${sidebarOpen ? " open" : ""}`}
-          onClick={() => setSidebarOpen(false)}
-          aria-hidden="true"
-        />
+          <div
+            className={`community-sidebar-backdrop${sidebarOpen ? " open" : ""}`}
+            onClick={() => setSidebarOpen(false)}
+            aria-hidden="true"
+          />
 
-        <aside className={`community-sidebar${sidebarOpen ? " open" : ""}`}>
-          <div className="community-sb-me">
-            <div className="community-sb-av">{displayInitial}</div>
-            <div>
-              <div className="community-sb-nm">{displayName}</div>
-              <div className="community-sb-rl">
-                {unlocked ? "Community member" : "Unlock to join"}
+          <aside className={`community-sidebar${sidebarOpen ? " open" : ""}`}>
+            <div className="community-sb-me">
+              <div className="community-sb-av">{displayInitial}</div>
+              <div>
+                <div className="community-sb-nm">{displayName}</div>
+                <div className="community-sb-rl">
+                  {unlocked ? "Access unlocked" : "Guest"}
+                </div>
               </div>
             </div>
-          </div>
-          <div className="community-sb-divider" />
 
-          <div className="community-sb-section">
-            <span className="community-sb-lbl">My Communities</span>
-            {joinedCommunities.length === 0 && (
-              <div className="community-sb-i-name" style={{ padding: "8px 12px", opacity: 0.6 }}>
-                None yet — join below
-              </div>
-            )}
-            {joinedCommunities.map((item) => {
-              const online = onlineByCommunity[String(item.id)] || 0;
-              return (
+            {!unlocked ? (
+              <div className="community-sb-unlock">
+                <div className="community-sb-unlock-price">₹{unlockAmount}</div>
+                <div className="community-sb-unlock-label">one-time unlock</div>
+                <ul className="community-sb-unlock-perks">
+                  <li>Join any community</li>
+                  <li>Feed &amp; chat</li>
+                  <li>Group therapy free</li>
+                </ul>
                 <button
-                  key={item.id}
                   type="button"
-                  className={`community-sb-item${activeCommunity?.id === item.id ? " on" : ""}`}
+                  className="community-sb-unlock-btn"
+                  onClick={handleUnlockOnly}
+                >
+                  Unlock now
+                </button>
+              </div>
+            ) : (
+              <div className="community-sb-unlocked-pill">Unlocked ✓ · all free</div>
+            )}
+
+            <div className="community-sb-divider" />
+
+            <div className="community-sb-section">
+              <span className="community-sb-lbl">Menu</span>
+              {TABS.map((tab) => (
+                <button
+                  key={tab.id}
+                  type="button"
+                  className={`community-sb-nav${activeTab === tab.id ? " on" : ""}`}
                   onClick={() => {
-                    setActiveCommunityId(item.id);
-                    showTab("feed");
+                    showTab(tab.id);
+                    setSidebarOpen(false);
                   }}
                 >
-                  <div
-                    className="community-sb-i-dot"
-                    style={{
-                      background: online > 0 ? "#22c55e" : item.col,
-                    }}
-                  />
-                  <span className="community-sb-i-name">{item.name}</span>
-                  <span className="community-sb-i-count">
-                    {online > 0 ? `${online} online` : `${item.members || 0}`}
+                  <span className="community-sb-nav-label">
+                    <span className="community-sb-nav-icon" aria-hidden="true">
+                      {tab.icon}
+                    </span>
+                    {tab.label}
                   </span>
+                  {tab.badge && (
+                    <span className="community-sb-nav-badge">{tab.badge}</span>
+                  )}
                 </button>
-              );
-            })}
-          </div>
-
-          <div className="community-sb-section">
-            <span className="community-sb-lbl">Discover</span>
-            {discoverCommunities.map((item) => (
-              <button
-                key={`discover-${item.id}`}
-                type="button"
-                className={`community-sb-item${activeCommunity?.id === item.id ? " on" : ""}`}
-                onClick={() => {
-                  setActiveCommunityId(item.id);
-                  showTab("communities");
-                }}
-              >
-                <div
-                  className="community-sb-i-dot"
-                  style={{ background: item.col }}
-                />
-                <span className="community-sb-i-name">{item.name}</span>
-                <span className="community-sb-i-count">
-                  {item.members || 0}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <button
-            type="button"
-            className="community-sb-join-cta"
-            onClick={() => showTab("therapy")}
-          >
-            <div className="community-sb-jt">Group therapy cohorts ✦</div>
-            <div className="community-sb-js">
-              Enrol in a closed group with verified join access →
-            </div>
-          </button>
-        </aside>
-
-        <main className="community-main">
-          <div className="community-tabbar">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                type="button"
-                className={`community-tab${activeTab === tab.id ? " on" : ""}`}
-                onClick={() => showTab(tab.id)}
-              >
-                {tab.label}
-                {tab.badge && (
-                  <span className="community-tab-badge">{tab.badge}</span>
-                )}
-              </button>
-            ))}
-          </div>
-
-          <div
-            className={`community-view${activeTab === "communities" ? " on" : ""}`}
-          >
-            <div className="community-funnel-strip">
-              <div className="community-fs-item">
-                <span className="community-fs-step">Step 1</span>
-                <span className="community-fs-label">Unlock Communities</span>
-                <span className="community-fs-paid">
-                  ₹{unlockAmount} one-time
-                </span>
-              </div>
-              <span className="community-fs-arrow">→</span>
-              <div className="community-fs-item">
-                <span className="community-fs-step">Step 2</span>
-                <span className="community-fs-label">Join Group Therapy</span>
-                <span className="community-fs-paid">₹2,400 / 6 weeks</span>
-              </div>
-              <span className="community-fs-arrow">→</span>
-              <div className="community-fs-item">
-                <span className="community-fs-step">Step 3</span>
-                <span className="community-fs-label">1-to-1 Mate Session</span>
-                <span className="community-fs-paid">₹199 first session</span>
-              </div>
+              ))}
             </div>
 
-            <div className="community-wed-banner">
-              <div>
-                <div className="community-wb-eyebrow">
-                  PEER COMMUNITIES · FEED &amp; CHAT
+            {joinedCommunities.length > 0 && (
+              <>
+                <div className="community-sb-divider" />
+                <div className="community-sb-section">
+                  <span className="community-sb-lbl">My Communities</span>
+                  {joinedCommunities.map((item) => {
+                    const online = onlineByCommunity[String(item.id)] || 0;
+                    return (
+                      <button
+                        key={item.id}
+                        type="button"
+                        className={`community-sb-item${activeCommunity?.id === item.id ? " on" : ""}`}
+                        onClick={() => {
+                          setActiveCommunityId(item.id);
+                          showTab("feed");
+                          setSidebarOpen(false);
+                        }}
+                      >
+                        <div
+                          className="community-sb-i-dot"
+                          style={{
+                            background: online > 0 ? "#22c55e" : item.col,
+                          }}
+                        />
+                        <span className="community-sb-i-name">{item.name}</span>
+                        <span className="community-sb-i-count">
+                          {online > 0 ? `${online} online` : `${item.members || 0}`}
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
-                <div className="community-wb-title">
-                  Join communities that fit you
-                </div>
-                <div className="community-wb-sub">
-                  Unlock once · join any community · feed &amp; chat included
-                </div>
-              </div>
-              <button
-                type="button"
-                className="community-wb-btn"
-                onClick={() => showTab("therapy")}
-              >
-                Explore group therapy →
-              </button>
-            </div>
-
-            <div className="community-sec-hdr">
-              <span className="community-sec-t">All Communities</span>
-              <span className="community-sec-s">
-                ₹{unlockAmount} one-time unlock · then join any · optional anonymous posts
-              </span>
-            </div>
-
-            {loadingList ? (
-              <p style={{ padding: 24, color: "var(--muted)" }}>Loading communities…</p>
-            ) : communities.length === 0 ? (
-              <p style={{ padding: 24, color: "var(--muted)" }}>
-                No communities yet. Check back soon.
-              </p>
-            ) : (
-              <div className="community-grid">
-                {communities.map((c) => (
-                  <CommunityCard
-                    key={c.id}
-                    community={c}
-                    joined={c.joined}
-                    unlocking={busyId === c.id}
-                    onToggleJoin={toggleJoin}
-                  />
-                ))}
-              </div>
+              </>
             )}
-          </div>
+          </aside>
 
-          <div
-            className={`community-view${activeTab === "therapy" ? " on" : ""}`}
-          >
-            <div className="community-wed-banner" style={{ marginBottom: 22 }}>
-              <div>
-                <div className="community-wb-eyebrow">
-                  STRUCTURED · CLOSED GROUPS · PURCHASE GATED
-                </div>
-                <div className="community-wb-title">Group Therapy Cohorts</div>
-                <div className="community-wb-sub">
-                  Enrol on Mejoric · join from the platform only · meeting
-                  access verified against your purchase
+          <main className="community-main">
+            <div
+              className={`community-view${activeTab === "communities" ? " on" : ""}`}
+            >
+              <div className="community-hero-banner">
+                <img
+                  className="community-hero-banner-bg"
+                  src={communityBanner}
+                  alt=""
+                  aria-hidden="true"
+                />
+                <div className="community-hero-banner-overlay" />
+                <div className="community-hero-banner-inner">
+                  <div className="community-hero-banner-copy">
+                    <p className="community-hero-kicker">
+                      {unlocked ? "You’re in" : "Community access"}
+                    </p>
+                    <h2 className="community-hero-title">
+                      {unlocked
+                        ? "Your communities, feed & therapy are unlocked"
+                        : "Unlock once. Join freely."}
+                    </h2>
+                    <p className="community-hero-sub">
+                      {unlocked
+                        ? "Pick a community below — feed, chat, and group therapy stay free."
+                        : `One payment of ₹${unlockAmount}. Then communities, feed, chat, and group therapy are free.`}
+                    </p>
+                    <div className="community-hero-perks">
+                      <span>Communities free</span>
+                      <span>Feed &amp; chat free</span>
+                      <span>Therapy free</span>
+                    </div>
+                  </div>
+                  <div className="community-hero-panel">
+                    {unlocked ? (
+                      <div className="community-hero-panel-ok">
+                        <span className="community-hero-panel-check">✓</span>
+                        <span className="community-hero-panel-label">Unlocked</span>
+                        <span className="community-hero-panel-hint">
+                          Enjoy everything free
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="community-hero-panel-price">
+                          <span className="community-hero-panel-amt">
+                            ₹{unlockAmount}
+                          </span>
+                          <span className="community-hero-panel-note">
+                            one-time unlock
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          className="community-hero-cta"
+                          onClick={handleUnlockOnly}
+                        >
+                          Unlock community
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               </div>
-              <div className="community-therapy-price-block">
-                <div className="community-therapy-price">
-                  {featuredTherapyPrice}
-                </div>
-                <div className="community-therapy-price-sub">
-                  Admin-set cohort price · seat limits enforced
-                </div>
+
+              <div className="community-sec-hdr">
+                <span className="community-sec-t">All Communities</span>
+                <span className="community-sec-s">
+                  {unlocked
+                    ? "Pick a community and join free"
+                    : `Unlock once (₹${unlockAmount}) · then join free`}
+                </span>
               </div>
+
+              {loadingList ? (
+                <p style={{ padding: 24, color: "var(--muted)" }}>
+                  Loading communities…
+                </p>
+              ) : communities.length === 0 ? (
+                <p style={{ padding: 24, color: "var(--muted)" }}>
+                  No communities yet. Check back soon.
+                </p>
+              ) : (
+                <div className="community-grid">
+                  {communities.map((c) => (
+                    <CommunityCard
+                      key={c.id}
+                      community={c}
+                      joined={c.joined}
+                      unlocking={busyId === c.id}
+                      onToggleJoin={toggleJoin}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
 
-            <div className="community-sec-hdr">
-              <span className="community-sec-t">Open Cohorts</span>
-              <span className="community-sec-s">
-                Login required · email with platform join links after payment
-              </span>
-            </div>
+            <div
+              className={`community-view${activeTab === "therapy" ? " on" : ""}`}
+            >
+              <div className="community-hero-banner community-hero-banner-therapy">
+                <img
+                  className="community-hero-banner-bg"
+                  src={communityBanner}
+                  alt=""
+                  aria-hidden="true"
+                />
+                <div className="community-hero-banner-overlay community-hero-banner-overlay-therapy" />
+                <div className="community-hero-banner-inner">
+                  <div className="community-hero-banner-copy">
+                    <p className="community-hero-kicker">Group therapy</p>
+                    <h2 className="community-hero-title">
+                      Free group therapy cohorts
+                    </h2>
+                    <p className="community-hero-sub">
+                      Small, structured groups. Included with community access —
+                      no extra fee.
+                    </p>
+                  </div>
+                  <div className="community-hero-panel">
+                    <div className="community-hero-panel-ok">
+                      <span className="community-hero-panel-amt community-hero-panel-amt-free">
+                        Free
+                      </span>
+                      <span className="community-hero-panel-hint">
+                        {unlocked
+                          ? "Included with your unlock"
+                          : `After ₹${unlockAmount} unlock`}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="community-sec-hdr">
+                <span className="community-sec-t">Open Cohorts</span>
+                <span className="community-sec-s">
+                  {unlocked
+                    ? "Enrol free · join from Mejoric"
+                    : `Unlock community first (₹${unlockAmount}) · then therapy is free`}
+                </span>
+              </div>
 
             {loadingTherapy ? (
               <p style={{ padding: 24, color: "var(--muted)" }}>
@@ -1211,14 +1224,14 @@ export default function Community() {
                 <div className="community-fa-card">
                   <div className="community-fa-title">How this works</div>
                   <div className="community-how-works">
-                    ✦ ₹{unlockAmount} one-time unlock (wallet or Razorpay)
+                    ✦ ₹{unlockAmount} one-time unlock
                     <br />
-                    ✦ Welcome wallet balance cannot be used
+                    ✦ Join communities free
                     <br />
-                    ✦ Then join any community free
+                    ✦ Feed &amp; chat free
                     <br />
-                    ✦ Your name shows unless you post anonymously
-                    <br />✦ Moderated for safety
+                    ✦ Group therapy free
+                    <br />✦ Optional anonymous posts
                   </div>
                 </div>
 
@@ -1246,5 +1259,6 @@ export default function Community() {
         </main>
       </div>
     </div>
+    </Layout>
   );
 }

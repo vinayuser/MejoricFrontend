@@ -17,6 +17,8 @@ import {
   fetchMyBookings,
   formatLongDate,
   getSessionJoinOpensAt,
+  getSessionJoinEndsAt,
+  formatJoinTime,
 } from "../utils/mentorBooking";
 
 const STATUS_STYLES = {
@@ -31,6 +33,8 @@ function BookingCard({ booking, showJoin }) {
   const isAudio = booking.sessionFormat === "audio";
   const joinReady = showJoin && canJoinMentorSession(booking);
   const opensAt = getSessionJoinOpensAt(booking);
+  const endsAt = getSessionJoinEndsAt(booking);
+  const durationMins = booking.durationMinutes || 45;
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
@@ -63,8 +67,7 @@ function BookingCard({ booking, showJoin }) {
               {booking.slotLabel}
             </p>
             <p className="text-sm text-slate-500 mt-1">
-              {booking.durationMinutes || 45} min ·{" "}
-              {isAudio ? "Audio call" : "Video call"}
+              {durationMins} min · {isAudio ? "Audio call" : "Video call"}
             </p>
             {booking.sessionPrice != null && (
               <p className="text-sm text-slate-600 mt-1">
@@ -76,13 +79,18 @@ function BookingCard({ booking, showJoin }) {
 
         <div className="min-w-[240px] space-y-2">
           {showJoin && joinReady && (
-            <Link
-              to={`/mentor-session/${booking._id}`}
-              className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-purple-600 text-white text-sm font-bold hover:bg-purple-700 transition-colors shadow-md shadow-purple-200"
-            >
-              {isAudio ? <FaMicrophone /> : <FaVideo />}
-              Join session
-            </Link>
+            <>
+              <Link
+                to={`/mentor-session/${booking._id}`}
+                className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-purple-600 text-white text-sm font-bold hover:bg-purple-700 transition-colors shadow-md shadow-purple-200"
+              >
+                {isAudio ? <FaMicrophone /> : <FaVideo />}
+                Join session
+              </Link>
+              <p className="text-xs text-center text-slate-500">
+                Available until {formatJoinTime(endsAt)}
+              </p>
+            </>
           )}
           {showJoin && !joinReady && booking.status !== "cancelled" && (
             <div className="rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm text-slate-600">
@@ -90,13 +98,7 @@ function BookingCard({ booking, showJoin }) {
                 <>
                   Join opens at{" "}
                   <span className="font-semibold text-slate-800">
-                    {opensAt.toLocaleString("en-IN", {
-                      day: "numeric",
-                      month: "short",
-                      hour: "numeric",
-                      minute: "2-digit",
-                      hour12: true,
-                    })}
+                    {formatJoinTime(opensAt)}
                   </span>
                 </>
               ) : (

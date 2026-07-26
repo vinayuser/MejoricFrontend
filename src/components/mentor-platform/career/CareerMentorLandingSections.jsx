@@ -15,83 +15,15 @@ import {
   WHY_MEJORIC,
   MENTOR_FAQ_ITEMS,
 } from "../../../data/careerMentorLanding";
+import MentorHeroBanner from "./MentorHeroBanner";
 
 const OUTCOME_ICONS = [FaBullseye, FaChartLine, FaBriefcase, FaBolt];
 
 export function CareerMentorHero({ onExplore }) {
-  return (
-    <section className="mp-cl-hero">
-      <div className="mp-cl-wrap mp-cl-hero-inner">
-        <span className="mp-cl-badge">Personalized Mentoring for Every Career Stage</span>
-        <h1 className="mp-cl-title">Get Expert Mentorship from Industry Leaders</h1>
-        <p className="mp-cl-lead">
-          Connect with experienced professionals who have walked your path.
-          One-on-one mentorship tailored to your career goals, challenges, and
-          timeline.
-        </p>
-        <div className="mp-cl-hero-actions">
-          <button type="button" className="mp-cl-btn-primary" onClick={onExplore}>
-            Explore Mentors <FaArrowRight />
-          </button>
-          <a href="#how-it-works" className="mp-cl-btn-secondary">
-            Learn More
-          </a>
-        </div>
-        <div className="mp-cl-stats">
-          <div>
-            <strong>Verified</strong>
-            <span>Expert Mentors</span>
-          </div>
-          <div>
-            <strong>1-to-1</strong>
-            <span>Private Sessions</span>
-          </div>
-          <div>
-            <strong>Flexible</strong>
-            <span>Book on your schedule</span>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
+  return <MentorHeroBanner onExplore={onExplore} />;
 }
 
-export function CareerNeedsSection({ onSelectNeed }) {
-  return (
-    <section className="mp-cl-section mp-cl-tint">
-      <div className="mp-cl-wrap">
-        <div className="mp-cl-section-head">
-          <h2 className="mp-cl-h2">What Are You Working On?</h2>
-          <p>
-            Whether you&apos;re planning a career move or deepening your expertise,
-            we have mentors for every journey.
-          </p>
-        </div>
-        <div className="mp-cl-needs-grid">
-          {CAREER_NEEDS.map((need) => (
-            <button
-              key={need.id}
-              type="button"
-              className="mp-cl-need-card"
-              onClick={() => onSelectNeed?.(need)}
-            >
-              <img
-                className="mp-cl-need-bg"
-                src={need.bgSrc}
-                alt=""
-                aria-hidden="true"
-              />
-              <div className="mp-cl-need-body">
-                <h3>{need.title}</h3>
-                <p>{need.description}</p>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
+
 
 export function MentorExplanationSection() {
   return (
@@ -313,7 +245,7 @@ export function CareerMentorFinalCta({ onFindMentor }) {
         </p>
         <div className="mp-cl-final-actions">
           <button type="button" className="mp-cl-btn-light" onClick={onFindMentor}>
-            Find Your Mentor <FaArrowRight />
+            Find Your Mentor 
           </button>
           <a href="mailto:support@mejoric.com" className="mp-cl-btn-outline">
             Contact Support

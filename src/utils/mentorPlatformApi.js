@@ -4,9 +4,10 @@ import {
   getInitials,
   mentorMatchesDomain,
 } from "../data/mentorPlatformConfig";
+import { capitalizeName } from "./formatters";
 
-const DEFAULT_AUDIO_PER_MIN = 12;
-const DEFAULT_VIDEO_PER_MIN = 15;
+const DEFAULT_AUDIO_SESSION_45 = 540;
+const DEFAULT_VIDEO_SESSION_45 = 675;
 
 const FORMAT_DURATIONS = {
   audio: 45,
@@ -14,23 +15,35 @@ const FORMAT_DURATIONS = {
   video60: 60,
 };
 
-/** Treat large stored values as legacy session totals (÷ duration). */
-function normalizePerMinPrice(value, fallback) {
+/**
+ * Stored values are session totals for each format.
+ * Legacy per-minute rates were typically ≤ 100 — convert those up.
+ */
+function toSessionTotal(value, duration, fallback) {
   const num = Number(value);
   if (!Number.isFinite(num) || num <= 0) return fallback;
-  if (num > 100) return Math.max(1, Math.round(num / 45));
+  if (num <= 100) return Math.round(num * duration);
   return Math.round(num);
 }
 
-function resolveMentorPrices(profile = {}) {
-  const videoCallPrice = normalizePerMinPrice(profile.videoCallPrice, DEFAULT_VIDEO_PER_MIN);
-  const audioCallPrice = normalizePerMinPrice(
-    profile.audioCallPrice,
-    DEFAULT_AUDIO_PER_MIN,
+function resolveMentorSessionPrices(profile = {}) {
+  const videoCallPrice = toSessionTotal(
+    profile.videoCallPrice,
+    FORMAT_DURATIONS.video,
+    DEFAULT_VIDEO_SESSION_45,
   );
-  const video60CallPrice = normalizePerMinPrice(
+  const audioCallPrice = toSessionTotal(
+    profile.audioCallPrice,
+    FORMAT_DURATIONS.audio,
+    DEFAULT_AUDIO_SESSION_45,
+  );
+  const derivedVideo60 = Math.round(
+    (videoCallPrice / FORMAT_DURATIONS.video) * FORMAT_DURATIONS.video60,
+  );
+  const video60CallPrice = toSessionTotal(
     profile.video60CallPrice,
-    videoCallPrice,
+    FORMAT_DURATIONS.video60,
+    derivedVideo60,
   );
 
   return { audioCallPrice, videoCallPrice, video60CallPrice };
@@ -49,9 +62,9 @@ function mapApiMentor(user, type) {
     : profile.domain
       ? [profile.domain]
       : specs;
-  const name = profile.name || user.name || "Unknown";
-  const prices = resolveMentorPrices(profile);
-  const fromPrice = Math.min(prices.audioCallPrice, prices.videoCallPrice);
+  const name = capitalizeName(profile.name || user.name || "Unknown");
+  const prices = resolveMentorSessionPrices(profile);
+  const fromSession = Math.min(prices.audioCallPrice, prices.videoCallPrice);
 
   return {
     id: user._id,
@@ -62,7 +75,8 @@ function mapApiMentor(user, type) {
     domainIds,
     domains: domainNames,
     exp: profile.experience || profile.yearsOfExperience || "—",
-    rate: `From ₹${fromPrice}/min`,
+    rate: `From ₹${fromSession.toLocaleString("en-IN")}`,
+    // These are session totals (45 / 45 / 60 min), not per-minute
     audioCallPrice: prices.audioCallPrice,
     videoCallPrice: prices.videoCallPrice,
     video60CallPrice: prices.video60CallPrice,
@@ -96,9 +110,12 @@ function mapApiMentor(user, type) {
   };
 }
 
-export async function fetchPlatformMentors(type) {
+export async function fetchPlatformMentors(type, { specification } = {}) {
   try {
-    const data = await apiGet(buildMentorsApiQuery({ type }), true);
+    const data = await apiGet(
+      buildMentorsApiQuery({ type, specification }),
+      true,
+    );
     if (data?.success && Array.isArray(data?.data?.data)) {
       return data.data.data
         .filter((u) => u.role === "mentor")
@@ -115,27 +132,24 @@ export function getFormatDuration(formatId) {
   return FORMAT_DURATIONS[formatId] ?? 45;
 }
 
-export function getFormatPricePerMin(mentor, formatId) {
-  if (formatId === "audio") {
-    return normalizePerMinPrice(mentor?.audioCallPrice, DEFAULT_AUDIO_PER_MIN);
-  }
-  if (formatId === "video60") {
-    return normalizePerMinPrice(
-      mentor?.video60CallPrice ?? mentor?.videoCallPrice,
-      DEFAULT_VIDEO_PER_MIN,
-    );
-  }
-  return normalizePerMinPrice(mentor?.videoCallPrice, DEFAULT_VIDEO_PER_MIN);
-}
-
 export function getFormatPrice(mentor, formatId) {
-  return getFormatPricePerMin(mentor, formatId) * getFormatDuration(formatId);
+  const prices = resolveMentorSessionPrices(mentor || {});
+  if (formatId === "audio") return prices.audioCallPrice;
+  if (formatId === "video60") return prices.video60CallPrice;
+  return prices.videoCallPrice;
 }
 
+export function getFormatPricePerMin(mentor, formatId) {
+  const session = getFormatPrice(mentor, formatId);
+  const duration = getFormatDuration(formatId);
+  return Math.max(1, Math.round(session / duration));
+}
+
+/** Lowest 45-min session total (audio vs video). Never a per-minute rate. */
 export function getMentorFromPrice(mentor) {
   return Math.min(
-    getFormatPricePerMin(mentor, "audio"),
-    getFormatPricePerMin(mentor, "video"),
+    getFormatPrice(mentor, "audio"),
+    getFormatPrice(mentor, "video"),
   );
 }
 

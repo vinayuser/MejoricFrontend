@@ -1,28 +1,26 @@
 import React from "react";
 import { getInitials } from "../../../data/mentorPlatformConfig";
-import {
-  getFormatPrice,
-  getFormatPricePerMin,
-} from "../../../utils/mentorPlatformApi";
+import { getFormatPrice } from "../../../utils/mentorPlatformApi";
+import { capitalizeName } from "../../../utils/formatters";
 
 export default function MentorProfileHero({ mentor, type, cfg }) {
   if (!mentor) return null;
 
-  const audioPerMin = getFormatPricePerMin(mentor, "audio");
-  const videoPerMin = getFormatPricePerMin(mentor, "video");
-  const videoSessionTotal = getFormatPrice(mentor, "video");
+  const displayName = capitalizeName(mentor.name);
+  const audioSession = getFormatPrice(mentor, "audio");
+  const videoSession = getFormatPrice(mentor, "video");
 
   return (
     <div className="mp-ph-left">
       <div className="mp-ph-avatar">
         {mentor.img ? (
-          <img src={mentor.img} alt={mentor.name} />
+          <img src={mentor.img} alt={displayName} />
         ) : (
-          mentor.av || getInitials(mentor.name)
+          mentor.av || getInitials(displayName)
         )}
       </div>
       <span className={`mp-type-pill ${type}`}>{cfg.pill}</span>
-      <h1 className="mp-ph-name mp-serif">{mentor.name}</h1>
+      <h1 className="mp-ph-name mp-serif">{displayName}</h1>
       <div className="mp-ph-domain">
         {(mentor.domains || [mentor.domain].filter(Boolean)).join(" · ")}
       </div>
@@ -41,12 +39,16 @@ export default function MentorProfileHero({ mentor, type, cfg }) {
           <div className="mp-ph-stat-lbl">Experience</div>
         </div>
         <div className="mp-ph-stat">
-          <div className="mp-ph-stat-val">₹{audioPerMin}/min</div>
-          <div className="mp-ph-stat-lbl">Audio calls</div>
+          <div className="mp-ph-stat-val">
+            ₹{audioSession.toLocaleString("en-IN")}
+          </div>
+          <div className="mp-ph-stat-lbl">Audio · 45 min</div>
         </div>
         <div className="mp-ph-stat">
-          <div className="mp-ph-stat-val">₹{videoPerMin}/min</div>
-          <div className="mp-ph-stat-lbl">Video · ₹{videoSessionTotal.toLocaleString("en-IN")} / 45m</div>
+          <div className="mp-ph-stat-val">
+            ₹{videoSession.toLocaleString("en-IN")}
+          </div>
+          <div className="mp-ph-stat-lbl">Video · 45 min</div>
         </div>
       </div>
     </div>

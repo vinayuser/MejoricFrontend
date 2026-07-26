@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { SESSION_FORMATS } from "../../../data/mentorPlatformConfig";
-import { getFormatPrice, getFormatPricePerMin } from "../../../utils/mentorPlatformApi";
+import { getFormatPrice } from "../../../utils/mentorPlatformApi";
 import {
   fetchAvailableDates,
   fetchAvailableSlots,
@@ -178,7 +178,7 @@ export default function MentorBookingPanel({
   return (
     <div className="mp-booking-card">
       <div className="mp-bc-rate">{mentor?.rate}</div>
-      <div className="mp-bc-rate-sub">per minute · session total shown below</div>
+      <div className="mp-bc-rate-sub">Session price by format</div>
 
       <div className="mp-bc-formats">
         {SESSION_FORMATS.map((f) => (
@@ -197,9 +197,6 @@ export default function MentorBookingPanel({
             </div>
             <div className="mp-bcf-price">
               <div>₹{getFormatPrice(mentor, f.id).toLocaleString("en-IN")}</div>
-              <div className="mp-bc-price-sub">
-                ₹{getFormatPricePerMin(mentor, f.id)}/min
-              </div>
             </div>
           </button>
         ))}
@@ -295,9 +292,7 @@ export default function MentorBookingPanel({
       >
         {isMyBookedSlot ? "Session confirmed ✓" : "Book Session →"}
       </button>
-      <div className="mp-bc-note">
-        Free cancellation up to 24 hours before.
-      </div>
+      
     </div>
   );
 }

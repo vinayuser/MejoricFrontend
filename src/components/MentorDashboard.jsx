@@ -24,8 +24,10 @@ import {
   formatLongDate,
   canJoinMentorSession,
   getSessionJoinOpensAt,
+  formatJoinTime,
   getMonthMatrix,
   saveMyAvailability,
+  markMentorBookingCompleted,
   toDateKey,
 } from "../utils/mentorBooking";
 
@@ -39,11 +41,12 @@ const STATUS_STYLES = {
   no_show: "bg-red-100 text-red-700",
 };
 
-function normalizeDisplayPerMin(value) {
+/** Load stored price as a session total (legacy ≤100 = per-minute). */
+function storedToSessionTotal(value, duration) {
   const num = Number(value);
   if (!Number.isFinite(num) || num <= 0) return "";
-  if (num > 100) return String(Math.max(1, Math.round(num / 45)));
-  return String(num);
+  if (num <= 100) return String(Math.round(num * duration));
+  return String(Math.round(num));
 }
 
 function PricingTab({ userId }) {
@@ -65,9 +68,9 @@ function PricingTab({ userId }) {
         if (cancelled || !data?.success) return;
         const mentor = data.data?.mentor || {};
         setPrices({
-          audioCallPrice: normalizeDisplayPerMin(mentor.audioCallPrice),
-          videoCallPrice: normalizeDisplayPerMin(mentor.videoCallPrice),
-          video60CallPrice: normalizeDisplayPerMin(mentor.video60CallPrice),
+          audioCallPrice: storedToSessionTotal(mentor.audioCallPrice, 45),
+          videoCallPrice: storedToSessionTotal(mentor.videoCallPrice, 45),
+          video60CallPrice: storedToSessionTotal(mentor.video60CallPrice, 60),
         });
       })
       .catch((error) => toast.error(error.message || "Could not load pricing"))
@@ -85,25 +88,26 @@ function PricingTab({ userId }) {
   };
 
   const handleSave = async () => {
-    const audio = Number(prices.audioCallPrice);
-    const video = Number(prices.videoCallPrice);
+    const audio = Math.round(Number(prices.audioCallPrice));
+    const video = Math.round(Number(prices.videoCallPrice));
     const video60 = prices.video60CallPrice
-      ? Number(prices.video60CallPrice)
+      ? Math.round(Number(prices.video60CallPrice))
       : undefined;
 
     if (!audio || audio <= 0 || !video || video <= 0) {
-      toast.error("Enter valid per-minute audio and video rates");
+      toast.error("Enter valid 45 min audio and video session prices");
       return;
     }
 
     setSaving(true);
     try {
+      // Persist session totals as entered (45 / 60 min) — not per-minute
       await apiPut(`/users/update?userId=${userId}`, {
         audioCallPrice: audio,
         videoCallPrice: video,
         ...(video60 && video60 > 0 ? { video60CallPrice: video60 } : {}),
       });
-      toast.success("Per-minute rates updated");
+      toast.success("Session prices updated");
     } catch (error) {
       toast.error(error.message || "Could not save prices");
     } finally {
@@ -115,26 +119,19 @@ function PricingTab({ userId }) {
     return <p className="text-slate-500 py-8 text-center">Loading pricing...</p>;
   }
 
-  const audioPreview = prices.audioCallPrice
-    ? Number(prices.audioCallPrice) * 45
-    : null;
-  const videoPreview = prices.videoCallPrice
-    ? Number(prices.videoCallPrice) * 45
-    : null;
-
   return (
     <div className="max-w-xl">
       <div className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8">
         <h2 className="text-xl font-bold text-slate-900 mb-2">Call pricing</h2>
         <p className="text-sm text-slate-600 mb-6">
-          Set your rate per minute. Users see the session total based on call
-          duration (45 or 60 minutes).
+          Set your session price for 45 minute calls. Optionally set a separate
+          total for 60 minute video sessions.
         </p>
 
         <div className="space-y-5">
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">
-              Audio call · per minute
+              Audio call · 45 min
             </label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400">
@@ -145,23 +142,15 @@ function PricingTab({ userId }) {
                 inputMode="numeric"
                 value={prices.audioCallPrice}
                 onChange={(e) => handleChange("audioCallPrice", e.target.value)}
-                className="w-full pl-9 pr-16 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-500 outline-none"
-                placeholder="e.g. 12"
+                className="w-full pl-9 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-500 outline-none"
+                placeholder="e.g. 540"
               />
-              <span className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 text-sm">
-                /min
-              </span>
             </div>
-            {audioPreview != null && (
-              <p className="text-xs text-slate-500 mt-1">
-                45 min session total: ₹{audioPreview.toLocaleString("en-IN")}
-              </p>
-            )}
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">
-              Video call · per minute
+              Video call · 45 min
             </label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 pl-4 flex items-center text-slate-400">
@@ -172,24 +161,15 @@ function PricingTab({ userId }) {
                 inputMode="numeric"
                 value={prices.videoCallPrice}
                 onChange={(e) => handleChange("videoCallPrice", e.target.value)}
-                className="w-full pl-9 pr-16 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-500 outline-none"
-                placeholder="e.g. 15"
+                className="w-full pl-9 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-500 outline-none"
+                placeholder="e.g. 675"
               />
-              <span className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 text-sm">
-                /min
-              </span>
             </div>
-            {videoPreview != null && (
-              <p className="text-xs text-slate-500 mt-1">
-                45 min session total: ₹{videoPreview.toLocaleString("en-IN")} · 60
-                min: ₹{(Number(prices.videoCallPrice) * 60).toLocaleString("en-IN")}
-              </p>
-            )}
           </div>
 
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">
-              60 min video · per minute{" "}
+              Video call · 60 min{" "}
               <span className="font-normal text-slate-400">optional</span>
             </label>
             <div className="relative">
@@ -201,15 +181,12 @@ function PricingTab({ userId }) {
                 inputMode="numeric"
                 value={prices.video60CallPrice}
                 onChange={(e) => handleChange("video60CallPrice", e.target.value)}
-                className="w-full pl-9 pr-16 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-500 outline-none"
-                placeholder={prices.videoCallPrice || "Same as video rate"}
+                className="w-full pl-9 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-purple-500 outline-none"
+                placeholder="e.g. 900"
               />
-              <span className="absolute inset-y-0 right-0 pr-4 flex items-center text-slate-400 text-sm">
-                /min
-              </span>
             </div>
             <p className="text-xs text-slate-500 mt-1">
-              Leave blank to use the same video per-minute rate for 60 min calls.
+              Leave blank to derive the 60 min total from your 45 min video price.
             </p>
           </div>
         </div>
@@ -220,7 +197,7 @@ function PricingTab({ userId }) {
           onClick={handleSave}
           className="mt-8 px-6 py-3 rounded-xl bg-purple-600 text-white font-semibold hover:bg-purple-700 disabled:opacity-50"
         >
-          {saving ? "Saving..." : "Save rates"}
+          {saving ? "Saving..." : "Save prices"}
         </button>
       </div>
     </div>
@@ -415,6 +392,15 @@ function ScheduleTab({ viewDate, setViewDate, selectedDateKey, setSelectedDateKe
 function AppointmentsTab({ tab }) {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [completingId, setCompletingId] = useState(null);
+
+  const loadAppointments = () => {
+    setLoading(true);
+    return fetchMyAppointments(tab)
+      .then((result) => setAppointments(result.data || []))
+      .catch((error) => toast.error(error.message))
+      .finally(() => setLoading(false));
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -433,6 +419,24 @@ function AppointmentsTab({ tab }) {
       cancelled = true;
     };
   }, [tab]);
+
+  const handleMarkCompleted = async (bookingId) => {
+    const ok = window.confirm(
+      "Mark this session as completed? Join will be disabled for you and the client.",
+    );
+    if (!ok) return;
+
+    setCompletingId(bookingId);
+    try {
+      await markMentorBookingCompleted(bookingId);
+      toast.success("Session marked as completed");
+      await loadAppointments();
+    } catch (error) {
+      toast.error(error.message || "Could not complete session");
+    } finally {
+      setCompletingId(null);
+    }
+  };
 
   if (loading) {
     return <p className="text-slate-500 py-8 text-center">Loading appointments...</p>;
@@ -507,27 +511,33 @@ function AppointmentsTab({ tab }) {
               {tab === "upcoming" && (
                 <div className="space-y-2">
                   {canJoinMentorSession(booking) ? (
-                    <Link
-                      to={`/mentor-session/${booking._id}`}
-                      className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-purple-600 text-white text-sm font-bold hover:bg-purple-700 transition-colors shadow-md shadow-purple-200"
-                    >
-                      {booking.sessionFormat === "audio" ? (
-                        <FaMicrophone />
-                      ) : (
-                        <FaVideo />
-                      )}
-                      Join session
-                    </Link>
+                    <>
+                      <Link
+                        to={`/mentor-session/${booking._id}`}
+                        className="inline-flex items-center justify-center gap-2 w-full px-4 py-3 rounded-xl bg-purple-600 text-white text-sm font-bold hover:bg-purple-700 transition-colors shadow-md shadow-purple-200"
+                      >
+                        {booking.sessionFormat === "audio" ? (
+                          <FaMicrophone />
+                        ) : (
+                          <FaVideo />
+                        )}
+                        Join session
+                      </Link>
+                      <button
+                        type="button"
+                        disabled={completingId === booking._id}
+                        onClick={() => handleMarkCompleted(booking._id)}
+                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-700 text-sm font-semibold hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        {completingId === booking._id
+                          ? "Saving…"
+                          : "Mark as completed"}
+                      </button>
+                    </>
                   ) : (
                     <div className="rounded-xl bg-slate-50 border border-slate-200 p-3 text-xs text-slate-600">
                       Join opens at{" "}
-                      {getSessionJoinOpensAt(booking).toLocaleString("en-IN", {
-                        day: "numeric",
-                        month: "short",
-                        hour: "numeric",
-                        minute: "2-digit",
-                        hour12: true,
-                      })}
+                      {formatJoinTime(getSessionJoinOpensAt(booking))}
                     </div>
                   )}
                 </div>

@@ -4,6 +4,7 @@ import { useMentorBooking } from "../../../context/MentorBookingContext";
 import MentorPlatformLayout from "../MentorPlatformLayout";
 import { getConfig } from "../../../data/mentorPlatformConfig";
 import { getFormatLabel } from "../../../utils/mentorPlatformApi";
+import { capitalizeName } from "../../../utils/formatters";
 
 export default function MentorBookingConfirmPage() {
   const { type } = useParams();
@@ -12,6 +13,7 @@ export default function MentorBookingConfirmPage() {
   const base = `/mentors/${type}`;
   const activePage = type === "professional" ? "Professional Mentors" : "Emotional Mentors";
   const { mentor, format, slot, price } = booking;
+  const mentorName = capitalizeName(mentor?.name);
   const slotLabel =
     slot && typeof slot === "object"
       ? slot.label || slot.slotLabel
@@ -36,7 +38,7 @@ export default function MentorBookingConfirmPage() {
         <div className="mp-conf-icon">✅</div>
         <h1 className="mp-conf-title mp-serif">Booking Confirmed</h1>
         <p className="mp-conf-sub">
-          Your session with {mentor.name} has been confirmed.
+          Your session with {mentorName} has been confirmed.
           <br />
           You will receive a calendar invite and session link shortly.
         </p>
@@ -44,7 +46,7 @@ export default function MentorBookingConfirmPage() {
         <div className="mp-conf-card">
           <div className="mp-conf-row">
             <span className="mp-conf-lbl">Mentor</span>
-            <span className="mp-conf-val">{mentor.name}</span>
+            <span className="mp-conf-val">{mentorName}</span>
           </div>
           <div className="mp-conf-row">
             <span className="mp-conf-lbl">Domain</span>

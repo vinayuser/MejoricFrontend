@@ -1,0 +1,93 @@
+.mp-climb {
+  background: #faf1fc;
+  color: #1c1520;
+  padding: 5rem 1.5rem;
+  text-align: center;
+  border-top: 1px solid #eee5f1;
+}
+
+.mp-climb-inner {
+  max-width: 40rem;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.75rem;
+}
+
+.mp-climb-title {
+  margin: 0;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: clamp(2rem, 4.5vw, 3rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: #1c1520;
+}
+
+.mp-climb-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.85rem;
+}
+
+.mp-climb-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.05rem 2rem;
+  border-radius: 0.85rem;
+  font-family: "DM Sans", sans-serif;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    opacity 0.2s ease;
+}
+
+.mp-climb-btn-light {
+  border: none;
+  background: #655388;
+  color: #fff;
+  box-shadow: 0 12px 28px -10px rgba(101, 83, 136, 0.45);
+}
+
+.mp-climb-btn-light:hover {
+  background: #5f4f86;
+  opacity: 0.95;
+  transform: translateY(-2px);
+  box-shadow: 0 16px 32px -10px rgba(101, 83, 136, 0.5);
+}
+
+.mp-climb-btn-outline {
+  border: 1px solid #655388;
+  background: transparent;
+  color: #655388;
+}
+
+.mp-climb-btn-outline:hover {
+  background: rgba(101, 83, 136, 0.08);
+}
+
+@media (max-width: 560px) {
+  .mp-climb {
+    padding: 3.75rem 1.25rem;
+  }
+
+  .mp-climb-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .mp-climb-btn {
+    width: 100%;
+  }
+}

@@ -8,6 +8,7 @@ import Contact from './components/Contact';
 import TermsAndConditions from './components/TermsAndConditions';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import EmotionalCare from './components/EmotionalCare';
+import ProfessionalMentors from './components/ProfessionalMentors';
 import MentorExplainPage from './components/mentor-platform/explain/MentorExplainPage';
 import MentorDomainsPage from './components/mentor-platform/domains/MentorDomainsPage';
 import MentorProfilePage from './components/mentor-platform/profile/MentorProfilePage';
@@ -34,7 +35,7 @@ import { isInAppBrowser } from './utils/browserDetect';
 import { Toaster } from 'react-hot-toast';
 import MateDetailsPage from './components/MateDetailsPage';
 import VerifyEmail from './components/VerifyEmail';
-import Community from './components/Community';
+import CommunityComingSoon from './components/CommunityComingSoon';
 import TherapySessionJoin from './components/TherapySessionJoin';
 import Careers from './components/Careers';
 import CareerDetail from './components/CareerDetail';
@@ -90,7 +91,7 @@ const AnalyticsTracker = () => {
   useEffect(() => {
     // Google Analytics PageView
     if (typeof window.gtag === 'function') {
-      window.gtag('config', import.meta.env.VITE_GA_ID, {
+      window.gtag('config', 'G-V9B5MVVW1L', {
         page_path: location.pathname + location.search,
       });
     }
@@ -167,6 +168,9 @@ function App() {
 
             <Route path="/emotional-care" element={<EmotionalCare />} />
             <Route path="/mentors" element={<Navigate to="/mentors/professional/browse" replace />} />
+            {/* Emotional mentors → platform HTML design (about → browse sidebar) */}
+            <Route path="/mentors/emotional" element={<Navigate to="/mentors/emotional/about" replace />} />
+            <Route path="/mentors/professional" element={<ProfessionalMentors />} />
             <Route path="/mentors/:type/about" element={<MentorTypeGuard><MentorExplainPage /></MentorTypeGuard>} />
             <Route path="/mentors/:type/browse" element={<MentorTypeGuard><MentorDomainsPage /></MentorTypeGuard>} />
             <Route path="/mentors/:type/mentor/:mentorId" element={<MentorTypeGuard><MentorProfilePage /></MentorTypeGuard>} />
@@ -189,7 +193,7 @@ function App() {
             <Route path="/dashboard" element={<MateDashboard />} />
             <Route path="/dashboard/profile" element={<MateProfile />} />
             <Route path="/mentor-dashboard" element={<MentorDashboard />} />
-            <Route path="/community" element={<Community />} />
+            <Route path="/community" element={<CommunityComingSoon />} />
             <Route path="/careers" element={<Careers />} />
             <Route path="/careers/:id" element={<CareerDetail />} />
             <Route

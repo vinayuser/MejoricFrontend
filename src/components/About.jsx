@@ -439,10 +439,10 @@ export default function About() {
                 Talk to a Mate
               </button>
               <button
-                onClick={() => navigate("/mentors")}
-                className="bg-white text-blue-600 px-8 py-4 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 font-semibold text-lg hover:scale-105"
+                onClick={() => navigate("/mentors/emotional/about")}
+                className="bg-white text-purple-600 px-8 py-4 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 font-semibold text-lg hover:scale-105"
               >
-                Find a Mentor
+                Talk to a Mentor
               </button>
               <button
                 onClick={() => navigate("/know-your-mate-mentor")}

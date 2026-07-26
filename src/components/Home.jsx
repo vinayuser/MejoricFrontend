@@ -15,11 +15,10 @@ import Layout from "../components/Layout";
 import { trackPixel } from "../utils/metaPixel";
 import { useNavigate } from "react-router-dom";
 import Footer from "../components/Footer";
-import bannerImages from "../assets/img/1.webp";
-import heroMobileBanner from "../assets/img/1.webp";
-import HeroBannerOverlay, { HERO_MOBILE_GRADIENT } from "./HeroBannerOverlay";
+import HomeHero from "./HomeHero";
 
 import StepsSection from "./StepsSection";
+import HomeChoosePath from "./HomeChoosePath";
 
 // Built and deployed successfully
 export default function Home() {
@@ -27,34 +26,16 @@ export default function Home() {
 
   return (
     <Layout activePage="Home">
-      <section className="relative w-full overflow-hidden min-h-[580px] lg:min-h-[720px]">
-        <div className="absolute inset-0 hidden lg:block">
-          <img
-            src={bannerImages}
-            className="w-full h-full object-cover"
-            alt="Mejoric Desktop Hero"
-            fetchPriority="high"
-          />
-        </div>
+      <HomeHero />
 
-        <div className="absolute inset-0 lg:hidden">
-          <img
-            src={heroMobileBanner}
-            className="w-full h-full object-cover object-center"
-            alt="Mejoric Mobile Hero"
-            fetchPriority="high"
-          />
-        </div>
-
-        <HeroBannerOverlay onCtaClick={() => navigate("/mate")} />
-      </section>
+      <HomeChoosePath />
 
       {/* VIDEO SECTION */}
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-8">
-              <h1 className="text-3xl md:text-4xl font-bold text-purple-600 mb-4">
+              <h1 className="text-3xl md:text-4xl font-bold text-black-600 mb-4">
                 Watch How It Works
               </h1>
               <p className="text-lg text-gray-700">
@@ -91,7 +72,7 @@ export default function Home() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
               {/* Text Content - Left */}
               <div>
-                <h1 className="text-3xl text-center lg:text-left md:text-4xl font-bold text-purple-600 mb-4">
+                <h1 className="text-3xl text-center lg:text-left md:text-4xl font-bold text-black-600 mb-4">
                   You Don’t Have to Carry Life Alone.
                 </h1>
                 <p className="text-lg md:text-xl text-center lg:text-left text-gray-700 mb-6 leading-relaxed">
@@ -171,12 +152,13 @@ export default function Home() {
           </div>
         </div>
       </section>
+
       <StepsSection />
       <section className="py-5 bg-white">
         <div className="container mx-auto px-4">
           <div className=" mx-auto">
             <div className="text-center mb-12">
-              <h1 className="text-3xl md:text-4xl font-bold text-purple-600 mb-4">
+              <h1 className="text-3xl md:text-4xl font-bold text-black-600 mb-4">
                 From Your First Message to Real Clarity
               </h1>
             </div>
@@ -269,7 +251,7 @@ export default function Home() {
               >
                 Talk to a Mate
               </button>
-              {/* <button
+              <button
                 onClick={() => {
                   trackPixel("ViewContent");
                   if (typeof window.gtag === "function") {
@@ -278,12 +260,12 @@ export default function Home() {
                       content_id: "find_mentor_bottom",
                     });
                   }
-                  navigate("/mentors");
+                  navigate("/mentors/professional/browse");
                 }}
                 className="bg-white cursor-pointer text-purple-700 px-8 py-4 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 font-semibold text-lg hover:scale-105"
               >
                 Find a Mentor
-              </button> */}
+              </button>
             </div>
           </div>
         </div>

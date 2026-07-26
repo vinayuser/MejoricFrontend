@@ -1,0 +1,229 @@
+.mate-banner {
+  --mb-ink: #1e1a22;
+  --mb-muted: #49454e;
+  --mb-primary: #655388;
+  --mb-secondary: #894e4e;
+  --mb-surface: #fff7ff;
+  --mb-pink: #ffb3b3;
+  --mb-on-pink: #7b4243;
+
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: min(85vh, 720px);
+  overflow: hidden;
+  background: var(--mb-surface);
+}
+
+.mate-banner-media {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.mate-banner-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: right top;
+}
+
+.mate-banner-fade {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(
+    to left,
+    rgba(255, 247, 255, 0) 30%,
+    rgba(255, 247, 255, 0.7) 55%,
+    rgba(255, 247, 255, 0.95) 75%,
+    rgba(255, 247, 255, 1) 100%
+  );
+}
+
+.mate-banner-inner {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 4.5rem 2.5rem;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.mate-banner-copy {
+  width: 100%;
+  max-width: 28rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2rem;
+}
+
+.mate-banner-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.mate-banner-badge {
+  display: inline-block;
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mb-on-pink);
+  background: var(--mb-pink);
+}
+
+.mate-banner-title {
+  margin: 0;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: clamp(2rem, 4.5vw, 3rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--mb-primary);
+}
+
+.mate-banner-sub {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: var(--mb-muted);
+}
+
+.mate-banner-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.85rem;
+  width: 100%;
+}
+
+.mate-banner-btn {
+  padding: 1rem 2.35rem;
+  border-radius: 999px;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
+}
+
+.mate-banner-btn:active {
+  transform: scale(0.97);
+}
+
+.mate-banner-btn-primary {
+  background: #111;
+  color: #fff;
+  border: 1px solid #111;
+  box-shadow: 0 10px 28px -10px rgba(0, 0, 0, 0.35);
+}
+
+.mate-banner-btn-primary:hover {
+  background: #000;
+  transform: translateY(-2px);
+  box-shadow: 0 14px 32px -10px rgba(0, 0, 0, 0.4);
+}
+
+.mate-banner-btn-secondary {
+  background: #fff;
+  color: var(--mb-primary);
+  border: 1px solid #7a757f;
+}
+
+.mate-banner-btn-secondary:hover {
+  background: #faf1fc;
+}
+
+.mate-banner-proof {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding-top: 0.25rem;
+}
+
+.mate-banner-avatars {
+  display: flex;
+}
+
+.mate-banner-avatar {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  border: 2px solid #fff;
+  margin-left: -0.7rem;
+  background-size: cover;
+  background-position: center;
+}
+
+.mate-banner-avatar:first-child {
+  margin-left: 0;
+}
+
+.mate-banner-avatar-a {
+  background: linear-gradient(145deg, #f6d9de, #b5677a);
+}
+
+.mate-banner-avatar-b {
+  background: linear-gradient(145deg, #e3dcf0, #7c6ba8);
+}
+
+.mate-banner-avatar-c {
+  background: linear-gradient(145deg, #dce8d4, #6f8f6a);
+}
+
+.mate-banner-proof-text {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--mb-muted);
+}
+
+@media (max-width: 768px) {
+  .mate-banner {
+    min-height: 560px;
+    align-items: flex-end;
+  }
+
+  .mate-banner-img {
+    object-position: right top;
+  }
+
+  .mate-banner-fade {
+    background: linear-gradient(
+      to top,
+      rgba(255, 247, 255, 0.95) 30%,
+      rgba(255, 247, 255, 0.45) 70%,
+      rgba(255, 247, 255, 0.15) 100%
+    );
+  }
+
+  .mate-banner-inner {
+    justify-content: flex-start;
+    padding: 3rem 1.25rem 2.75rem;
+  }
+
+  .mate-banner-copy {
+    max-width: 100%;
+    gap: 1.5rem;
+  }
+
+  .mate-banner-btn {
+    width: 100%;
+    text-align: center;
+  }
+}
