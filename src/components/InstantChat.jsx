@@ -879,7 +879,8 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
 
       const amountInPaise = parseFloat(rechargeAmount) * 100;
       const options = {
-        key: "rzp_live_SVXnEDUa7IpGc8",
+        key:
+          import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_live_SVXnEDUa7IpGc8",
         amount: amountInPaise,
         currency: "INR",
         name: "Mejoric",

@@ -218,6 +218,7 @@ async function requestPermission(messaging) {
 
   const getTokenOpts = {
     vapidKey:
+      import.meta.env.VITE_FCM_VAPID_KEY ||
       "BH8sadFA-qbhf1mokSo_shRxuWtFKt0WGDN_qZryGuquK7JdZwy9qnx0_vOlFR6Vk-5f6mjsxnLFUWJm_FqcDYo",
     ...(serviceWorkerRegistration ? { serviceWorkerRegistration } : {}),
   };
@@ -312,6 +313,7 @@ export const startTokenRefreshMonitor = (onNewToken) => {
       try {
         const currentToken = await getToken(messaging, {
           vapidKey:
+            import.meta.env.VITE_FCM_VAPID_KEY ||
             "BH8sadFA-qbhf1mokSo_shRxuWtFKt0WGDN_qZryGuquK7JdZwy9qnx0_vOlFR6Vk-5f6mjsxnLFUWJm_FqcDYo",
           ...(swReg ? { serviceWorkerRegistration: swReg } : {}),
         });

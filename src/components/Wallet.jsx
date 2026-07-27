@@ -26,7 +26,8 @@ const Wallet = () => {
   const [transactions, setTransactions] = useState([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
 
-  const razorpayKey = "rzp_live_SVXnEDUa7IpGc8";
+  const razorpayKey =
+    import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_live_SVXnEDUa7IpGc8";
 
   useEffect(() => {
     const script = document.createElement("script");

@@ -8,7 +8,7 @@ import {
   FaVideoSlash,
 } from "react-icons/fa";
 import { capitalizeName } from "../utils/formatters";
-import { releaseLocalTracks } from "../utils/agoraMedia";
+import { releaseLocalTracks, shouldSkipMediaPermission } from "../utils/agoraMedia";
 
 const JOIN_TIMEOUT_MS = 20000;
 
@@ -236,6 +236,18 @@ export default function AgoraCallUI({
         }
 
         if (cancelled) return;
+
+        if (shouldSkipMediaPermission()) {
+          console.warn(
+            "[Call] Joined channel without local media (VITE_SKIP_MEDIA_PERMISSION)",
+          );
+          setConnected(true);
+          setConnecting(false);
+          setStatusText("Connected (media skipped — testing)");
+          await subscribeExisting(client);
+          onConnectedRef.current?.();
+          return;
+        }
 
         setStatusText(isAudioOnly ? "Starting microphone…" : "Starting camera…");
         const tracks = [await AgoraRTC.createMicrophoneAudioTrack()];
