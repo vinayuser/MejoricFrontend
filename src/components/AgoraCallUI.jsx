@@ -201,6 +201,11 @@ export default function AgoraCallUI({
           }
         });
 
+        client.on("user-joined", (user) => {
+          console.log("[Call] Remote user joined channel:", user?.uid);
+          if (!cancelled) setRemoteJoined(true);
+        });
+
         client.on("user-left", (user) => {
           if (remoteUserRef.current?.uid === user.uid) {
             remoteUserRef.current = null;
@@ -237,39 +242,51 @@ export default function AgoraCallUI({
 
         if (cancelled) return;
 
-        if (shouldSkipMediaPermission()) {
-          console.warn(
-            "[Call] Joined channel without local media (VITE_SKIP_MEDIA_PERMISSION)",
+        // Must publish local tracks or the other side stays on "Waiting…"
+        setStatusText(isAudioOnly ? "Starting microphone…" : "Starting camera…");
+        let tracks = [];
+        try {
+          if (shouldSkipMediaPermission()) {
+            console.warn(
+              "[Call] Dev skip: joining without local media (peers will keep waiting)",
+            );
+          } else {
+            tracks = [await AgoraRTC.createMicrophoneAudioTrack()];
+            if (!isAudioOnly) {
+              tracks.push(await AgoraRTC.createCameraVideoTrack());
+            }
+          }
+        } catch (mediaErr) {
+          console.error("[Call] Local media failed:", mediaErr);
+          throw new Error(
+            isAudioOnly
+              ? "Microphone access is required for audio calls. Please allow permission and try again."
+              : "Camera and microphone access are required for video calls. Please allow permission and try again.",
           );
-          setConnected(true);
-          setConnecting(false);
-          setStatusText("Connected (media skipped — testing)");
-          await subscribeExisting(client);
-          onConnectedRef.current?.();
-          return;
         }
 
-        setStatusText(isAudioOnly ? "Starting microphone…" : "Starting camera…");
-        const tracks = [await AgoraRTC.createMicrophoneAudioTrack()];
-        if (!isAudioOnly) {
-          tracks.push(await AgoraRTC.createCameraVideoTrack());
-        }
         if (cancelled) {
           releaseLocalTracks(tracks);
           return;
         }
 
         tracksRef.current = tracks;
-        setStatusText("Connecting audio…");
-        await client.publish(tracks);
+        if (tracks.length) {
+          setStatusText("Connecting…");
+          await client.publish(tracks);
+          playLocalVideo();
+        }
 
         if (cancelled) return;
 
         setConnected(true);
         setConnecting(false);
         setStatusText("");
-        playLocalVideo();
         await subscribeExisting(client);
+        // Mark remote present if they already joined before we finished publishing
+        if ((client.remoteUsers || []).length > 0) {
+          setRemoteJoined(true);
+        }
         onConnectedRef.current?.();
       } catch (err) {
         console.error("[Call] failed", err);

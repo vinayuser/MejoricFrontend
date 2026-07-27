@@ -178,10 +178,10 @@ const CallNotification = () => {
     try {
       await ensureCallMediaPermission(normalizedType);
     } catch (mediaError) {
-      console.error(mediaError);
+      console.warn("[Call] Media check failed:", mediaError);
       Swal.fire({
-        icon: "error",
-        text: "Microphone access is required to accept calls. Please allow mic/camera permissions.",
+        icon: "warning",
+        text: "Please allow microphone/camera access to accept the call.",
         confirmButtonColor: "#9333ea",
       });
       return;

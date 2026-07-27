@@ -94,6 +94,7 @@ export default function Mentor() {
   const [agoraSession, setAgoraSession] = useState(null);
   const [callSessionId, setCallSessionId] = useState("");
   const callSessionIdRef = useRef("");
+  const initiateCallInFlightRef = useRef(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false); // Show feedback modal
   const [feedbackRating, setFeedbackRating] = useState(0); // Rating 1-5
   const [feedbackDescription, setFeedbackDescription] = useState(""); // Feedback description
@@ -304,6 +305,10 @@ export default function Mentor() {
   }, [showCallModal, timeLeft]);
 
   const initiateCall = async (mentor, type) => {
+    if (initiateCallInFlightRef.current) {
+      console.warn("[Call] Initiate already in progress — ignoring duplicate");
+      return;
+    }
     if (!mentor.isAvailable) {
       Swal.fire({
         icon: "warning",
@@ -315,21 +320,24 @@ export default function Mentor() {
     setCallType(type);
     setSelectedMentorId(mentor._id);
 
+    // Never hard-block on media here — AgoraCallUI enforces devices when publishing.
     try {
       await ensureCallMediaPermission(type);
     } catch (mediaError) {
-      console.error(mediaError);
+      console.warn("[Call] Pre-check media warning:", mediaError?.message || mediaError);
       Swal.fire({
-        icon: "error",
+        icon: "warning",
         text:
           type === "video"
-            ? "Camera and microphone access are required for video calls."
-            : "Microphone access is required for audio calls.",
+            ? "Please allow camera and microphone access, then try again."
+            : "Please allow microphone access, then try again.",
         confirmButtonColor: "#9333ea",
       });
+      initiateCallInFlightRef.current = false;
       return;
     }
 
+    initiateCallInFlightRef.current = true;
     try {
       const result = await apiPost("/calls/initiate", {
         receiverId: mentor._id,
@@ -337,41 +345,90 @@ export default function Mentor() {
         deferRing: true,
       });
 
+      console.log("[Call] initiate response:", result);
+
       trackPixel("Schedule", {
-      content_name: capitalizeName(mentor.name),
+        content_name: capitalizeName(mentor.name),
         content_category: `${type.charAt(0).toUpperCase() + type.slice(1)} Call`,
       });
 
-      if (result.success && result.data?.agora) {
-        if (result.data.remainingMinutes === 0) {
-          await apiPost("/calls/end", {
-            callSessionId: result.data.callSessionId || result.data._id || "",
-          });
-          Swal.fire({
-            icon: "warning",
-            text: "No remaining minutes available. Please recharge your wallet.",
-            confirmButtonColor: "#9333ea",
-          });
-          return;
-        }
-
-        setAgoraSession(result.data.agora);
-        setCallSessionId(result.data.callSessionId || result.data._id || "");
-        setTimeLeft((result.data.remainingMinutes || 0) * 60);
-        setShowCallModal(true);
-      } else {
+      if (!result?.success || !result?.data) {
         Swal.fire({
           icon: "error",
-          text: result.message || "Failed to initiate call.",
+          text: result?.message || "Failed to initiate call.",
           confirmButtonColor: "#9333ea",
         });
+        return;
+      }
+
+      const sessionId = result.data.callSessionId || result.data._id || "";
+      const agora =
+        result.data.agora ||
+        (result.data.callerToken && (result.data.roomId || result.data.channelName)
+          ? {
+              appId:
+                import.meta.env.VITE_AGORA_APP_ID ||
+                result.data.appId ||
+                "",
+              channelName: result.data.channelName || result.data.roomId,
+              token: result.data.callerToken,
+              uid: result.data.uid || result.data.callerUid,
+            }
+          : null);
+
+      if (!agora?.token || !agora?.channelName || !agora?.appId) {
+        console.error("[Call] Missing Agora credentials in initiate response", result.data);
+        Swal.fire({
+          icon: "error",
+          text: "Call session created but Agora credentials were missing. Check backend AGORA_APP_ID / certificate.",
+          confirmButtonColor: "#9333ea",
+        });
+        if (sessionId) {
+          try {
+            await apiPost("/calls/end", { callSessionId: sessionId });
+          } catch {
+            // ignore
+          }
+        }
+        return;
+      }
+
+      if (result.data.remainingMinutes === 0) {
+        await apiPost("/calls/end", { callSessionId: sessionId });
+        Swal.fire({
+          icon: "warning",
+          text: "No remaining minutes available. Please recharge your wallet.",
+          confirmButtonColor: "#9333ea",
+        });
+        return;
+      }
+
+      // Open call UI immediately — do NOT show success Swal
+      setAgoraSession(agora);
+      setCallSessionId(sessionId);
+      setTimeLeft((result.data.remainingMinutes || 0) * 60);
+      setShowCallModal(true);
+
+      // Optional: ring is already done on initiate in backend; keep best-effort
+      if (sessionId) {
+        try {
+          await apiPost("/calls/ring", { callSessionId: sessionId });
+        } catch (ringErr) {
+          console.warn(
+            "[Call] Early ring skipped:",
+            ringErr?.message || ringErr,
+          );
+        }
       }
     } catch (error) {
+      console.error("[Call] initiate failed:", error);
       Swal.fire({
         icon: "warning",
         text: error.message || "Failed to initiate call.",
         confirmButtonColor: "#9333ea",
       });
+    } finally {
+      initiateCallInFlightRef.current = false;
     }
   };
 
@@ -1028,10 +1085,11 @@ export default function Mentor() {
                     try {
                       await apiPost("/calls/ring", { callSessionId: sessionId });
                     } catch (err) {
-                      console.error("Failed to ring mate after media ready", err);
-                      toast.error(
-                        err.message ||
-                          "Connected, but could not notify the mate. Please try again.",
+                      // Initiate already notifies the mate; ring is idempotent / optional.
+                      // Don't toast "Invalid API" / noise if route already rung or missing.
+                      console.warn(
+                        "[Call] Post-join ring skipped:",
+                        err?.message || err,
                       );
                     }
                   }}
