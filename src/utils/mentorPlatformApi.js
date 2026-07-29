@@ -16,34 +16,27 @@ const FORMAT_DURATIONS = {
 };
 
 /**
- * Stored values are session totals for each format.
- * Legacy per-minute rates were typically ≤ 100 — convert those up.
+ * Stored value is the full amount for that slot (e.g. 20 = ₹20 for 45 min).
+ * No duration multiplication.
  */
-function toSessionTotal(value, duration, fallback) {
+function toSessionTotal(value, fallback) {
   const num = Number(value);
   if (!Number.isFinite(num) || num <= 0) return fallback;
-  if (num <= 100) return Math.round(num * duration);
   return Math.round(num);
 }
 
 function resolveMentorSessionPrices(profile = {}) {
   const videoCallPrice = toSessionTotal(
     profile.videoCallPrice,
-    FORMAT_DURATIONS.video,
     DEFAULT_VIDEO_SESSION_45,
   );
   const audioCallPrice = toSessionTotal(
     profile.audioCallPrice,
-    FORMAT_DURATIONS.audio,
     DEFAULT_AUDIO_SESSION_45,
-  );
-  const derivedVideo60 = Math.round(
-    (videoCallPrice / FORMAT_DURATIONS.video) * FORMAT_DURATIONS.video60,
   );
   const video60CallPrice = toSessionTotal(
     profile.video60CallPrice,
-    FORMAT_DURATIONS.video60,
-    derivedVideo60,
+    videoCallPrice,
   );
 
   return { audioCallPrice, videoCallPrice, video60CallPrice };

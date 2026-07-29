@@ -41,11 +41,10 @@ const STATUS_STYLES = {
   no_show: "bg-red-100 text-red-700",
 };
 
-/** Load stored price as a session total (legacy ≤100 = per-minute). */
-function storedToSessionTotal(value, duration) {
+/** Load stored price as-is (full amount for that slot). */
+function storedSessionAmount(value) {
   const num = Number(value);
   if (!Number.isFinite(num) || num <= 0) return "";
-  if (num <= 100) return String(Math.round(num * duration));
   return String(Math.round(num));
 }
 
@@ -68,9 +67,9 @@ function PricingTab({ userId }) {
         if (cancelled || !data?.success) return;
         const mentor = data.data?.mentor || {};
         setPrices({
-          audioCallPrice: storedToSessionTotal(mentor.audioCallPrice, 45),
-          videoCallPrice: storedToSessionTotal(mentor.videoCallPrice, 45),
-          video60CallPrice: storedToSessionTotal(mentor.video60CallPrice, 60),
+          audioCallPrice: storedSessionAmount(mentor.audioCallPrice),
+          videoCallPrice: storedSessionAmount(mentor.videoCallPrice),
+          video60CallPrice: storedSessionAmount(mentor.video60CallPrice),
         });
       })
       .catch((error) => toast.error(error.message || "Could not load pricing"))

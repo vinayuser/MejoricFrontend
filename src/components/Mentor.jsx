@@ -156,10 +156,17 @@ export default function Mentor() {
         return;
       }
 
+      // Cold visitors: open InstantChat → guest-login by IP (no full signup page)
       if (!isAuthenticated) {
-        showLoginSignupAlert(navigate, {
-          message: "Please sign up or login to start a chat.",
-        });
+        setSelectedMentorForChat(mentor);
+        setShowInstantChat(true);
+        if (typeof window.gtag === "function") {
+          window.gtag("event", "select_content", {
+            content_type: "chat",
+            item_id: mentor._id,
+            method: "guest_instant_chat",
+          });
+        }
         return;
       }
 
@@ -183,11 +190,10 @@ export default function Mentor() {
       }
 
       if (!chatAccess.canChat) {
+        // Guest trial over → still open chat popup so they can register in-chat
         if (user?.role === "guest") {
-          showLoginSignupAlert(navigate, {
-            message:
-              "Free trial credits used up. Please sign up or login to continue chatting.",
-          });
+          setSelectedMentorForChat(mentor);
+          setShowInstantChat(true);
           return;
         }
 
@@ -503,19 +509,7 @@ export default function Mentor() {
         if (autoCall) {
           initiateCall(mentor, "video");
         } else if (autoChat) {
-          if (!isAuthenticated) {
-            showLoginSignupAlert(navigate, {
-              message: "Please sign up or login to start a chat.",
-            });
-            return;
-          }
-          if (guestTrialExhausted && user?.role === "guest") {
-            showLoginSignupAlert(navigate, {
-              message:
-                "Free trial credits used up. Please sign up or login to continue chatting.",
-            });
-            return;
-          }
+          // Open chat for guests/visitors too (in-chat signup if needed)
           setSelectedMentorForChat(mentor);
           setShowInstantChat(true);
         }
@@ -941,13 +935,11 @@ export default function Mentor() {
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900 text-white text-[10px] px-2 py-1 rounded pointer-events-none whitespace-nowrap z-50 shadow-xl">
                   {!mentor.isAvailable
                     ? "Mate is offline"
-                    : !isAuthenticated
-                      ? "Sign up to chat"
-                      : guestTrialExhausted && user?.role === "guest"
-                        ? "Trial exhausted — sign up"
-                        : isAuthenticated && user?.role === "user" && walletBalance < 8
-                          ? "Recharge to chat (₹8/min)"
-                          : `₹${import.meta.env.VITE_CHAT_PRICE_PER_MIN || 8}/min`}
+                    : !isAuthenticated || user?.role === "guest"
+                      ? "Free trial chat"
+                      : isAuthenticated && user?.role === "user" && walletBalance < 8
+                        ? "Recharge to chat (₹8/min)"
+                        : `₹${import.meta.env.VITE_CHAT_PRICE_PER_MIN || 8}/min`}
                   <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                 </div>
               </button>

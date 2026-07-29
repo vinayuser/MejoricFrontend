@@ -246,12 +246,6 @@ const MateDetailsPage = () => {
       }
 
       if (autoChat) {
-        if (!isAuthenticated) {
-          showLoginSignupAlert(navigate, {
-            message: "Please sign up or login to start a chat.",
-          });
-          return;
-        }
         if (isChatDisabled) {
           showLoginSignupAlert(navigate, {
             message:
@@ -324,10 +318,9 @@ const MateDetailsPage = () => {
     }
 
     if (type === "chat") {
-      if (!isAuthenticated) {
-        showLoginSignupAlert(navigate, {
-          message: "Please sign up or login to start a chat.",
-        });
+      // Guests / visitors use InstantChat (IP guest session + in-chat signup)
+      if (!isAuthenticated || user?.role === "guest") {
+        setShowChat(true);
         return;
       }
 
@@ -367,11 +360,12 @@ const MateDetailsPage = () => {
       }
 
       if (!canChat) {
+        if (user?.role === "guest") {
+          setShowChat(true);
+          return;
+        }
         showLoginSignupAlert(navigate, {
-          message:
-            user?.role === "user"
-              ? blockMessage
-              : "Free trial credits used up. Please sign up or login to continue chatting.",
+          message: blockMessage,
         });
         return;
       }
@@ -568,11 +562,9 @@ const MateDetailsPage = () => {
                       <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900 text-white text-[10px] px-2 py-1 rounded pointer-events-none whitespace-nowrap z-50 shadow-xl">
                         {!mate.isAvailable
                           ? "Mate is offline"
-                          : isChatDisabled
-                            ? "Trial exhausted. Please sign up."
-                            : user?.role === "guest"
-                              ? "Sign up required"
-                              : `₹${import.meta.env.VITE_CHAT_PRICE_PER_MIN || 8}/min`}
+                          : !isAuthenticated || user?.role === "guest"
+                            ? "Free trial chat"
+                            : `₹${import.meta.env.VITE_CHAT_PRICE_PER_MIN || 8}/min`}
                         <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                       </div>
                     </button>

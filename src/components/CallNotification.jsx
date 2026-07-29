@@ -27,7 +27,7 @@ import { io } from "socket.io-client";
 import { apiGet, apiPost } from "../utils/api";
 import Swal from "sweetalert2";
 import toast from "react-hot-toast";
-import { capitalizeName } from "../utils/formatters";
+import { capitalizeName, displayChatSenderName } from "../utils/formatters";
 import { ensureCallMediaPermission } from "../utils/agoraMedia";
 
 const CALL_TIMEOUT_MS = 60000;
@@ -559,7 +559,7 @@ const CallNotification = () => {
                 Chat Request
               </h3>
               <p className="text-gray-600 mb-6">
-                {capitalizeName(incomingChat.senderName)} wants to chat
+                {displayChatSenderName(incomingChat.senderName)} wants to chat
               </p>
               <div className="flex gap-4">
                 <button

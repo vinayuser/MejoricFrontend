@@ -14,6 +14,15 @@ export const capitalizeName = (name) => {
     .join(" ");
 };
 
+/** Hide raw IPs from mate-facing UI — show "Guest" instead. */
+export const displayChatSenderName = (name, fallback = "Guest") => {
+  const raw = String(name || "").trim();
+  if (!raw) return fallback;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(raw)) return fallback;
+  if (raw.includes(":") && /^[0-9a-fA-F:.]+$/.test(raw)) return fallback;
+  return capitalizeName(raw);
+};
+
 const INTERNAL_GUEST_EMAIL = /^guest_\d+_\d+@mejoric\.com$/i;
 
 /**

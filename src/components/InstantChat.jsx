@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { FaPaperPlane, FaTimes, FaUser, FaClock, FaPlus, FaWallet } from "react-icons/fa";
+import { FaPaperPlane, FaTimes, FaUser, FaClock, FaPlus, FaWallet, FaUserPlus } from "react-icons/fa";
 import { apiPost, apiGet, getAuthToken } from "../utils/api";
 import {
   initializeFCM,
@@ -11,8 +11,8 @@ import toast from "react-hot-toast";
 import { io } from "socket.io-client";
 import Swal from "sweetalert2";
 import { capitalizeName } from "../utils/formatters";
-import { showLoginSignupAlert } from "../utils/authAlert";
 import { useAuth } from "../context/AuthContext";
+import GuestChatSignupPanel from "./GuestChatSignupPanel";
 import {
   isMockPaymentsEnabled,
   buildMockWalletVerifyPayload,
@@ -31,7 +31,8 @@ const timerStyles = `
 `;
 
 const InstantChat = ({ mentor: initialMentor, onClose }) => {
-  const { refreshWalletBalance, walletBalance: authWalletBalance } = useAuth();
+  const { refreshWalletBalance, walletBalance: authWalletBalance, login } =
+    useAuth();
   const mentor = initialMentor && initialMentor.user ? { ...initialMentor, ...initialMentor.user } : initialMentor;
   const [messages, setMessages] = useState([]);
   const [isAccepted, setIsAccepted] = useState(false);
@@ -53,6 +54,15 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
   const [rechargeAmount, setRechargeAmount] = useState("");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [showSignupPanel, setShowSignupPanel] = useState(false);
+  const [signupPanelVisible, setSignupPanelVisible] = useState(false);
+  const [matePromptedSignup, setMatePromptedSignup] = useState(false);
+  const [forceSignupRequired, setForceSignupRequired] = useState(false);
+  const [peerIsGuest, setPeerIsGuest] = useState(false);
+  const [askSignupCooldown, setAskSignupCooldown] = useState(false);
+  const signupOpenTimerRef = useRef(null);
+  const scheduleSignupRef = useRef(null);
+  const forceSignupRequiredRef = useRef(false);
   const messagesEndRef = useRef(null);
   const timerRef = useRef(null);
   const socketRef = useRef(null);
@@ -63,6 +73,63 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
   const rechargeAppliedAtRef = useRef(0);
   const userDismissedRechargeRef = useRef(false);
   const navigate = useNavigate();
+
+  const forceSignupStorageKey = (guestId) =>
+    guestId ? `force_signup_${guestId}` : null;
+
+  const markForceSignupRequired = useCallback((guestId) => {
+    setForceSignupRequired(true);
+    forceSignupRequiredRef.current = true;
+    const key = forceSignupStorageKey(guestId);
+    if (key) localStorage.setItem(key, "1");
+  }, []);
+
+  const clearForceSignupRequired = useCallback((guestId) => {
+    setForceSignupRequired(false);
+    forceSignupRequiredRef.current = false;
+    const key = forceSignupStorageKey(guestId);
+    if (key) localStorage.removeItem(key);
+  }, []);
+
+  const openSignupPanelSmoothly = useCallback((fromMate = false) => {
+    setMatePromptedSignup(Boolean(fromMate) || forceSignupRequiredRef.current);
+    setShowSignupPanel(true);
+    setSignupPanelVisible(false);
+    // Next frame → animate in
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => setSignupPanelVisible(true));
+    });
+  }, []);
+
+  const closeSignupPanelSmoothly = useCallback(() => {
+    // Mate-triggered signup cannot be dismissed until the guest registers
+    if (forceSignupRequiredRef.current) return;
+    setSignupPanelVisible(false);
+    if (signupOpenTimerRef.current) {
+      clearTimeout(signupOpenTimerRef.current);
+      signupOpenTimerRef.current = null;
+    }
+    setTimeout(() => {
+      setShowSignupPanel(false);
+      setMatePromptedSignup(false);
+    }, 320);
+  }, []);
+
+  const scheduleSignupPanelAfterInvite = useCallback(
+    (fromMate = true) => {
+      if (signupOpenTimerRef.current) {
+        clearTimeout(signupOpenTimerRef.current);
+      }
+      // Let the chat invite message show first, then slide signup up
+      signupOpenTimerRef.current = setTimeout(() => {
+        openSignupPanelSmoothly(fromMate);
+        signupOpenTimerRef.current = null;
+      }, 1400);
+    },
+    [openSignupPanelSmoothly],
+  );
+
+  scheduleSignupRef.current = scheduleSignupPanelAfterInvite;
 
   const closeRechargeDrawer = useCallback(() => {
     userDismissedRechargeRef.current = true;
@@ -163,11 +230,23 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
           } catch (guestErr) {
             if (guestErr.status === 403) {
               if (!isMounted) return;
+              // Already registered from this device/IP — ask login, don't dump to /signup
               closeSmoothly(() => {
-                showLoginSignupAlert(navigate, {
-                  message:
+                Swal.fire({
+                  icon: "info",
+                  text:
                     guestErr.message ||
-                    "Please register or login to continue.",
+                    "Please login to continue chatting from this device.",
+                  confirmButtonText: "Login",
+                  showCancelButton: true,
+                  cancelButtonText: "Close",
+                  confirmButtonColor: "#9333ea",
+                  didOpen: () => {
+                    const container = Swal.getContainer();
+                    if (container) container.style.zIndex = "100002";
+                  },
+                }).then((result) => {
+                  if (result.isConfirmed) navigate("/login");
                 });
               });
               return;
@@ -180,6 +259,9 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
             token = guestLoginResponse.data.token;
             localStorage.setItem("authToken", token);
             localStorage.setItem("user", JSON.stringify(user));
+            if (user?._id) {
+              localStorage.setItem("conversion_guest_id", user._id);
+            }
             window.dispatchEvent(new Event("storage"));
           } else {
             throw new Error("Guest login failed");
@@ -204,13 +286,38 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
         setCurrentUser(user);
         currentUserIdRef.current = user?._id || user?.id;
 
+        const amIMate = user?.role === "mate" || user?.role === "mentor";
+        setIsMate(amIMate);
+        if (amIMate) setIsAccepted(true); // Mates start as accepted
+        if (user?.role === "guest" && user?._id) {
+          localStorage.setItem("conversion_guest_id", user._id);
+          const storedForce =
+            localStorage.getItem(`force_signup_${user._id}`) === "1";
+          if (user.forceSignupBeforeChat || storedForce) {
+            markForceSignupRequired(user._id);
+            // Re-open locked signup sheet when chat is opened again
+            scheduleSignupRef.current?.(true);
+          } else {
+            try {
+              const limitRes = await apiGet("/auth/check-guest-limit", true);
+              if (limitRes?.data?.isExhausted) {
+                scheduleSignupRef.current?.(false);
+              }
+            } catch {
+              /* optional */
+            }
+          }
+        }
+
         // Determine if this is a trial chat (involves at least one guest)
         let isTrial = user?.role === "guest" || mentor.role === "guest";
-        if (!isTrial) {
+        let peerGuest = mentor.role === "guest";
+        if (!isTrial || (amIMate && !peerGuest)) {
           try {
             const recipientRes = await apiGet(`/users/get/${mentor._id}`);
             if (recipientRes.success && recipientRes.data?.role === "guest") {
               isTrial = true;
+              peerGuest = true;
             }
           } catch (e) {
             console.warn(
@@ -220,10 +327,7 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
           }
         }
         setIsTrialChat(isTrial);
-
-        const amIMate = user?.role === "mate" || user?.role === "mentor";
-        setIsMate(amIMate);
-        if (amIMate) setIsAccepted(true); // Mates start as accepted
+        setPeerIsGuest(peerGuest);
 
         // Sync FCM token with server in the background without blocking Socket initialization
         if (currentFcmToken) {
@@ -251,20 +355,48 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
             }
           } catch (err) {
             console.error("[Chat] Failed to notify mate", err);
-            closeSmoothly(() => {
-              Swal.fire({
-                icon: "warning",
-                text: err.message || "Failed to initiate chat. Please try again.",
-                confirmButtonText: "Close",
-                showCloseButton: true,
-                confirmButtonColor: "#9333ea",
-                didOpen: () => {
-                  const container = Swal.getContainer();
-                  if (container) container.style.zIndex = "100002";
+            const msg = String(err.message || "");
+            const needsSignup =
+              user?.role === "guest" &&
+              (/register|sign up|trial|exhausted|login|create an account/i.test(msg) ||
+                err.status === 403);
+            if (needsSignup) {
+              const forcedByMate =
+                Boolean(user?.forceSignupBeforeChat) ||
+                /mate has asked you to register/i.test(msg);
+              if (forcedByMate) {
+                markForceSignupRequired(user?._id || user?.id);
+              }
+              setMessages((prev) => [
+                ...prev,
+                {
+                  _id: `trial_signup_${Date.now()}`,
+                  senderId: "system",
+                  text:
+                    msg ||
+                    "Free trial used — create an account to keep chatting.",
+                  timestamp: new Date(),
+                  isSystem: true,
                 },
+              ]);
+              scheduleSignupRef.current?.(forcedByMate);
+              // Still connect socket so in-chat signup works
+            } else {
+              closeSmoothly(() => {
+                Swal.fire({
+                  icon: "warning",
+                  text: err.message || "Failed to initiate chat. Please try again.",
+                  confirmButtonText: "Close",
+                  showCloseButton: true,
+                  confirmButtonColor: "#9333ea",
+                  didOpen: () => {
+                    const container = Swal.getContainer();
+                    if (container) container.style.zIndex = "100002";
+                  },
+                });
               });
-            });
-            return;
+              return;
+            }
           }
         }
 
@@ -524,6 +656,28 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
           }
         });
 
+        socket.on("ask_signup", (data) => {
+          if (user?.role !== "guest") return;
+          const guestId = user?._id || user?.id;
+          markForceSignupRequired(guestId);
+          const inviteText =
+            data?.message ||
+            "Your mate invited you to create an account to continue chatting.";
+          setMessages((prev) => [
+            ...prev,
+            {
+              _id: `ask_signup_${Date.now()}`,
+              senderId: "system",
+              text: inviteText,
+              timestamp: new Date(),
+              isSystem: true,
+            },
+          ]);
+          // Scroll so invite line is visible, then slide signup sheet up (locked until register)
+          setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 50);
+          scheduleSignupRef.current?.(true);
+        });
+
         socket.on("notification", (payload) => {
           if (payload.type === "CHAT_DECLINED") {
             console.log("🚫 [Chat] Received CHAT_DECLINED via Socket");
@@ -712,6 +866,10 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
     return () => {
       console.log("[Chat] 🧹 Cleaning up Chat Effect...");
       isMounted = false;
+      if (signupOpenTimerRef.current) {
+        clearTimeout(signupOpenTimerRef.current);
+        signupOpenTimerRef.current = null;
+      }
       if (unsubscribeFCM) {
         unsubscribeFCM();
       }
@@ -944,6 +1102,11 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
 
   const handleSendMessage = async () => {
     if (!inputValue.trim() || sessionEnded || !currentUser) return;
+    if (forceSignupRequiredRef.current || forceSignupRequired) {
+      toast.error("Please create an account to continue chatting.");
+      openSignupPanelSmoothly(true);
+      return;
+    }
 
     const text = inputValue.trim();
     setInputValue(""); // Clear early
@@ -987,6 +1150,16 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
       }
     } catch (error) {
       console.error("[Chat] ❌ Send error:", error);
+      const msg = String(error?.message || "");
+      if (
+        currentUser?.role === "guest" &&
+        (error?.status === 403 || /create an account|register/i.test(msg))
+      ) {
+        markForceSignupRequired(currentUser?._id || currentUser?.id);
+        openSignupPanelSmoothly(true);
+        toast.error(msg || "Please create an account to continue chatting.");
+        return;
+      }
       toast.error("Network error");
     }
   };
@@ -1051,6 +1224,70 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
+  const handleAskGuestSignup = () => {
+    if (askSignupCooldown) return;
+    const conversationId =
+      conversationIdRef.current ||
+      [String(currentUser?._id || currentUser?.id || ""), String(mentor._id)]
+        .sort()
+        .join("_");
+    const guestUserId = mentor?._id || mentor?.id;
+    if (!socketRef.current || !conversationId) {
+      toast.error("Chat not connected yet");
+      return;
+    }
+    socketRef.current.emit("ask_signup", {
+      conversationId,
+      guestUserId,
+      message:
+        "Your mate invited you to create an account to continue chatting.",
+    });
+    setAskSignupCooldown(true);
+    setTimeout(() => setAskSignupCooldown(false), 2500);
+    setMessages((prev) => [
+      ...prev,
+      {
+        _id: `ask_signup_sent_${Date.now()}`,
+        senderId: "system",
+        text: "You invited this guest to register.",
+        timestamp: new Date(),
+        isSystem: true,
+      },
+    ]);
+    toast.success("Signup invite sent");
+  };
+
+  const handleGuestConverted = (user, token) => {
+    const nextUser = { ...user, token };
+    login(nextUser);
+    setCurrentUser(user);
+    currentUserIdRef.current = user?._id || user?.id;
+    clearForceSignupRequired(user?._id || user?.id);
+    setIsTrialChat(false);
+    setIsTrialSession(false);
+    closeSignupPanelSmoothly();
+    void refreshWalletBalance?.();
+    const conversationId = conversationIdRef.current;
+    if (socketRef.current && conversationId) {
+      socketRef.current.emit("sync_recharge", conversationId);
+      socketRef.current.emit(
+        "join_chat",
+        conversationId,
+        user?._id || user?.id,
+      );
+    }
+    setMessages((prev) => [
+      ...prev,
+      {
+        _id: `converted_${Date.now()}`,
+        senderId: "system",
+        text: "You're registered! Welcome balance added — chat continues.",
+        timestamp: new Date(),
+        isSystem: true,
+      },
+    ]);
+  };
+
   return (
     <div
       className={`fixed inset-0 z-[10001] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ease-out ${
@@ -1063,6 +1300,16 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
           isClosing ? "opacity-0 scale-95 translate-y-2" : "opacity-100 scale-100 translate-y-0"
         }`}
       >
+        {showSignupPanel && currentUser?.role === "guest" && (
+          <GuestChatSignupPanel
+            guestUserId={currentUser?._id || currentUser?.id}
+            matePrompted={matePromptedSignup || forceSignupRequired}
+            forced={forceSignupRequired}
+            visible={signupPanelVisible}
+            onClose={closeSignupPanelSmoothly}
+            onConverted={handleGuestConverted}
+          />
+        )}
         <div className="bg-purple-600 p-4 flex justify-between items-center text-white">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center border-2 border-white/50 relative">
@@ -1090,9 +1337,32 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {isStarted && (
+            {isMate && peerIsGuest && isStarted && !sessionEnded && (
+              <button
+                type="button"
+                onClick={handleAskGuestSignup}
+                disabled={askSignupCooldown}
+                className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide bg-white text-purple-700 px-2.5 py-1.5 rounded-full border border-white/40 hover:bg-purple-50 disabled:opacity-60"
+                title="Ask guest to register"
+              >
+                <FaUserPlus className="text-[10px]" />
+                {askSignupCooldown ? "Sent…" : "Ask signup"}
+              </button>
+            )}
+            {currentUser?.role === "guest" && !sessionEnded && (
+              <button
+                type="button"
+                onClick={() => openSignupPanelSmoothly(false)}
+                className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide bg-white/20 text-white px-2.5 py-1.5 rounded-full border border-white/30 hover:bg-white/30"
+                title="Create account"
+              >
+                <FaUserPlus className="text-[10px]" />
+                Register
+              </button>
+            )}
+            {isStarted && currentUser?.role !== "guest" && (
               <>
-                {/* Header Wallet Pill for Payer (Registered User) */}
+                {/* Header Wallet Pill for Payer (Registered User) — hidden for guests */}
                 {!isTrialSession && !isMate && walletBalance !== null && (
                   <div className="relative group flex items-center gap-1.5">
                     <div className="flex items-center gap-1.5 bg-emerald-500 text-white px-3.5 py-1.5 rounded-full border border-emerald-400 shadow-lg shadow-emerald-500/20 font-semibold">
@@ -1247,6 +1517,12 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
                       )}
                     </div>
                   </div>
+                ) : msg.isSystem || msg.senderId === "system" ? (
+                  <div className="flex justify-center my-2">
+                    <div className="max-w-[90%] text-center text-[11px] text-violet-800 bg-violet-50 border border-violet-100 px-3 py-1.5 rounded-full">
+                      {msg.text}
+                    </div>
+                  </div>
                 ) : (
                   <div
                     className={`flex ${msg.isOwn ? "justify-end" : "justify-start"}`}
@@ -1285,15 +1561,13 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
               {currentUser?.role === "guest" ? (
                 <button
                   onClick={() => {
-                    localStorage.setItem("redirect_mate_id", mentor._id);
-                    localStorage.setItem("redirect_type", "chat");
                     if (currentUser?._id) {
                       localStorage.setItem(
                         "conversion_guest_id",
                         currentUser._id,
                       );
                     }
-                    navigate("/signup");
+                    openSignupPanelSmoothly(false);
                   }}
                   className="w-full bg-purple-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-purple-200 active:scale-[0.98] transition-transform"
                 >
@@ -1319,25 +1593,56 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
               )}
             </div>
           ) : (
-            <div className="flex gap-2">
+            <div className="space-y-2">
+              {isMate && peerIsGuest && (
+                <button
+                  type="button"
+                  onClick={handleAskGuestSignup}
+                  disabled={askSignupCooldown}
+                  className="w-full flex items-center justify-center gap-2 text-xs font-semibold text-violet-700 bg-violet-50 border border-violet-200 py-2 rounded-xl disabled:opacity-60"
+                >
+                  <FaUserPlus />
+                  {askSignupCooldown
+                    ? "Invite sent…"
+                    : "Ask guest to register"}
+                </button>
+              )}
+              {currentUser?.role === "guest" && (
+                <button
+                  type="button"
+                  onClick={() => openSignupPanelSmoothly(false)}
+                  className="w-full flex items-center justify-center gap-2 text-xs font-semibold text-violet-700 bg-violet-50 border border-violet-200 py-2 rounded-xl sm:hidden"
+                >
+                  <FaUserPlus />
+                  Create account · get welcome balance
+                </button>
+              )}
+              <div className="flex gap-2">
               <input
                 type="text"
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
                 onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
                 placeholder={
-                  !currentUser ? "Connecting..." : "Type a message..."
+                  !currentUser
+                    ? "Connecting..."
+                    : forceSignupRequired
+                      ? "Register to continue chatting..."
+                      : "Type a message..."
                 }
-                disabled={!currentUser}
+                disabled={!currentUser || forceSignupRequired}
                 className="flex-1 bg-gray-100 border-none rounded-xl px-4 py-3 text-base focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
               />
               <button
                 onClick={handleSendMessage}
-                disabled={!inputValue.trim() || !currentUser}
+                disabled={
+                  !inputValue.trim() || !currentUser || forceSignupRequired
+                }
                 className="bg-purple-600 text-white p-3 rounded-xl active:scale-95 transition-transform disabled:opacity-50 disabled:scale-100"
               >
                 <FaPaperPlane />
               </button>
+              </div>
             </div>
           )}
         </div>
