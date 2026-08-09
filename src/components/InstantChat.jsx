@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { FaPaperPlane, FaTimes, FaUser, FaClock, FaPlus, FaWallet, FaUserPlus } from "react-icons/fa";
-import { apiPost, apiGet, getAuthToken } from "../utils/api";
+import { FaPaperPlane, FaTimes, FaUser, FaClock, FaPlus, FaWallet, FaUserPlus, FaBan } from "react-icons/fa";
+import {
+  apiPost,
+  apiGet,
+  getAuthToken,
+  isPlatformBlockedError,
+  handlePlatformBlocked,
+} from "../utils/api";
 import {
   initializeFCM,
   syncFCMTokenWithServer,
@@ -63,6 +69,7 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
   const signupOpenTimerRef = useRef(null);
   const scheduleSignupRef = useRef(null);
   const forceSignupRequiredRef = useRef(false);
+  const accessBlockedRef = useRef(false);
   const messagesEndRef = useRef(null);
   const timerRef = useRef(null);
   const socketRef = useRef(null);
@@ -154,6 +161,38 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
     [onClose],
   );
 
+  const stopSocketHard = useCallback((socket) => {
+    try {
+      if (socket) {
+        socket.io.opts.reconnection = false;
+        socket.removeAllListeners();
+        socket.disconnect();
+      }
+      if (socketRef.current && socketRef.current !== socket) {
+        socketRef.current.io.opts.reconnection = false;
+        socketRef.current.removeAllListeners();
+        socketRef.current.disconnect();
+      }
+      socketRef.current = null;
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const handleAccessBlocked = useCallback(
+    (message, socket) => {
+      if (accessBlockedRef.current) return;
+      accessBlockedRef.current = true;
+      stopSocketHard(socket);
+      handlePlatformBlocked(
+        message ||
+          "Access denied. Your access to this platform has been blocked.",
+      );
+      closeSmoothly();
+    },
+    [closeSmoothly, stopSocketHard],
+  );
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -230,6 +269,13 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
           } catch (guestErr) {
             if (guestErr.status === 403) {
               if (!isMounted) return;
+              if (
+                isPlatformBlockedError(guestErr.status, guestErr.message) ||
+                /blocked/i.test(String(guestErr.message || ""))
+              ) {
+                handleAccessBlocked(guestErr.message);
+                return;
+              }
               // Already registered from this device/IP — ask login, don't dump to /signup
               closeSmoothly(() => {
                 Swal.fire({
@@ -402,14 +448,22 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
 
         if (!isMounted) return;
 
+        if (accessBlockedRef.current || window.__platformBlocked) {
+          handleAccessBlocked();
+          return;
+        }
+
         // Initialize Socket.io (using both websocket and polling for robust cross-browser support, e.g., Brave/Opera)
         const socket = io(SOCKET_SERVER_URL, {
           transports: ["websocket", "polling"],
+          reconnection: true,
+          reconnectionAttempts: 8,
         });
         socketInstance = socket;
         socketRef.current = socket;
 
         const syncMessages = async () => {
+          if (accessBlockedRef.current || window.__platformBlocked) return;
           try {
             const targetMentorId = mentor?._id || mentor?.id;
             console.log(`[Chat] Syncing history for ${targetMentorId}...`);
@@ -452,10 +506,28 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
             }
           } catch (err) {
             console.error("[Chat] Sync failed", err);
+            if (
+              isPlatformBlockedError(err?.status, err?.message) ||
+              /blocked|access denied/i.test(String(err?.message || ""))
+            ) {
+              handleAccessBlocked(err.message, socket);
+            }
           }
         };
 
+        socket.on("force_logout", (payload) => {
+          handleAccessBlocked(
+            payload?.message ||
+              "Access denied. Your access to this platform has been blocked.",
+            socket,
+          );
+        });
+
         socket.on("connect", () => {
+          if (accessBlockedRef.current || window.__platformBlocked) {
+            stopSocketHard(socket);
+            return;
+          }
           console.log("🔌 [Socket] Connected:", socket.id);
           setIsReconnecting(false);
 
@@ -474,12 +546,34 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
           syncMessages();
         });
 
+        socket.on("disconnect", (reason) => {
+          if (accessBlockedRef.current || window.__platformBlocked) {
+            stopSocketHard(socket);
+            return;
+          }
+          // Server forced disconnect for blocked IP — do not hammer history
+          if (reason === "io server disconnect") {
+            handleAccessBlocked(
+              "Access denied. Your access to this platform has been blocked.",
+              socket,
+            );
+          }
+        });
+
         socket.on("reconnecting", (attemptNumber) => {
+          if (accessBlockedRef.current || window.__platformBlocked) {
+            stopSocketHard(socket);
+            return;
+          }
           console.log(`🔌 [Socket] Reconnecting (attempt ${attemptNumber})...`);
           setIsReconnecting(true);
         });
 
         socket.on("reconnect", (attemptNumber) => {
+          if (accessBlockedRef.current || window.__platformBlocked) {
+            stopSocketHard(socket);
+            return;
+          }
           console.log(
             `🔌 [Socket] Reconnected after ${attemptNumber} attempts`,
           );
@@ -489,6 +583,10 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
         });
 
         socket.on("reconnect_error", (error) => {
+          if (accessBlockedRef.current || window.__platformBlocked) {
+            stopSocketHard(socket);
+            return;
+          }
           console.error("🔌 [Socket] Reconnect error:", error);
           setIsReconnecting(true);
         });
@@ -842,27 +940,32 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
         });
       } catch (error) {
         console.error("Chat init error:", error);
-        if (isMounted) {
-          closeSmoothly(() => {
-            Swal.fire({
-              icon: "error",
-              text: error.message || "Failed to initialize chat. Please try again.",
-              confirmButtonText: "Close",
-              showCloseButton: true,
-              confirmButtonColor: "#9333ea",
-              didOpen: () => {
-                const container = Swal.getContainer();
-                if (container) container.style.zIndex = "100002";
-              },
-            });
-          });
+        if (!isMounted) return;
+        if (
+          isPlatformBlockedError(error?.status, error?.message) ||
+          /blocked|access denied/i.test(String(error?.message || ""))
+        ) {
+          handleAccessBlocked(error.message, socketInstance);
+          return;
         }
+        closeSmoothly(() => {
+          Swal.fire({
+            icon: "error",
+            text: error.message || "Failed to initialize chat. Please try again.",
+            confirmButtonText: "Close",
+            showCloseButton: true,
+            confirmButtonColor: "#9333ea",
+            didOpen: () => {
+              const container = Swal.getContainer();
+              if (container) container.style.zIndex = "100002";
+            },
+          });
+        });
       }
     };
 
     initChat();
 
-    const targetMentorId = mentor?._id || mentor?.id;
     return () => {
       console.log("[Chat] 🧹 Cleaning up Chat Effect...");
       isMounted = false;
@@ -875,13 +978,31 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
       }
       if (socketInstance) {
         console.log("🔌 [Socket] Disconnecting socket instance...");
+        try {
+          socketInstance.io.opts.reconnection = false;
+        } catch {
+          /* ignore */
+        }
         socketInstance.disconnect();
       } else if (socketRef.current) {
         console.log("🔌 [Socket] Disconnecting socketRef fallback...");
+        try {
+          socketRef.current.io.opts.reconnection = false;
+        } catch {
+          /* ignore */
+        }
         socketRef.current.disconnect();
       }
     };
-  }, [mentor?._id, mentor?.id, mentor.name, onClose, closeSmoothly, navigate]);
+  }, [
+    mentor?._id,
+    mentor?.id,
+    mentor.name,
+    closeSmoothly,
+    navigate,
+    handleAccessBlocked,
+    stopSocketHard,
+  ]);
 
   useEffect(() => {
     let channel = null;
@@ -1257,6 +1378,51 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
     toast.success("Signup invite sent");
   };
 
+  const handleBlockPeer = async () => {
+    const targetUserId = mentor?._id || mentor?.id;
+    if (!targetUserId) {
+      toast.error("User not identified");
+      return;
+    }
+    const conversationId =
+      conversationIdRef.current ||
+      [String(currentUser?._id || currentUser?.id || ""), String(targetUserId)]
+        .sort()
+        .join("_");
+
+    const confirm = await Swal.fire({
+      icon: "warning",
+      title: "Block this user?",
+      html: `This blocks their IP on Cloudflare and bans them from the platform.<br/><span class="text-xs text-slate-500">Shared networks may affect other people on the same IP.</span>`,
+      showCancelButton: true,
+      confirmButtonText: "Block user",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#dc2626",
+      didOpen: () => {
+        const container = Swal.getContainer();
+        if (container) container.style.zIndex = "100002";
+      },
+    });
+    if (!confirm.isConfirmed) return;
+
+    try {
+      const res = await apiPost("/moderation/block-ip", {
+        targetUserId,
+        source: "mate_chat",
+        reason: "Blocked from chat by mate",
+        conversationId,
+      });
+      if (res?.success) {
+        toast.success("User blocked");
+        onClose();
+      } else {
+        toast.error(res?.message || "Failed to block user");
+      }
+    } catch (err) {
+      toast.error(err?.message || "Failed to block user");
+    }
+  };
+
   const handleGuestConverted = (user, token) => {
     const nextUser = { ...user, token };
     login(nextUser);
@@ -1347,6 +1513,17 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
               >
                 <FaUserPlus className="text-[10px]" />
                 {askSignupCooldown ? "Sent…" : "Ask signup"}
+              </button>
+            )}
+            {isMate && isStarted && !sessionEnded && (
+              <button
+                type="button"
+                onClick={handleBlockPeer}
+                className="hidden sm:flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide bg-red-500/90 text-white px-2.5 py-1.5 rounded-full border border-red-300/40 hover:bg-red-600"
+                title="Block user IP"
+              >
+                <FaBan className="text-[10px]" />
+                Block
               </button>
             )}
             {currentUser?.role === "guest" && !sessionEnded && (
@@ -1605,6 +1782,16 @@ const InstantChat = ({ mentor: initialMentor, onClose }) => {
                   {askSignupCooldown
                     ? "Invite sent…"
                     : "Ask guest to register"}
+                </button>
+              )}
+              {isMate && (
+                <button
+                  type="button"
+                  onClick={handleBlockPeer}
+                  className="w-full flex items-center justify-center gap-2 text-xs font-semibold text-red-700 bg-red-50 border border-red-200 py-2 rounded-xl"
+                >
+                  <FaBan />
+                  Block user (IP)
                 </button>
               )}
               {currentUser?.role === "guest" && (

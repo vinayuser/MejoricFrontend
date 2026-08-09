@@ -16,10 +16,9 @@ const QUICK_LINKS = [
   { name: "Home", path: "/" },
   { name: "Mate", path: "/mate" },
   { name: "Mentor", path: "/mentors/professional/browse" },
+  { name: "Psychometric Test", path: "/compass" },
   { name: "Certificate", path: "/certificate" },
   { name: "Terms & Conditions", path: "/terms-and-conditions" },
-
-  
 ];
 
 const LEGAL_LINKS = [

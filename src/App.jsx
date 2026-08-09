@@ -39,6 +39,7 @@ import CommunityComingSoon from './components/CommunityComingSoon';
 import TherapySessionJoin from './components/TherapySessionJoin';
 import Careers from './components/Careers';
 import CareerDetail from './components/CareerDetail';
+import CompassAssessment from './components/compass/CompassAssessment';
 import { getRouterBasename } from './utils/basePath';
 
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -125,6 +126,8 @@ const EmailVerificationGate = ({ children }) => {
         "/reset-password",
         "/mentors",
         "/community",
+        "/compass",
+        "/psychometric-test",
       ];
       
       const isPublicRoute =
@@ -196,6 +199,8 @@ function App() {
             <Route path="/community" element={<CommunityComingSoon />} />
             <Route path="/careers" element={<Careers />} />
             <Route path="/careers/:id" element={<CareerDetail />} />
+            <Route path="/compass" element={<CompassAssessment />} />
+            <Route path="/psychometric-test" element={<Navigate to="/compass" replace />} />
             <Route
               path="/therapy-session/:enrollmentId"
               element={<TherapySessionJoin />}

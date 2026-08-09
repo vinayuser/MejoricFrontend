@@ -1,0 +1,894 @@
+/* Mejoric Compass — uses site brand tokens from index.css */
+.compass-page {
+  --c-deep: var(--brand-deep, #5f4f86);
+  --c-muted: var(--brand, #7c6ba8);
+  --c-mid: var(--brand-mid, #a593cc);
+  --c-soft: var(--brand-soft, #e3dcf0);
+  --c-pale: var(--brand-light, #f4f1fa);
+  --c-rose: var(--emotional, #b5677a);
+  --c-pink: var(--emotional-mid, #d98fa0);
+  --c-blush: var(--emotional-soft, #f6d9de);
+  --c-pale-pink: var(--emotional-light, #fdf1f3);
+  --c-ink: var(--neutral-bk, #0c0c0c);
+  --c-body: #3a3a3a;
+  --c-muted-g: var(--neutral-g5, #5a5a5a);
+  --c-light-g: #808080;
+  --c-border: var(--neutral-g15, #e2e2e2);
+  --c-off: var(--neutral-g05, #f7f7f5);
+  --c-gold: var(--gold, #c8a84b);
+  --c-plum: #3d2b3a;
+  --c-shadow: 0 10px 34px rgba(95, 79, 134, 0.16);
+  --c-shadow-sm: 0 2px 10px rgba(95, 79, 134, 0.08);
+
+  min-height: 100vh;
+  color: var(--c-body);
+  background:
+    radial-gradient(ellipse 60% 40% at 85% -5%, rgba(165, 147, 204, 0.28) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 35% at -5% 105%, rgba(181, 103, 122, 0.14) 0%, transparent 60%),
+    var(--c-pale);
+}
+
+.compass-progress {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  height: 4px;
+  background: rgba(95, 79, 134, 0.08);
+}
+
+.compass-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--c-deep), var(--c-rose));
+  transition: width 0.35s ease;
+}
+
+.compass-wrap {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 0 1.25rem 3rem;
+}
+
+.compass-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem 0;
+}
+
+.compass-brand {
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 700;
+  font-size: 1.25rem;
+  letter-spacing: 0.04em;
+  color: var(--c-ink);
+}
+
+.compass-brand span {
+  color: var(--c-muted);
+}
+
+.compass-brand small {
+  display: block;
+  font-family: "DM Sans", sans-serif;
+  font-weight: 500;
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--c-rose);
+  margin-top: 2px;
+}
+
+.compass-confid {
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--c-light-g);
+}
+
+.compass-screen {
+  animation: compassFadeUp 0.45s ease;
+}
+
+@keyframes compassFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.compass-eyebrow {
+  font-size: 0.65rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--c-muted);
+  margin-bottom: 0.85rem;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.compass-eyebrow::before {
+  content: "";
+  width: 28px;
+  height: 1px;
+  background: var(--c-muted);
+}
+
+.compass-hero-title {
+  font-family: "Playfair Display", Georgia, serif !important;
+  font-weight: 700;
+  font-size: clamp(1.85rem, 4vw, 2.75rem);
+  line-height: 1.1;
+  color: var(--c-ink) !important;
+  letter-spacing: -0.02em;
+}
+
+.compass-hero-title em {
+  color: var(--c-deep);
+  font-style: italic;
+  font-weight: 500;
+}
+
+.compass-hero-sub {
+  font-family: "Playfair Display", Georgia, serif;
+  font-style: italic;
+  font-size: 1.1rem;
+  color: var(--c-plum);
+  max-width: 560px;
+  margin-top: 1rem;
+  line-height: 1.6;
+}
+
+.compass-pillars {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin-top: 2rem;
+}
+
+.compass-pillar {
+  background: #fff;
+  border: 1px solid var(--c-border);
+  border-radius: 14px;
+  padding: 1.1rem 1rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.compass-pillar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+}
+
+.compass-pillar.one::before {
+  background: var(--c-deep);
+}
+.compass-pillar.two::before {
+  background: var(--c-rose);
+}
+.compass-pillar.three::before {
+  background: var(--c-gold);
+}
+
+.compass-pillar h3 {
+  font-family: "Playfair Display", Georgia, serif !important;
+  font-size: 1.05rem !important;
+  font-weight: 600;
+  color: var(--c-ink) !important;
+  margin-bottom: 0.4rem;
+}
+
+.compass-pillar p {
+  font-size: 0.72rem;
+  color: var(--c-muted-g);
+  line-height: 1.55;
+}
+
+.compass-meta {
+  display: flex;
+  gap: 1.35rem;
+  flex-wrap: wrap;
+  margin-top: 1.75rem;
+  padding: 1rem 1.25rem;
+  background: #fff;
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+}
+
+.compass-meta-item {
+  font-size: 0.72rem;
+  color: var(--c-muted-g);
+}
+
+.compass-meta-item b {
+  color: var(--c-ink);
+  font-weight: 700;
+  display: block;
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.15rem;
+}
+
+.compass-safety {
+  margin-top: 1.35rem;
+  padding: 1rem 1.25rem;
+  border-radius: 12px;
+  background: var(--c-pale-pink);
+  border: 1px solid rgba(181, 103, 122, 0.28);
+  font-size: 0.72rem;
+  color: var(--c-plum);
+  line-height: 1.65;
+}
+
+.compass-safety b {
+  color: var(--c-rose);
+}
+
+.compass-consent {
+  margin-top: 1.35rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  font-size: 0.72rem;
+  color: var(--c-muted-g);
+  cursor: pointer;
+}
+
+.compass-consent input {
+  margin-top: 3px;
+  accent-color: var(--c-deep);
+}
+
+.compass-cta {
+  margin-top: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.compass-btn {
+  font-family: "DM Sans", sans-serif;
+  font-weight: 700;
+  font-size: 0.8rem;
+  letter-spacing: 0.02em;
+  border: none;
+  border-radius: 100px;
+  padding: 0.9rem 1.75rem;
+  cursor: pointer;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.compass-btn-primary {
+  background: linear-gradient(135deg, var(--c-deep), var(--c-muted));
+  color: #fff;
+  box-shadow: var(--c-shadow);
+}
+
+.compass-btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.compass-btn-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.compass-btn-ghost {
+  background: transparent;
+  color: var(--c-muted);
+  border: 1.5px solid var(--c-mid);
+  padding: 0.8rem 1.5rem;
+}
+
+.compass-btn-ghost:hover {
+  background: var(--c-pale);
+}
+
+.compass-hint {
+  font-size: 0.65rem;
+  color: var(--c-light-g);
+}
+
+.compass-foot {
+  margin: 2.5rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--c-border);
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.6rem;
+  color: var(--c-light-g);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.compass-test-head {
+  padding: 1.5rem 0 0.4rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+}
+
+.compass-section-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--c-rose);
+}
+
+.compass-page-count {
+  font-size: 0.7rem;
+  color: var(--c-light-g);
+}
+
+.compass-q-card {
+  background: #fff;
+  border: 1px solid var(--c-border);
+  border-radius: 16px;
+  padding: 1.75rem 1.5rem;
+  margin: 1.15rem 0;
+  box-shadow: var(--c-shadow-sm);
+}
+
+.compass-q-text {
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: clamp(1.05rem, 2.5vw, 1.35rem);
+  font-weight: 500;
+  color: var(--c-ink);
+  line-height: 1.4;
+  margin-bottom: 1.35rem;
+}
+
+.compass-q-text .qn {
+  color: var(--c-mid);
+  font-weight: 700;
+  margin-right: 0.5rem;
+}
+
+.compass-likert-opts {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.6rem;
+}
+
+.compass-likert-opt {
+  position: relative;
+}
+
+.compass-likert-opt input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  cursor: pointer;
+}
+
+.compass-likert-opt span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 52px;
+  border-radius: 10px;
+  border: 1.5px solid var(--c-border);
+  background: var(--c-off);
+  color: var(--c-muted-g);
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.compass-likert-opt input:checked + span {
+  background: linear-gradient(135deg, var(--c-deep), var(--c-muted));
+  border-color: var(--c-deep);
+  color: #fff;
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px rgba(95, 79, 134, 0.3);
+}
+
+.compass-likert-opt:hover span {
+  border-color: var(--c-mid);
+}
+
+.compass-likert-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.6rem;
+  color: var(--c-light-g);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 0.65rem;
+}
+
+.compass-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 1.5rem 0 2.5rem;
+  gap: 0.75rem;
+}
+
+.compass-dots {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.compass-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--c-border);
+}
+
+.compass-dot.done {
+  background: var(--c-muted);
+}
+
+.compass-dot.now {
+  background: var(--c-rose);
+  width: 16px;
+  border-radius: 4px;
+}
+
+.compass-res-kicker {
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--c-rose);
+  margin-bottom: 0.75rem;
+}
+
+.compass-res-code {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+  background: #fff;
+  border: 1.5px solid var(--c-mid);
+  border-radius: 100px;
+  padding: 0.6rem 1.25rem 0.6rem 0.85rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--c-shadow-sm);
+}
+
+.compass-res-code .letters {
+  display: flex;
+  gap: 4px;
+}
+
+.compass-res-code .letters span {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--c-deep), var(--c-muted));
+  color: #fff;
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.compass-res-code .code-label {
+  font-size: 0.7rem;
+  color: var(--c-muted-g);
+  font-weight: 600;
+}
+
+.compass-res-title {
+  font-family: "Playfair Display", Georgia, serif !important;
+  font-weight: 700;
+  font-size: clamp(1.6rem, 3.5vw, 2.25rem) !important;
+  color: var(--c-ink) !important;
+  line-height: 1.15;
+}
+
+.compass-res-title em {
+  color: var(--c-deep);
+  font-style: italic;
+  font-weight: 500;
+}
+
+.compass-res-desc {
+  font-size: 0.9rem;
+  color: var(--c-muted-g);
+  max-width: 640px;
+  margin-top: 0.85rem;
+  line-height: 1.75;
+}
+
+.compass-section-title {
+  font-family: "Playfair Display", Georgia, serif !important;
+  font-size: 1.35rem !important;
+  font-weight: 600;
+  color: var(--c-ink) !important;
+  margin: 2.5rem 0 0.4rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.compass-section-title em {
+  color: var(--c-deep);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.compass-section-sub {
+  font-size: 0.75rem;
+  color: var(--c-light-g);
+  margin-bottom: 1.15rem;
+  line-height: 1.6;
+}
+
+.compass-viz-row {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.compass-legend {
+  flex: 1;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.compass-axis-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.compass-axis-pole {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--c-muted-g);
+  width: 130px;
+  flex-shrink: 0;
+}
+
+.compass-axis-pole.win {
+  color: var(--c-deep);
+}
+
+.compass-axis-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--c-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.compass-axis-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--c-rose), var(--c-deep));
+  border-radius: 8px;
+}
+
+.compass-axis-pct {
+  font-size: 0.65rem;
+  color: var(--c-light-g);
+  width: 36px;
+  text-align: right;
+}
+
+.compass-stack {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.compass-stack-card {
+  background: #fff;
+  border: 1px solid var(--c-border);
+  border-radius: 14px;
+  padding: 1.1rem 1rem;
+}
+
+.compass-stack-card .role {
+  font-size: 0.55rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--c-rose);
+  margin-bottom: 0.5rem;
+}
+
+.compass-stack-card .fn-name {
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--c-deep);
+  margin: 0.35rem 0 0.5rem;
+}
+
+.compass-stack-card p {
+  font-size: 0.65rem;
+  color: var(--c-muted-g);
+  line-height: 1.55;
+}
+
+.compass-stack-card.inferior {
+  background: var(--c-plum);
+  border-color: var(--c-plum);
+}
+
+.compass-stack-card.inferior .role {
+  color: var(--c-gold);
+}
+
+.compass-stack-card.inferior .fn-name {
+  color: #fff;
+}
+
+.compass-stack-card.inferior p {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.compass-trait-wrap {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 1.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.compass-trait-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.compass-trait-row {
+  display: grid;
+  grid-template-columns: 150px 1fr 40px;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.compass-trait-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--c-ink);
+}
+
+.compass-trait-bar {
+  height: 9px;
+  background: var(--c-border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.compass-trait-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--c-mid), var(--c-deep));
+}
+
+.compass-trait-val {
+  font-size: 0.65rem;
+  color: var(--c-light-g);
+  text-align: right;
+}
+
+.compass-archetype {
+  margin-top: 1rem;
+  padding: 1.5rem 1.65rem;
+  border-radius: 18px;
+  background: linear-gradient(135deg, var(--c-deep), var(--c-muted));
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+
+.compass-archetype::after {
+  content: "";
+  position: absolute;
+  top: -40px;
+  right: -40px;
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 255, 255, 0.16), transparent 70%);
+}
+
+.compass-archetype-eyebrow {
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+}
+
+.compass-archetype-name {
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-bottom: 0.6rem;
+  position: relative;
+  z-index: 1;
+}
+
+.compass-archetype-text {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.88);
+  line-height: 1.7;
+  max-width: 640px;
+  position: relative;
+  z-index: 1;
+}
+
+.compass-rec-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.85rem;
+  margin-top: 0.75rem;
+}
+
+.compass-rec-card {
+  background: #fff;
+  border: 1.5px solid var(--c-border);
+  border-radius: 16px;
+  padding: 1.35rem;
+  position: relative;
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.compass-rec-card:hover {
+  transform: translateY(-2px);
+}
+
+.compass-rec-card.primary {
+  border-color: var(--c-deep);
+  box-shadow: var(--c-shadow);
+}
+
+.compass-rec-badge {
+  position: absolute;
+  top: -11px;
+  left: 20px;
+  background: var(--c-gold);
+  color: #fff;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border-radius: 100px;
+}
+
+.compass-rec-name {
+  font-family: "Playfair Display", Georgia, serif;
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--c-ink);
+  margin: 0.35rem 0 0.5rem;
+}
+
+.compass-rec-text {
+  font-size: 0.72rem;
+  color: var(--c-muted-g);
+  line-height: 1.6;
+}
+
+.compass-rec-format {
+  margin-top: 0.85rem;
+  font-size: 0.65rem;
+  color: var(--c-rose);
+  font-weight: 600;
+}
+
+.compass-standing {
+  margin-top: 1.35rem;
+  padding: 1.1rem 1.35rem;
+  border-radius: 14px;
+  background: var(--c-pale-pink);
+  border: 1px solid rgba(181, 103, 122, 0.3);
+  font-size: 0.72rem;
+  color: var(--c-plum);
+  line-height: 1.7;
+}
+
+.compass-standing b {
+  color: var(--c-rose);
+}
+
+.compass-disclaimer {
+  margin-top: 1.75rem;
+  padding: 1.1rem 1.35rem;
+  border-radius: 14px;
+  background: var(--c-off);
+  border: 1px solid var(--c-border);
+  font-size: 0.65rem;
+  color: var(--c-light-g);
+  line-height: 1.7;
+}
+
+.compass-result-actions {
+  display: flex;
+  gap: 0.85rem;
+  margin: 1.75rem 0 0.5rem;
+  flex-wrap: wrap;
+}
+
+@media print {
+  .compass-progress,
+  .compass-topbar,
+  .compass-result-actions,
+  .compass-btn,
+  .compass-foot,
+  nav,
+  footer {
+    display: none !important;
+  }
+  .compass-page {
+    background: #fff;
+  }
+}
+
+@media (max-width: 720px) {
+  .compass-pillars {
+    grid-template-columns: 1fr;
+  }
+  .compass-likert-opts {
+    gap: 0.35rem;
+  }
+  .compass-likert-opt span {
+    height: 44px;
+    font-size: 0.8rem;
+  }
+  .compass-stack {
+    grid-template-columns: 1fr 1fr;
+  }
+  .compass-trait-wrap,
+  .compass-rec-grid {
+    grid-template-columns: 1fr;
+  }
+  .compass-trait-row {
+    grid-template-columns: 1fr;
+    gap: 0.35rem;
+  }
+  .compass-nav {
+    flex-wrap: wrap;
+  }
+  .compass-dots {
+    order: 3;
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .compass-screen,
+  .compass-progress-fill,
+  .compass-btn {
+    animation: none !important;
+    transition: none !important;
+  }
+}

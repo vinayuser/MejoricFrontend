@@ -8,6 +8,7 @@ import {
   FaPlusSquare,
   FaTimes,
   FaInfoCircle,
+  FaBan,
 } from "react-icons/fa";
 import { useAuth } from "../context/AuthContext";
 import InstantChat from "./InstantChat";
@@ -24,7 +25,7 @@ import {
   FCM_EVENTS,
 } from "../utils/fcm";
 import { io } from "socket.io-client";
-import { apiGet, apiPost } from "../utils/api";
+import { apiGet, apiPost, isPlatformBlockedError } from "../utils/api";
 import Swal from "sweetalert2";
 import toast from "react-hot-toast";
 import { capitalizeName, displayChatSenderName } from "../utils/formatters";
@@ -42,6 +43,7 @@ const CallNotification = () => {
   const [agoraSession, setAgoraSession] = useState(null);
   const [activeCallType, setActiveCallType] = useState("video");
   const [activeCallerName, setActiveCallerName] = useState("");
+  const [activeCallerId, setActiveCallerId] = useState(null);
   const [audioError, setAudioError] = useState(false);
   const [incomingChat, setIncomingChat] = useState(null);
   const [showChatUI, setShowChatUI] = useState(false);
@@ -130,6 +132,7 @@ const CallNotification = () => {
 
       const next = {
         callSessionId: data.callSessionId,
+        callerId: data.callerId || null,
         callerName: data.callerName || "Someone",
         callType: (data.callType || "video").toLowerCase(),
         roomId: data.roomId || null,
@@ -167,7 +170,7 @@ const CallNotification = () => {
 
   const handleAcceptCall = async () => {
     if (!incomingCall) return;
-    const { callSessionId, callType, callerName } = incomingCall;
+    const { callSessionId, callType, callerName, callerId } = incomingCall;
     stopRingtone();
     clearIncomingState();
     broadcastChannelRef.current?.postMessage({
@@ -194,7 +197,8 @@ const CallNotification = () => {
         setActiveCallType(
           (result.data.callType || normalizedType || "video").toLowerCase(),
         );
-        setActiveCallerName(callerName || "Caller");
+        setActiveCallerName(callerName || result.data.callerName || "Caller");
+        setActiveCallerId(result.data.callerId || callerId || null);
         setAgoraSession(result.data.agora);
         setShowCallIframe(true);
       } else {
@@ -227,11 +231,45 @@ const CallNotification = () => {
     activeCallSessionIdRef.current = null;
     setShowCallIframe(false);
     setAgoraSession(null);
+    setActiveCallerId(null);
     clearIncomingState();
     broadcastChannelRef.current?.postMessage({
       type: "CALL_ENDED",
       callSessionId: sessionToEnd,
     });
+  };
+
+  const handleBlockCaller = async () => {
+    if (!activeCallerId) {
+      toast.error("Caller not identified");
+      return;
+    }
+    const confirm = await Swal.fire({
+      icon: "warning",
+      title: "Block this caller?",
+      html: `This blocks their IP on Cloudflare and bans them from the platform.<br/><span class="text-xs text-slate-500">Shared networks may affect other people on the same IP.</span>`,
+      showCancelButton: true,
+      confirmButtonText: "Block & end call",
+      cancelButtonText: "Cancel",
+      confirmButtonColor: "#dc2626",
+    });
+    if (!confirm.isConfirmed) return;
+
+    try {
+      const res = await apiPost("/moderation/block-ip", {
+        targetUserId: activeCallerId,
+        source: "mate_call",
+        reason: "Blocked from call by mate",
+      });
+      if (res?.success) {
+        toast.success("Caller blocked");
+        await handleEndCall();
+      } else {
+        toast.error(res?.message || "Failed to block caller");
+      }
+    } catch (err) {
+      toast.error(err?.message || "Failed to block caller");
+    }
   };
 
   useEffect(() => {
@@ -451,14 +489,27 @@ const CallNotification = () => {
 
   useEffect(() => {
     if (!isAuthenticated || !isCallReceiverRole) return;
+    if (typeof window !== "undefined" && window.__platformBlocked) return;
+    let cancelled = false;
     const interval = setInterval(async () => {
-      if (incomingCall || showChatUI || showCallIframe) return;
+      if (cancelled || incomingCall || showChatUI || showCallIframe) return;
+      if (typeof window !== "undefined" && window.__platformBlocked) {
+        clearInterval(interval);
+        return;
+      }
       try {
         const res = await apiGet("/calls/pending-incoming");
         if (res.success && res.data) processIncomingCall(res.data);
-      } catch (e) { }
+      } catch (e) {
+        if (isPlatformBlockedError(e?.status, e?.message)) {
+          clearInterval(interval);
+        }
+      }
     }, 8000);
-    return () => clearInterval(interval);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [
     isAuthenticated,
     isCallReceiverRole,
@@ -606,13 +657,26 @@ const CallNotification = () => {
                 <p className="text-xs text-gray-400">Connected</p>
               </div>
             </div>
-            <button
-              type="button"
-              onClick={handleEndCall}
-              className="bg-red-600 px-6 py-2 rounded-xl font-bold"
-            >
-              End Call
-            </button>
+            <div className="flex items-center gap-2">
+              {isCallReceiverRole && activeCallerId && (
+                <button
+                  type="button"
+                  onClick={handleBlockCaller}
+                  className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded-xl font-bold flex items-center gap-2"
+                  title="Block caller IP"
+                >
+                  <FaBan />
+                  Block
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleEndCall}
+                className="bg-red-600 px-6 py-2 rounded-xl font-bold"
+              >
+                End Call
+              </button>
+            </div>
           </div>
           <AgoraCallUI
             agoraSession={agoraSession}
