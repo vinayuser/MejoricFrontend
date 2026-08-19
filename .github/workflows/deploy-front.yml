@@ -33,7 +33,23 @@ jobs:
       VITE_BASE: ${{ secrets.VITE_BASE }}
       VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
       VITE_SOCKET_SERVER_URL: ${{ secrets.VITE_SOCKET_SERVER_URL }}
+      VITE_APP_ENV: ${{ secrets.VITE_APP_ENV }}
       VITE_IS_STAGING: ${{ secrets.VITE_IS_STAGING }}
+      VITE_ALLOW_MOCK_PAYMENTS: ${{ secrets.VITE_ALLOW_MOCK_PAYMENTS }}
+      VITE_PIXEL_ID: ${{ secrets.VITE_PIXEL_ID }}
+      VITE_GA_ID: ${{ secrets.VITE_GA_ID }}
+      VITE_TRIAL_CHAT_DURATION: ${{ secrets.VITE_TRIAL_CHAT_DURATION }}
+      VITE_FREE_WALLET_RECHARGE: ${{ secrets.VITE_FREE_WALLET_RECHARGE }}
+      VITE_CHAT_PRICE_PER_MIN: ${{ secrets.VITE_CHAT_PRICE_PER_MIN }}
+      VITE_AUDIO_CALL_PRICE_PER_MIN: ${{ secrets.VITE_AUDIO_CALL_PRICE_PER_MIN }}
+      VITE_VIDEO_CALL_PRICE_PER_MIN: ${{ secrets.VITE_VIDEO_CALL_PRICE_PER_MIN }}
+      VITE_RAZORPAY_KEY_ID: ${{ secrets.VITE_RAZORPAY_KEY_ID }}
+      VITE_AGORA_APP_ID: ${{ secrets.VITE_AGORA_APP_ID }}
+      VITE_AGORA_TOKEN_TTL_SECONDS: ${{ secrets.VITE_AGORA_TOKEN_TTL_SECONDS }}
+      VITE_FCM_VAPID_KEY: ${{ secrets.VITE_FCM_VAPID_KEY }}
+      VITE_VIDEO_CALL_BASE_URL: ${{ secrets.VITE_VIDEO_CALL_BASE_URL }}
+      VITE_AUDIO_CALL_BASE_URL: ${{ secrets.VITE_AUDIO_CALL_BASE_URL }}
+      VITE_SKIP_MEDIA_PERMISSION: ${{ secrets.VITE_SKIP_MEDIA_PERMISSION }}
     steps:
       - name: Check required secrets
         run: |
@@ -43,6 +59,19 @@ jobs:
           [ -z "${{ secrets.SSH_PASSWORD }}" ] && missing="$missing SSH_PASSWORD"
           [ -z "${{ secrets.VITE_API_BASE_URL }}" ] && missing="$missing VITE_API_BASE_URL"
           [ -z "${{ secrets.VITE_SOCKET_SERVER_URL }}" ] && missing="$missing VITE_SOCKET_SERVER_URL"
+          [ -z "${{ secrets.VITE_PIXEL_ID }}" ] && missing="$missing VITE_PIXEL_ID"
+          [ -z "${{ secrets.VITE_GA_ID }}" ] && missing="$missing VITE_GA_ID"
+          [ -z "${{ secrets.VITE_TRIAL_CHAT_DURATION }}" ] && missing="$missing VITE_TRIAL_CHAT_DURATION"
+          [ -z "${{ secrets.VITE_FREE_WALLET_RECHARGE }}" ] && missing="$missing VITE_FREE_WALLET_RECHARGE"
+          [ -z "${{ secrets.VITE_CHAT_PRICE_PER_MIN }}" ] && missing="$missing VITE_CHAT_PRICE_PER_MIN"
+          [ -z "${{ secrets.VITE_AUDIO_CALL_PRICE_PER_MIN }}" ] && missing="$missing VITE_AUDIO_CALL_PRICE_PER_MIN"
+          [ -z "${{ secrets.VITE_VIDEO_CALL_PRICE_PER_MIN }}" ] && missing="$missing VITE_VIDEO_CALL_PRICE_PER_MIN"
+          [ -z "${{ secrets.VITE_RAZORPAY_KEY_ID }}" ] && missing="$missing VITE_RAZORPAY_KEY_ID"
+          [ -z "${{ secrets.VITE_AGORA_APP_ID }}" ] && missing="$missing VITE_AGORA_APP_ID"
+          [ -z "${{ secrets.VITE_AGORA_TOKEN_TTL_SECONDS }}" ] && missing="$missing VITE_AGORA_TOKEN_TTL_SECONDS"
+          [ -z "${{ secrets.VITE_FCM_VAPID_KEY }}" ] && missing="$missing VITE_FCM_VAPID_KEY"
+          [ -z "${{ secrets.VITE_IS_STAGING }}" ] && missing="$missing VITE_IS_STAGING"
+          [ -z "${{ secrets.VITE_ALLOW_MOCK_PAYMENTS }}" ] && missing="$missing VITE_ALLOW_MOCK_PAYMENTS"
           if [ -n "$missing" ]; then
             echo "Missing secrets on environment '${{ inputs.environment }}':$missing"
             echo "Add them under Settings → Environments → ${{ inputs.environment }} → Environment secrets"
@@ -57,21 +86,23 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           command_timeout: 20m
           script_stop: true
-          envs: BRANCH,DEPLOY_ENV,APP_DIR,VITE_BASE,VITE_API_BASE_URL,VITE_SOCKET_SERVER_URL,VITE_IS_STAGING
+          envs: BRANCH,DEPLOY_ENV,APP_DIR,VITE_BASE,VITE_API_BASE_URL,VITE_SOCKET_SERVER_URL,VITE_APP_ENV,VITE_IS_STAGING,VITE_ALLOW_MOCK_PAYMENTS,VITE_PIXEL_ID,VITE_GA_ID,VITE_TRIAL_CHAT_DURATION,VITE_FREE_WALLET_RECHARGE,VITE_CHAT_PRICE_PER_MIN,VITE_AUDIO_CALL_PRICE_PER_MIN,VITE_VIDEO_CALL_PRICE_PER_MIN,VITE_RAZORPAY_KEY_ID,VITE_AGORA_APP_ID,VITE_AGORA_TOKEN_TTL_SECONDS,VITE_FCM_VAPID_KEY,VITE_VIDEO_CALL_BASE_URL,VITE_AUDIO_CALL_BASE_URL,VITE_SKIP_MEDIA_PERMISSION
           script: |
             set -euo pipefail
 
             if [ "$DEPLOY_ENV" = "staging" ]; then
               APP_DIR="${APP_DIR:-/var/www/html/mejoric/front-dev}"
               SITE_URL="https://dev.mejoric.com"
-              VITE_IS_STAGING="${VITE_IS_STAGING:-true}"
             else
               APP_DIR="${APP_DIR:-/var/www/html/mejoric/front}"
               SITE_URL="https://mejoric.com"
-              VITE_IS_STAGING="${VITE_IS_STAGING:-false}"
             fi
 
             VITE_BASE="${VITE_BASE:-/}"
+            VITE_APP_ENV="${VITE_APP_ENV:-production}"
+            VITE_VIDEO_CALL_BASE_URL="${VITE_VIDEO_CALL_BASE_URL:-https://mateandmentors.yourvideo.live/host/}"
+            VITE_AUDIO_CALL_BASE_URL="${VITE_AUDIO_CALL_BASE_URL:-https://matenmentor.yourvideo.live/host/}"
+            VITE_SKIP_MEDIA_PERMISSION="${VITE_SKIP_MEDIA_PERMISSION:-false}"
 
             export NVM_DIR="$HOME/.nvm"
             if [ -s "$NVM_DIR/nvm.sh" ]; then
@@ -82,12 +113,10 @@ jobs:
             echo "==> Environment: $DEPLOY_ENV"
             echo "==> Branch:      $BRANCH"
             echo "==> App dir:     $APP_DIR"
-            echo "==> Build:       $APP_DIR/build"
-            echo "==> Vite base:   $VITE_BASE"
+            echo "==> URL:         $SITE_URL"
             echo "==> API:         $VITE_API_BASE_URL"
             echo "==> Socket:      $VITE_SOCKET_SERVER_URL"
             echo "==> Staging:     $VITE_IS_STAGING"
-            echo "==> URL:         $SITE_URL"
 
             cd "$APP_DIR"
 
@@ -99,6 +128,30 @@ jobs:
             fi
             git pull origin "$BRANCH"
 
+            echo "==> Writing .env.production for this build"
+            cat > .env.production <<EOF
+            VITE_BASE=${VITE_BASE}
+            VITE_API_BASE_URL=${VITE_API_BASE_URL}
+            VITE_SOCKET_SERVER_URL=${VITE_SOCKET_SERVER_URL}
+            VITE_APP_ENV=${VITE_APP_ENV}
+            VITE_IS_STAGING=${VITE_IS_STAGING}
+            VITE_ALLOW_MOCK_PAYMENTS=${VITE_ALLOW_MOCK_PAYMENTS}
+            VITE_PIXEL_ID=${VITE_PIXEL_ID}
+            VITE_GA_ID=${VITE_GA_ID}
+            VITE_TRIAL_CHAT_DURATION=${VITE_TRIAL_CHAT_DURATION}
+            VITE_FREE_WALLET_RECHARGE=${VITE_FREE_WALLET_RECHARGE}
+            VITE_CHAT_PRICE_PER_MIN=${VITE_CHAT_PRICE_PER_MIN}
+            VITE_AUDIO_CALL_PRICE_PER_MIN=${VITE_AUDIO_CALL_PRICE_PER_MIN}
+            VITE_VIDEO_CALL_PRICE_PER_MIN=${VITE_VIDEO_CALL_PRICE_PER_MIN}
+            VITE_RAZORPAY_KEY_ID=${VITE_RAZORPAY_KEY_ID}
+            VITE_AGORA_APP_ID=${VITE_AGORA_APP_ID}
+            VITE_AGORA_TOKEN_TTL_SECONDS=${VITE_AGORA_TOKEN_TTL_SECONDS}
+            VITE_FCM_VAPID_KEY=${VITE_FCM_VAPID_KEY}
+            VITE_VIDEO_CALL_BASE_URL=${VITE_VIDEO_CALL_BASE_URL}
+            VITE_AUDIO_CALL_BASE_URL=${VITE_AUDIO_CALL_BASE_URL}
+            VITE_SKIP_MEDIA_PERMISSION=${VITE_SKIP_MEDIA_PERMISSION}
+            EOF
+
             echo "==> Installing dependencies"
             npm install
 
@@ -106,8 +159,23 @@ jobs:
             export VITE_BASE
             export VITE_API_BASE_URL
             export VITE_SOCKET_SERVER_URL
+            export VITE_APP_ENV
             export VITE_IS_STAGING
-            export VITE_APP_ENV=production
+            export VITE_ALLOW_MOCK_PAYMENTS
+            export VITE_PIXEL_ID
+            export VITE_GA_ID
+            export VITE_TRIAL_CHAT_DURATION
+            export VITE_FREE_WALLET_RECHARGE
+            export VITE_CHAT_PRICE_PER_MIN
+            export VITE_AUDIO_CALL_PRICE_PER_MIN
+            export VITE_VIDEO_CALL_PRICE_PER_MIN
+            export VITE_RAZORPAY_KEY_ID
+            export VITE_AGORA_APP_ID
+            export VITE_AGORA_TOKEN_TTL_SECONDS
+            export VITE_FCM_VAPID_KEY
+            export VITE_VIDEO_CALL_BASE_URL
+            export VITE_AUDIO_CALL_BASE_URL
+            export VITE_SKIP_MEDIA_PERMISSION
             npm run build
 
             if [ ! -f build/index.html ]; then
