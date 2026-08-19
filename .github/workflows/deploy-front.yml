@@ -57,6 +57,7 @@ jobs:
           [ -z "${{ secrets.SSH_HOST }}" ] && missing="$missing SSH_HOST"
           [ -z "${{ secrets.SSH_USER }}" ] && missing="$missing SSH_USER"
           [ -z "${{ secrets.SSH_PASSWORD }}" ] && missing="$missing SSH_PASSWORD"
+          [ -z "${{ secrets.APP_DIR }}" ] && missing="$missing APP_DIR"
           [ -z "${{ secrets.VITE_API_BASE_URL }}" ] && missing="$missing VITE_API_BASE_URL"
           [ -z "${{ secrets.VITE_SOCKET_SERVER_URL }}" ] && missing="$missing VITE_SOCKET_SERVER_URL"
           [ -z "${{ secrets.VITE_PIXEL_ID }}" ] && missing="$missing VITE_PIXEL_ID"
@@ -72,7 +73,6 @@ jobs:
           [ -z "${{ secrets.VITE_FCM_VAPID_KEY }}" ] && missing="$missing VITE_FCM_VAPID_KEY"
           [ -z "${{ secrets.VITE_IS_STAGING }}" ] && missing="$missing VITE_IS_STAGING"
           [ -z "${{ secrets.VITE_ALLOW_MOCK_PAYMENTS }}" ] && missing="$missing VITE_ALLOW_MOCK_PAYMENTS"
-          [ -z "${{ secrets.APP_DIR }}" ] && missing="$missing APP_DIR"
           if [ -n "$missing" ]; then
             echo "Missing secrets on environment '${{ inputs.environment }}':$missing"
             echo "Add them under Settings → Environments → ${{ inputs.environment }} → Environment secrets"
@@ -96,20 +96,17 @@ jobs:
               exit 1
             fi
 
-            # If APP_DIR is the wrapper folder, use the nested clone
             if [ ! -f "$APP_DIR/package.json" ] && [ -f "$APP_DIR/MejoricFrontend/package.json" ]; then
               APP_DIR="$APP_DIR/MejoricFrontend"
             fi
 
             if [ "$APP_DIR" = "/var/www/html/mejoric" ]; then
-              echo "APP_DIR must not be /var/www/html/mejoric (parent tree)."
-              echo "Use /var/www/html/mejoric/front or /var/www/html/mejoric/front-dev/MejoricFrontend"
+              echo "APP_DIR must not be /var/www/html/mejoric"
               exit 1
             fi
 
             if [ ! -d "$APP_DIR/.git" ] || [ ! -f "$APP_DIR/package.json" ]; then
               echo "APP_DIR is not a MejoricFrontend clone: $APP_DIR"
-              echo "Need $APP_DIR/.git and $APP_DIR/package.json"
               exit 1
             fi
 
@@ -137,20 +134,7 @@ jobs:
             echo "==> URL:         $SITE_URL"
             echo "==> API:         $VITE_API_BASE_URL"
             echo "==> Socket:      $VITE_SOCKET_SERVER_URL"
-            echo "==> Using GitHub Environment secrets for this build"
             echo "==> VITE_IS_STAGING=$VITE_IS_STAGING"
-            echo "==> VITE_ALLOW_MOCK_PAYMENTS=$VITE_ALLOW_MOCK_PAYMENTS"
-            echo "==> VITE_PIXEL_ID=$VITE_PIXEL_ID"
-            echo "==> VITE_GA_ID=$VITE_GA_ID"
-            echo "==> VITE_TRIAL_CHAT_DURATION=$VITE_TRIAL_CHAT_DURATION"
-            echo "==> VITE_FREE_WALLET_RECHARGE=$VITE_FREE_WALLET_RECHARGE"
-            echo "==> VITE_CHAT_PRICE_PER_MIN=$VITE_CHAT_PRICE_PER_MIN"
-            echo "==> VITE_AUDIO_CALL_PRICE_PER_MIN=$VITE_AUDIO_CALL_PRICE_PER_MIN"
-            echo "==> VITE_VIDEO_CALL_PRICE_PER_MIN=$VITE_VIDEO_CALL_PRICE_PER_MIN"
-            echo "==> VITE_RAZORPAY_KEY_ID=$VITE_RAZORPAY_KEY_ID"
-            echo "==> VITE_AGORA_APP_ID=$VITE_AGORA_APP_ID"
-            echo "==> VITE_AGORA_TOKEN_TTL_SECONDS=$VITE_AGORA_TOKEN_TTL_SECONDS"
-            echo "==> VITE_FCM_VAPID_KEY is set"
 
             cd "$APP_DIR"
 
@@ -158,29 +142,29 @@ jobs:
             git checkout -B "$BRANCH" "origin/$BRANCH"
             git reset --hard "origin/$BRANCH"
 
-            echo "==> Writing .env.production for this build"
-            cat > .env.production <<EOF
-VITE_BASE=${VITE_BASE}
-VITE_API_BASE_URL=${VITE_API_BASE_URL}
-VITE_SOCKET_SERVER_URL=${VITE_SOCKET_SERVER_URL}
-VITE_APP_ENV=${VITE_APP_ENV}
-VITE_IS_STAGING=${VITE_IS_STAGING}
-VITE_ALLOW_MOCK_PAYMENTS=${VITE_ALLOW_MOCK_PAYMENTS}
-VITE_PIXEL_ID=${VITE_PIXEL_ID}
-VITE_GA_ID=${VITE_GA_ID}
-VITE_TRIAL_CHAT_DURATION=${VITE_TRIAL_CHAT_DURATION}
-VITE_FREE_WALLET_RECHARGE=${VITE_FREE_WALLET_RECHARGE}
-VITE_CHAT_PRICE_PER_MIN=${VITE_CHAT_PRICE_PER_MIN}
-VITE_AUDIO_CALL_PRICE_PER_MIN=${VITE_AUDIO_CALL_PRICE_PER_MIN}
-VITE_VIDEO_CALL_PRICE_PER_MIN=${VITE_VIDEO_CALL_PRICE_PER_MIN}
-VITE_RAZORPAY_KEY_ID=${VITE_RAZORPAY_KEY_ID}
-VITE_AGORA_APP_ID=${VITE_AGORA_APP_ID}
-VITE_AGORA_TOKEN_TTL_SECONDS=${VITE_AGORA_TOKEN_TTL_SECONDS}
-VITE_FCM_VAPID_KEY=${VITE_FCM_VAPID_KEY}
-VITE_VIDEO_CALL_BASE_URL=${VITE_VIDEO_CALL_BASE_URL}
-VITE_AUDIO_CALL_BASE_URL=${VITE_AUDIO_CALL_BASE_URL}
-VITE_SKIP_MEDIA_PERMISSION=${VITE_SKIP_MEDIA_PERMISSION}
-EOF
+            echo "==> Writing .env.production from GitHub Environment secrets"
+            {
+              echo "VITE_BASE=${VITE_BASE}"
+              echo "VITE_API_BASE_URL=${VITE_API_BASE_URL}"
+              echo "VITE_SOCKET_SERVER_URL=${VITE_SOCKET_SERVER_URL}"
+              echo "VITE_APP_ENV=${VITE_APP_ENV}"
+              echo "VITE_IS_STAGING=${VITE_IS_STAGING}"
+              echo "VITE_ALLOW_MOCK_PAYMENTS=${VITE_ALLOW_MOCK_PAYMENTS}"
+              echo "VITE_PIXEL_ID=${VITE_PIXEL_ID}"
+              echo "VITE_GA_ID=${VITE_GA_ID}"
+              echo "VITE_TRIAL_CHAT_DURATION=${VITE_TRIAL_CHAT_DURATION}"
+              echo "VITE_FREE_WALLET_RECHARGE=${VITE_FREE_WALLET_RECHARGE}"
+              echo "VITE_CHAT_PRICE_PER_MIN=${VITE_CHAT_PRICE_PER_MIN}"
+              echo "VITE_AUDIO_CALL_PRICE_PER_MIN=${VITE_AUDIO_CALL_PRICE_PER_MIN}"
+              echo "VITE_VIDEO_CALL_PRICE_PER_MIN=${VITE_VIDEO_CALL_PRICE_PER_MIN}"
+              echo "VITE_RAZORPAY_KEY_ID=${VITE_RAZORPAY_KEY_ID}"
+              echo "VITE_AGORA_APP_ID=${VITE_AGORA_APP_ID}"
+              echo "VITE_AGORA_TOKEN_TTL_SECONDS=${VITE_AGORA_TOKEN_TTL_SECONDS}"
+              echo "VITE_FCM_VAPID_KEY=${VITE_FCM_VAPID_KEY}"
+              echo "VITE_VIDEO_CALL_BASE_URL=${VITE_VIDEO_CALL_BASE_URL}"
+              echo "VITE_AUDIO_CALL_BASE_URL=${VITE_AUDIO_CALL_BASE_URL}"
+              echo "VITE_SKIP_MEDIA_PERMISSION=${VITE_SKIP_MEDIA_PERMISSION}"
+            } > .env.production
 
             echo "==> Installing dependencies in $APP_DIR"
             npm --prefix "$APP_DIR" install
