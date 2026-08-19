@@ -1,15 +1,15 @@
-/** Staging branch defaults — front at /staging/, API at /staging-api/ */
+/** Frontend defaults — production https://mejoric.com , staging https://dev.mejoric.com */
 const stagingConfig = {
-  base: "/staging/",
-  basePath: "/staging",
+  base: "/",
+  basePath: "",
   port: 3004,
   devPort: 6001,
 
-  /** Staging API (front deployed at https://mejoric.com/staging/) */
+  /** Staging API (front at https://dev.mejoric.com) */
   apiBaseUrl: "https://mejoric.com/staging-api/mateandmentors",
   socketServerUrl: "https://mejoric.com/staging-api",
 
-  /** Production API (front deployed at https://mejoric.com/) */
+  /** Production API (front at https://mejoric.com) */
   productionApiBaseUrl: "https://mejoric.com/mateandmentors",
   productionSocketServerUrl: "https://mejoric.com",
 

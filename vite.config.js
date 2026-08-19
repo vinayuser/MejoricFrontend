@@ -95,7 +95,12 @@ export default defineConfig(({ mode }) => {
     server: {
       port: stagingConfig.devPort,
       cors: true,
-      allowedHosts: ["mejoric.com", "www.mejoric.com", "localhost"],
+      allowedHosts: [
+        "mejoric.com",
+        "www.mejoric.com",
+        "dev.mejoric.com",
+        "localhost",
+      ],
       open: base === "/" || base === "" ? "/" : base,
       // Proxy API + sockets to local Server during `npm run dev`
       proxy: {
