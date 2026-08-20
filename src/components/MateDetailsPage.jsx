@@ -40,6 +40,7 @@ const MateDetailsPage = () => {
     signupTrialExhausted,
     refreshSignupTrialStatus,
     refreshWalletBalance,
+    corporateUsage,
   } = useAuth();
   const isChatDisabled =
     (guestTrialExhausted && (!isAuthenticated || user?.role === "guest")) ||
@@ -49,14 +50,15 @@ const MateDetailsPage = () => {
         user,
         guestTrialExhausted,
         walletBalance,
+        corporateUsage,
       }));
 
   useEffect(() => {
-    if (user?.role === "user") {
+    if (user?.role === "user" && !user?.corporateId) {
       void refreshSignupTrialStatus();
       void refreshWalletBalance();
     }
-  }, [user?.role, refreshSignupTrialStatus, refreshWalletBalance]);
+  }, [user?.role, user?.corporateId, refreshSignupTrialStatus, refreshWalletBalance]);
 
   const [mate, setMate] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -250,7 +252,7 @@ const MateDetailsPage = () => {
           showLoginSignupAlert(navigate, {
             message:
               user?.role === "user"
-                ? getSignupChatBlockMessage(signupTrialExhausted, walletBalance)
+                ? getSignupChatBlockMessage(signupTrialExhausted, walletBalance, user)
                 : "Free trial credits used up. Please sign up or login to continue chatting.",
           });
           return;
@@ -294,6 +296,7 @@ const MateDetailsPage = () => {
     if (
       isAuthenticated &&
       user?.role === "user" &&
+      !user?.corporateId &&
       type !== "chat" &&
       walletBalance <= 0
     ) {
@@ -324,7 +327,7 @@ const MateDetailsPage = () => {
         return;
       }
 
-      if (user?.role === "user" && walletBalance < 8) {
+      if (user?.role === "user" && !user?.corporateId && walletBalance < 8) {
         Swal.fire({
           title: "Insufficient Balance",
           text: "You need at least ₹8 in your wallet to chat (₹8 per minute). Please recharge to continue.",
@@ -346,7 +349,7 @@ const MateDetailsPage = () => {
       }
 
       let canChat = !isChatDisabled;
-      let blockMessage = getSignupChatBlockMessage(false, walletBalance);
+      let blockMessage = getSignupChatBlockMessage(false, walletBalance, user);
 
       if (user?.role === "user" && isChatDisabled) {
         try {
@@ -497,7 +500,7 @@ const MateDetailsPage = () => {
                           ? "bg-gray-200 text-gray-400 shadow-none cursor-not-allowed"
                           : !isAuthenticated || user?.role === "guest"
                             ? "bg-gray-300 text-gray-500 shadow-none cursor-not-allowed"
-                            : isAuthenticated && user?.role === "user" && walletBalance <= 0
+                            : isAuthenticated && user?.role === "user" && !user?.corporateId && walletBalance <= 0
                               ? "bg-gray-300 text-gray-500 hover:bg-gray-400 shadow-none cursor-pointer animate-pulse"
                               : "bg-purple-600 hover:bg-purple-700 text-white shadow-purple-200"
                       }`}
@@ -527,7 +530,7 @@ const MateDetailsPage = () => {
                           ? "bg-gray-200 text-gray-400 shadow-none cursor-not-allowed"
                           : !isAuthenticated || user?.role === "guest"
                             ? "bg-gray-300 text-gray-500 shadow-none cursor-not-allowed"
-                            : isAuthenticated && user?.role === "user" && walletBalance <= 0
+                            : isAuthenticated && user?.role === "user" && !user?.corporateId && walletBalance <= 0
                               ? "bg-gray-300 text-gray-500 hover:bg-gray-400 shadow-none cursor-pointer animate-pulse"
                               : "bg-purple-600 hover:bg-purple-700 text-white shadow-purple-200"
                       }`}

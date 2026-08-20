@@ -6,7 +6,7 @@ import { trackPixelCustom, trackPixel } from "../utils/metaPixel";
 
 const CallHandler = ({ mentor, children }) => {
   const navigate = useNavigate();
-  const { isAuthenticated, walletBalance } = useAuth();
+  const { isAuthenticated, walletBalance, isCorporateUser } = useAuth();
   const [showModal, setShowModal] = useState(false);
   const [error, setError] = useState("");
 
@@ -24,8 +24,8 @@ const CallHandler = ({ mentor, children }) => {
       return;
     }
 
-    // Check wallet balance
-    if (walletBalance < minimumBalance) {
+    // Check wallet balance (corporate users are billed via company minutes on the server)
+    if (!isCorporateUser && walletBalance < minimumBalance) {
       setShowModal(true);
       setError(
         `Insufficient balance. Minimum ₹${minimumBalance} required for 5 minutes call.`,

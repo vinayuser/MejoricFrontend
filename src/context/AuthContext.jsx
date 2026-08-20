@@ -8,6 +8,8 @@ import React, {
 } from "react";
 import { apiGet, apiPost } from "../utils/api";
 
+const isCorporateUser = (user) => Boolean(user?.corporateId);
+
 const AuthContext = createContext();
 
 export const useAuth = () => {
@@ -28,6 +30,21 @@ export const AuthProvider = ({ children }) => {
   const [isWithinSignupTrial, setIsWithinSignupTrial] = useState(false);
   const [signupTrialRemainingSeconds, setSignupTrialRemainingSeconds] = useState(0);
   const [hasPaidRecharge, setHasPaidRecharge] = useState(false);
+  const [corporateUsage, setCorporateUsage] = useState(null);
+
+  const refreshCorporateUsage = useCallback(async () => {
+    try {
+      const result = await apiGet("/corporate/me/usage");
+      if (result?.success && result.data) {
+        setCorporateUsage(result.data);
+        localStorage.setItem("corporateUsage", JSON.stringify(result.data));
+        return result.data;
+      }
+    } catch (error) {
+      console.error("Error refreshing corporate usage:", error);
+    }
+    return null;
+  }, []);
 
   const refreshGuestTrialStatus = useCallback(async () => {
     try {
@@ -83,6 +100,7 @@ export const AuthProvider = ({ children }) => {
     let storedToken = localStorage.getItem("authToken");
     const storedExhausted = localStorage.getItem("guestTrialExhausted");
     const storedSignupExhausted = localStorage.getItem("signupTrialExhausted");
+    const storedCorporateUsage = localStorage.getItem("corporateUsage");
 
     if (storedUser) {
       try {
@@ -117,6 +135,14 @@ export const AuthProvider = ({ children }) => {
       setSignupTrialExhausted(storedSignupExhausted === "true");
     }
 
+    if (storedCorporateUsage) {
+      try {
+        setCorporateUsage(JSON.parse(storedCorporateUsage));
+      } catch {
+        localStorage.removeItem("corporateUsage");
+      }
+    }
+
     setAuthInitialized(true);
   }, []);
 
@@ -131,13 +157,18 @@ export const AuthProvider = ({ children }) => {
       refreshGuestTrialStatus();
     }
 
-    if (isAuthenticated && userRole === "user") {
+    if (isAuthenticated && userRole === "user" && !user?.corporateId) {
       refreshSignupTrialStatus();
+    }
+
+    if (isAuthenticated && userId && user?.corporateId) {
+      refreshCorporateUsage();
     }
 
     if (
       isAuthenticated &&
       userId &&
+      !user?.corporateId &&
       (userRole === "user" || userRole === "guest" || userRole === "mate")
     ) {
       refreshWalletBalance();
@@ -147,9 +178,11 @@ export const AuthProvider = ({ children }) => {
     isAuthenticated,
     userId,
     userRole,
+    user?.corporateId,
     refreshWalletBalance,
     refreshGuestTrialStatus,
     refreshSignupTrialStatus,
+    refreshCorporateUsage,
   ]);
 
   const login = (userData) => {
@@ -161,13 +194,25 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem("authToken", userData.token);
     }
 
-    if (userData?.role === "user") {
+    if (userData?.role === "user" && !userData?.corporateId) {
       void refreshSignupTrialStatus();
     }
 
-    // Check if this is first login (no existing wallet balance)
+    if (userData?.corporateId) {
+      if (userData.corporateUsage) {
+        setCorporateUsage(userData.corporateUsage);
+        localStorage.setItem(
+          "corporateUsage",
+          JSON.stringify(userData.corporateUsage),
+        );
+      } else {
+        void refreshCorporateUsage();
+      }
+    }
+
+    // Check if this is first login (no existing wallet balance) — skip for corporate users
     const existingBalance = localStorage.getItem("walletBalance");
-    if (!existingBalance) {
+    if (!existingBalance && !userData?.corporateId) {
       const trialDurationSeconds = parseInt(import.meta.env.VITE_TRIAL_CHAT_DURATION) || 180;
       const freeMinutes = trialDurationSeconds / 60; // Convert seconds to minutes
       const chatPricePerMin = parseInt(import.meta.env.VITE_CHAT_PRICE_PER_MIN) || 8;
@@ -186,7 +231,9 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("user");
     localStorage.removeItem("authToken");
     localStorage.removeItem("walletBalance");
+    localStorage.removeItem("corporateUsage");
     localStorage.removeItem("signupTrialExhausted");
+    setCorporateUsage(null);
     setSignupTrialExhausted(false);
     setIsWithinSignupTrial(false);
     setHasPaidRecharge(false);
@@ -220,6 +267,8 @@ export const AuthProvider = ({ children }) => {
       isWithinSignupTrial,
       hasPaidRecharge,
       signupTrialRemainingSeconds,
+      corporateUsage,
+      isCorporateUser: isCorporateUser(user),
       login,
       logout,
       addToWallet,
@@ -227,6 +276,7 @@ export const AuthProvider = ({ children }) => {
       refreshWalletBalance,
       refreshGuestTrialStatus,
       refreshSignupTrialStatus,
+      refreshCorporateUsage,
     }),
     [
       user,
@@ -238,9 +288,11 @@ export const AuthProvider = ({ children }) => {
       isWithinSignupTrial,
       hasPaidRecharge,
       signupTrialRemainingSeconds,
+      corporateUsage,
       refreshWalletBalance,
       refreshGuestTrialStatus,
       refreshSignupTrialStatus,
+      refreshCorporateUsage,
     ],
   );
 

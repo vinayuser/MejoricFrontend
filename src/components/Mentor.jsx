@@ -80,6 +80,8 @@ export default function Mentor() {
     signupTrialExhausted,
     refreshSignupTrialStatus,
     refreshWalletBalance,
+    corporateUsage,
+    isCorporateUser,
   } = useAuth();
   const [showFilters, setShowFilters] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("All");
@@ -175,15 +177,18 @@ export default function Mentor() {
           user,
           guestTrialExhausted,
           walletBalance,
+          corporateUsage,
         }),
         walletBalance,
       };
 
       if (user?.role === "user" && !chatAccess.canChat) {
         try {
-          chatAccess = await resolveUserChatAccess(user);
-          void refreshSignupTrialStatus();
-          void refreshWalletBalance();
+          chatAccess = await resolveUserChatAccess(user, corporateUsage);
+          if (!user?.corporateId) {
+            void refreshSignupTrialStatus();
+            void refreshWalletBalance();
+          }
         } catch (e) {
           console.warn("Could not refresh chat access", e);
         }
@@ -199,11 +204,11 @@ export default function Mentor() {
 
         Swal.fire({
           icon: "warning",
-          title: "Insufficient Balance",
-          text: getSignupChatBlockMessage(false, chatAccess.walletBalance),
-          showCancelButton: true,
+          title: user?.corporateId ? "Minutes used up" : "Insufficient Balance",
+          text: getSignupChatBlockMessage(false, chatAccess.walletBalance, user),
+          showCancelButton: !user?.corporateId,
           showCloseButton: true,
-          confirmButtonText: "Recharge Now",
+          confirmButtonText: user?.corporateId ? "OK" : "Recharge Now",
           cancelButtonText: "Close",
           confirmButtonColor: "#9333ea",
           didOpen: () => {
@@ -211,7 +216,7 @@ export default function Mentor() {
             if (container) container.style.zIndex = "100002";
           },
         }).then((result) => {
-          if (result.isConfirmed) {
+          if (result.isConfirmed && !user?.corporateId) {
             navigate("/wallet");
           }
         });
@@ -774,7 +779,7 @@ export default function Mentor() {
                     navigate("/Signup");
                     return;
                   }
-                  if (isAuthenticated && user?.role === "user" && walletBalance <= 0) {
+                  if (isAuthenticated && user?.role === "user" && !user?.corporateId && walletBalance <= 0) {
                     Swal.fire({
                       icon: "warning",
                       title: "Insufficient Balance",
@@ -810,7 +815,7 @@ export default function Mentor() {
                     ? "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
                     : !isAuthenticated || user?.role === "guest"
                       ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      : isAuthenticated && user?.role === "user" && walletBalance <= 0
+                      : isAuthenticated && user?.role === "user" && !user?.corporateId && walletBalance <= 0
                         ? "bg-gray-300 text-gray-500 hover:bg-gray-400 cursor-pointer shadow-none animate-pulse"
                         : "bg-purple-500 text-white hover:bg-purple-600"
                 }`}
@@ -861,7 +866,7 @@ export default function Mentor() {
                     navigate("/Signup");
                     return;
                   }
-                  if (isAuthenticated && user?.role === "user" && walletBalance <= 0) {
+                  if (isAuthenticated && user?.role === "user" && !user?.corporateId && walletBalance <= 0) {
                     Swal.fire({
                       icon: "warning",
                       title: "Insufficient Balance",
@@ -897,7 +902,7 @@ export default function Mentor() {
                     ? "bg-gray-200 text-gray-400 cursor-not-allowed shadow-none"
                     : !isAuthenticated || user?.role === "guest"
                       ? "bg-gray-300 text-gray-500 cursor-not-allowed"
-                      : isAuthenticated && user?.role === "user" && walletBalance <= 0
+                      : isAuthenticated && user?.role === "user" && !user?.corporateId && walletBalance <= 0
                         ? "bg-gray-300 text-gray-500 hover:bg-gray-400 cursor-pointer shadow-none animate-pulse"
                         : "bg-purple-500 text-white hover:bg-purple-600"
                 }`}
@@ -937,7 +942,7 @@ export default function Mentor() {
                     ? "Mate is offline"
                     : !isAuthenticated || user?.role === "guest"
                       ? "Free trial chat"
-                      : isAuthenticated && user?.role === "user" && walletBalance < 8
+                      : isAuthenticated && user?.role === "user" && !user?.corporateId && walletBalance < 8
                         ? "Recharge to chat (₹8/min)"
                         : `₹${import.meta.env.VITE_CHAT_PRICE_PER_MIN || 8}/min`}
                   <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>

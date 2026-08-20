@@ -11,7 +11,7 @@ import {
   FaStar,
   FaArrowRight,
 } from "react-icons/fa";
-import Layout from "../components/Layout";
+import Layout from "./Layout";
 import { trackPixel } from "../utils/metaPixel";
 import { useNavigate } from "react-router-dom";
 import Footer from "../components/Footer";

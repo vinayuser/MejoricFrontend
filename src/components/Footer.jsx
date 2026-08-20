@@ -58,6 +58,7 @@ export default function Footer() {
   const loginLinks = [
     !isMate && { name: "Mate Login", path: "/login?role=mate" },
     !isMentor && { name: "Mentor Login", path: "/login?role=mentor" },
+    !user?.corporateId && { name: "Corporate Login", path: "/corporate/login" },
     { name: "About Us", path: "/about" },
   { name: "Careers", path: "/careers" },
   { name: "Privacy Policy", path: "/privacy-policy" },

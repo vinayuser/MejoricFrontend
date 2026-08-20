@@ -9,6 +9,7 @@ import {
   FaRupeeSign,
 } from "react-icons/fa";
 import { useAuth } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { trackPixel, trackPixelCustom } from "../utils/metaPixel";
 import { apiPost, apiGet } from "../utils/api";
 import toast from "react-hot-toast";
@@ -18,13 +19,25 @@ import {
 } from "../utils/mockPayments";
 
 const Wallet = () => {
-  const { walletBalance, addToWallet, refreshWalletBalance, refreshSignupTrialStatus } =
-    useAuth();
+  const navigate = useNavigate();
+  const {
+    walletBalance,
+    addToWallet,
+    refreshWalletBalance,
+    refreshSignupTrialStatus,
+    isCorporateUser,
+  } = useAuth();
   const [balance, setBalance] = useState(walletBalance);
   const [amount, setAmount] = useState("");
   const [loading, setLoading] = useState(false);
   const [transactions, setTransactions] = useState([]);
   const [isLoadingTransactions, setIsLoadingTransactions] = useState(true);
+
+  useEffect(() => {
+    if (isCorporateUser) {
+      navigate("/mate", { replace: true });
+    }
+  }, [isCorporateUser, navigate]);
 
   const razorpayKey =
     import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_live_SVXnEDUa7IpGc8";

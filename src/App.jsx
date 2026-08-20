@@ -20,6 +20,7 @@ import Login from './components/Login';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
 import Signup from './components/Signup';
+import CorporateLogin from './components/CorporateLogin';
 import VideoCall from './components/VideoCall';
 import Wallet from './components/Wallet';
 import ScrollToTop from './components/ScrollToTop';
@@ -117,11 +118,12 @@ const EmailVerificationGate = ({ children }) => {
     if (!authInitialized) return;
 
     // Only intercept if user is authenticated, not a guest, not a mate, and not verified
-    if (isAuthenticated && user && user.role !== "guest" && user.role !== "mate" && user.role !== "mentor" && user.isMobileVerified === false) {
+    if (isAuthenticated && user && user.role !== "guest" && user.role !== "mate" && user.role !== "mentor" && !user.corporateId && user.isMobileVerified === false) {
       const publicOrAuthRoutes = [
         "/verify-email", 
         "/login", 
-        "/signup", 
+        "/signup",
+        "/corporate/login", 
         "/forgot-password", 
         "/reset-password",
         "/mentors",
@@ -186,6 +188,7 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/signup" element={<Signup />} />
+            <Route path="/corporate/login" element={<CorporateLogin />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/video-call" element={<VideoCall />} />
             <Route path="/wallet" element={<Wallet />} />
