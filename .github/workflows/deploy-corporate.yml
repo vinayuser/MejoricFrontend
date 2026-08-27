@@ -4,17 +4,18 @@ on:
   workflow_dispatch:
     inputs:
       branch:
-        description: "Git branch to checkout and build on the server (e.g. corporate-login)"
+        description: "Git branch to checkout and build (e.g. corporate-login)"
         required: true
         default: "corporate-login"
         type: string
       environment:
-        description: "GitHub Environment (SSH + Vite secrets for corporate.mejoric.com)"
+        description: "Use production or staging secrets (API/socket). Always deploys to corporate.mejoric.com"
         required: true
-        default: corporate
+        default: production
         type: choice
         options:
-          - corporate
+          - production
+          - staging
 
 concurrency:
   group: deploy-corporate-${{ inputs.environment }}
@@ -22,13 +23,12 @@ concurrency:
 
 jobs:
   deploy:
-    name: Deploy ${{ inputs.branch }} → corporate.mejoric.com
+    name: Deploy ${{ inputs.branch }} → corporate.mejoric.com (${{ inputs.environment }})
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     env:
       BRANCH: ${{ inputs.branch }}
       DEPLOY_ENV: ${{ inputs.environment }}
-      APP_DIR: ${{ secrets.APP_DIR }}
       VITE_BASE: ${{ secrets.VITE_BASE }}
       VITE_API_BASE_URL: ${{ secrets.VITE_API_BASE_URL }}
       VITE_SOCKET_SERVER_URL: ${{ secrets.VITE_SOCKET_SERVER_URL }}
@@ -49,7 +49,6 @@ jobs:
       VITE_VIDEO_CALL_BASE_URL: ${{ secrets.VITE_VIDEO_CALL_BASE_URL }}
       VITE_AUDIO_CALL_BASE_URL: ${{ secrets.VITE_AUDIO_CALL_BASE_URL }}
       VITE_SKIP_MEDIA_PERMISSION: ${{ secrets.VITE_SKIP_MEDIA_PERMISSION }}
-      VITE_IS_CORPORATE_APP: ${{ secrets.VITE_IS_CORPORATE_APP }}
     steps:
       - name: Check required secrets
         run: |
@@ -57,9 +56,6 @@ jobs:
           [ -z "${{ secrets.SSH_HOST }}" ] && missing="$missing SSH_HOST"
           [ -z "${{ secrets.SSH_USER }}" ] && missing="$missing SSH_USER"
           [ -z "${{ secrets.SSH_PASSWORD }}" ] && missing="$missing SSH_PASSWORD"
-          [ -z "${{ secrets.APP_DIR }}" ] && missing="$missing APP_DIR"
-          [ -z "${{ secrets.VITE_API_BASE_URL }}" ] && missing="$missing VITE_API_BASE_URL"
-          [ -z "${{ secrets.VITE_SOCKET_SERVER_URL }}" ] && missing="$missing VITE_SOCKET_SERVER_URL"
           [ -z "${{ secrets.VITE_PIXEL_ID }}" ] && missing="$missing VITE_PIXEL_ID"
           [ -z "${{ secrets.VITE_GA_ID }}" ] && missing="$missing VITE_GA_ID"
           [ -z "${{ secrets.VITE_TRIAL_CHAT_DURATION }}" ] && missing="$missing VITE_TRIAL_CHAT_DURATION"
@@ -75,11 +71,11 @@ jobs:
           [ -z "${{ secrets.VITE_ALLOW_MOCK_PAYMENTS }}" ] && missing="$missing VITE_ALLOW_MOCK_PAYMENTS"
           if [ -n "$missing" ]; then
             echo "Missing secrets on environment '${{ inputs.environment }}':$missing"
-            echo "Add them under Settings → Environments → corporate → Environment secrets"
+            echo "Add them under Settings → Environments → ${{ inputs.environment }} → Environment secrets"
             exit 1
           fi
 
-      - name: Deploy corporate.mejoric.com over SSH
+      - name: Deploy corporate.mejoric.com over SSH (${{ inputs.environment }})
         uses: appleboy/ssh-action@v1.2.2
         with:
           host: ${{ secrets.SSH_HOST }}
@@ -89,12 +85,34 @@ jobs:
           timeout: 60s
           command_timeout: 20m
           allenvs: true
-          envs: BRANCH,DEPLOY_ENV,APP_DIR,VITE_BASE,VITE_API_BASE_URL,VITE_SOCKET_SERVER_URL,VITE_APP_ENV,VITE_IS_STAGING,VITE_ALLOW_MOCK_PAYMENTS,VITE_PIXEL_ID,VITE_GA_ID,VITE_TRIAL_CHAT_DURATION,VITE_FREE_WALLET_RECHARGE,VITE_CHAT_PRICE_PER_MIN,VITE_AUDIO_CALL_PRICE_PER_MIN,VITE_VIDEO_CALL_PRICE_PER_MIN,VITE_RAZORPAY_KEY_ID,VITE_AGORA_APP_ID,VITE_AGORA_TOKEN_TTL_SECONDS,VITE_FCM_VAPID_KEY,VITE_VIDEO_CALL_BASE_URL,VITE_AUDIO_CALL_BASE_URL,VITE_SKIP_MEDIA_PERMISSION,VITE_IS_CORPORATE_APP
+          envs: BRANCH,DEPLOY_ENV,VITE_BASE,VITE_API_BASE_URL,VITE_SOCKET_SERVER_URL,VITE_APP_ENV,VITE_IS_STAGING,VITE_ALLOW_MOCK_PAYMENTS,VITE_PIXEL_ID,VITE_GA_ID,VITE_TRIAL_CHAT_DURATION,VITE_FREE_WALLET_RECHARGE,VITE_CHAT_PRICE_PER_MIN,VITE_AUDIO_CALL_PRICE_PER_MIN,VITE_VIDEO_CALL_PRICE_PER_MIN,VITE_RAZORPAY_KEY_ID,VITE_AGORA_APP_ID,VITE_AGORA_TOKEN_TTL_SECONDS,VITE_FCM_VAPID_KEY,VITE_VIDEO_CALL_BASE_URL,VITE_AUDIO_CALL_BASE_URL,VITE_SKIP_MEDIA_PERMISSION
           script: |
             set -euo pipefail
 
+            # Always deploy corporate site to this folder / domain
             SITE_URL="https://corporate.mejoric.com"
-            APP_DIR="${APP_DIR:-/var/www/html/mejoric/front-corporate}"
+            APP_DIR="/var/www/html/mejoric/front-corporate"
+            VITE_IS_CORPORATE_APP="true"
+            VITE_BASE="${VITE_BASE:-/}"
+
+            # Force API + sockets from selected env (ignore APP_DIR from main/staging front)
+            if [ "$DEPLOY_ENV" = "staging" ]; then
+              VITE_API_BASE_URL="https://mejoric.com/staging-api/mateandmentors"
+              VITE_SOCKET_SERVER_URL="https://mejoric.com/staging-api"
+              VITE_IS_STAGING="true"
+              VITE_ALLOW_MOCK_PAYMENTS="${VITE_ALLOW_MOCK_PAYMENTS:-true}"
+              VITE_APP_ENV="${VITE_APP_ENV:-staging}"
+            else
+              VITE_API_BASE_URL="https://mejoric.com/mateandmentors"
+              VITE_SOCKET_SERVER_URL="https://mejoric.com"
+              VITE_IS_STAGING="false"
+              VITE_ALLOW_MOCK_PAYMENTS="${VITE_ALLOW_MOCK_PAYMENTS:-false}"
+              VITE_APP_ENV="${VITE_APP_ENV:-production}"
+            fi
+
+            VITE_VIDEO_CALL_BASE_URL="${VITE_VIDEO_CALL_BASE_URL:-https://mateandmentors.yourvideo.live/host/}"
+            VITE_AUDIO_CALL_BASE_URL="${VITE_AUDIO_CALL_BASE_URL:-https://matenmentor.yourvideo.live/host/}"
+            VITE_SKIP_MEDIA_PERMISSION="${VITE_SKIP_MEDIA_PERMISSION:-false}"
 
             if [ ! -f "$APP_DIR/package.json" ] && [ -f "$APP_DIR/MejoricFrontend/package.json" ]; then
               APP_DIR="$APP_DIR/MejoricFrontend"
@@ -106,29 +124,19 @@ jobs:
               exit 1
             fi
 
-            VITE_BASE="${VITE_BASE:-/}"
-            VITE_API_BASE_URL="${VITE_API_BASE_URL:-https://mejoric.com/mateandmentors}"
-            VITE_SOCKET_SERVER_URL="${VITE_SOCKET_SERVER_URL:-https://mejoric.com}"
-            VITE_APP_ENV="${VITE_APP_ENV:-production}"
-            VITE_IS_STAGING="${VITE_IS_STAGING:-false}"
-            VITE_ALLOW_MOCK_PAYMENTS="${VITE_ALLOW_MOCK_PAYMENTS:-false}"
-            VITE_VIDEO_CALL_BASE_URL="${VITE_VIDEO_CALL_BASE_URL:-https://mateandmentors.yourvideo.live/host/}"
-            VITE_AUDIO_CALL_BASE_URL="${VITE_AUDIO_CALL_BASE_URL:-https://matenmentor.yourvideo.live/host/}"
-            VITE_SKIP_MEDIA_PERMISSION="${VITE_SKIP_MEDIA_PERMISSION:-false}"
-            VITE_IS_CORPORATE_APP="${VITE_IS_CORPORATE_APP:-true}"
-
             export NVM_DIR="$HOME/.nvm"
             if [ -s "$NVM_DIR/nvm.sh" ]; then
               . "$NVM_DIR/nvm.sh"
             fi
             export PATH="/usr/local/bin:/usr/bin:$PATH"
 
-            echo "==> Environment: $DEPLOY_ENV"
+            echo "==> Backend env: $DEPLOY_ENV"
             echo "==> Branch:      $BRANCH"
             echo "==> App dir:     $APP_DIR"
-            echo "==> URL:         $SITE_URL"
+            echo "==> Site URL:    $SITE_URL"
             echo "==> API:         $VITE_API_BASE_URL"
             echo "==> Socket:      $VITE_SOCKET_SERVER_URL"
+            echo "==> Corporate:   $VITE_IS_CORPORATE_APP"
 
             cd "$APP_DIR"
 
@@ -136,7 +144,7 @@ jobs:
             git checkout -B "$BRANCH" "origin/$BRANCH"
             git reset --hard "origin/$BRANCH"
 
-            echo "==> Writing .env.production from GitHub Environment secrets"
+            echo "==> Writing .env.production"
             {
               echo "VITE_BASE=${VITE_BASE}"
               echo "VITE_API_BASE_URL=${VITE_API_BASE_URL}"
@@ -164,7 +172,7 @@ jobs:
             echo "==> Installing dependencies"
             npm --prefix "$APP_DIR" install
 
-            echo "==> Building static files for corporate.mejoric.com"
+            echo "==> Building corporate.mejoric.com ($DEPLOY_ENV backend)"
             export VITE_BASE
             export VITE_API_BASE_URL
             export VITE_SOCKET_SERVER_URL
@@ -193,4 +201,4 @@ jobs:
               exit 1
             fi
 
-            echo "==> Done. Nginx serves $APP_DIR/build at $SITE_URL"
+            echo "==> Done. $SITE_URL → $DEPLOY_ENV API ($VITE_API_BASE_URL)"
