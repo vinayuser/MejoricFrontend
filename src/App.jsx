@@ -166,7 +166,17 @@ function App() {
       <EmailVerificationGate>
         <div className="App">
           <Routes>
-            <Route path="/" element={<Home />} />
+            <Route
+              path="/"
+              element={
+                typeof window !== "undefined" &&
+                window.location.hostname === "corporate.mejoric.com" ? (
+                  <Navigate to="/corporate/login" replace />
+                ) : (
+                  <Home />
+                )
+              }
+            />
             <Route path="/about" element={<About />} />
             <Route path="/mate" element={<Mentor />} />
             <Route path="/mentor" element={<Navigate to="/mentors/professional/browse" replace />} />
