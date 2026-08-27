@@ -16,7 +16,6 @@ on:
         options:
           - production
           - staging
-          - corporate
 
 concurrency:
   group: deploy-front-${{ inputs.environment }}
@@ -113,8 +112,6 @@ jobs:
 
             if [ "$DEPLOY_ENV" = "staging" ]; then
               SITE_URL="https://dev.mejoric.com"
-            elif [ "$DEPLOY_ENV" = "corporate" ]; then
-              SITE_URL="https://corporate.mejoric.com"
             else
               SITE_URL="https://mejoric.com"
             fi
