@@ -11,6 +11,7 @@ import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import Layout from "./Layout";
 import Footer from "./Footer";
+import { isCorporateShell } from "../utils/corporateSite";
 import { apiGet, apiPost, apiPut } from "../utils/api";
 import { getFCMToken } from "../utils/fcm";
 import toast from "react-hot-toast";
@@ -414,7 +415,7 @@ export default function CorporateLogin() {
           </div>
         </div>
       </div>
-      <Footer />
+      {!isCorporateShell() && <Footer />}
     </Layout>
   );
 }

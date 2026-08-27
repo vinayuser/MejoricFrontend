@@ -15,6 +15,7 @@ import { useAuth } from "../context/AuthContext";
 import { apiGet, apiPost } from "../utils/api";
 import Layout from "./Layout";
 import Footer from "./Footer";
+import { isCorporateShell } from "../utils/corporateSite";
 import InstantChat from "./InstantChat";
 import { initializeFCM } from "../utils/fcm";
 import Swal from "sweetalert2";
@@ -775,7 +776,7 @@ const MateDetailsPage = () => {
         <InstantChat mentor={mate} onClose={() => setShowChat(false)} />
       )}
 
-      <Footer />
+      {!isCorporateShell() && <Footer />}
     </Layout>
   );
 };

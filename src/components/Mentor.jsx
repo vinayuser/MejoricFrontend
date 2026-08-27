@@ -15,6 +15,7 @@ import Swal from "sweetalert2";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import Footer from "../components/Footer";
+import { isCorporateShell } from "../utils/corporateSite";
 import CallHandler from "../components/CallHandler";
 import { apiGet, apiPost } from "../utils/api";
 import { trackPixel } from "../utils/metaPixel";
@@ -1006,7 +1007,8 @@ export default function Mentor() {
                 </div>
               ))}
 
-              {/* CTA → emotional mentors browse */}
+              {/* CTA → emotional mentors browse (consumer site only) */}
+              {!isCorporateShell() && (
               <button
                 type="button"
                 onClick={() => navigate("/mentors/emotional/browse")}
@@ -1041,6 +1043,7 @@ export default function Mentor() {
                   </span>
                 </div>
               </button>
+              )}
             </div>
           )}
         </div>
@@ -1212,7 +1215,7 @@ export default function Mentor() {
         <InstantChat mentor={selectedMentorForChat} onClose={handleCloseChat} />
       )}
 
-      <Footer />
+      {!isCorporateShell() && <Footer />}
     </Layout>
   );
 }

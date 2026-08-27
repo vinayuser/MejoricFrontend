@@ -42,6 +42,7 @@ import Careers from './components/Careers';
 import CareerDetail from './components/CareerDetail';
 import CompassAssessment from './components/compass/CompassAssessment';
 import { getRouterBasename } from './utils/basePath';
+import { isCorporateShell, isCorporateAllowedPath } from './utils/corporateSite';
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
@@ -146,6 +147,59 @@ const EmailVerificationGate = ({ children }) => {
   return children;
 };
 
+/** Restrict corporate.mejoric.com to login + mates (and call/detail pages). */
+const CorporateShellGuard = ({ children }) => {
+  const { isAuthenticated, authInitialized, isCorporateUser } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!isCorporateShell()) return;
+    if (!authInitialized) return;
+
+    const path = location.pathname;
+    if (path === "/") {
+      navigate(isAuthenticated ? "/mate" : "/corporate/login", { replace: true });
+      return;
+    }
+
+    if (!isCorporateAllowedPath(path)) {
+      navigate(isAuthenticated ? "/mate" : "/corporate/login", { replace: true });
+      return;
+    }
+
+    if (path === "/corporate/login" && isAuthenticated && isCorporateUser) {
+      navigate("/mate", { replace: true });
+      return;
+    }
+
+    if (
+      isAuthenticated &&
+      !isCorporateUser &&
+      path !== "/corporate/login"
+    ) {
+      // Non-corporate accounts should not use this shell
+      navigate("/corporate/login", { replace: true });
+    }
+
+    if (
+      !isAuthenticated &&
+      path !== "/corporate/login" &&
+      isCorporateAllowedPath(path)
+    ) {
+      navigate("/corporate/login", { replace: true });
+    }
+  }, [
+    authInitialized,
+    isAuthenticated,
+    isCorporateUser,
+    location.pathname,
+    navigate,
+  ]);
+
+  return children;
+};
+
 function App() {
   return (
     <AuthProvider>
@@ -164,13 +218,13 @@ function App() {
         }}
       />
       <EmailVerificationGate>
+      <CorporateShellGuard>
         <div className="App">
           <Routes>
             <Route
               path="/"
               element={
-                typeof window !== "undefined" &&
-                window.location.hostname === "corporate.mejoric.com" ? (
+                isCorporateShell() ? (
                   <Navigate to="/corporate/login" replace />
                 ) : (
                   <Home />
@@ -220,6 +274,7 @@ function App() {
             />
           </Routes>
         </div>
+      </CorporateShellGuard>
       </EmailVerificationGate>
     </Router>
     </MentorBookingProvider>

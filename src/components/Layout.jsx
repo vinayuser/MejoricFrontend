@@ -20,6 +20,7 @@ import {
   FaWallet,
   FaRupeeSign,
   FaCalendarAlt,
+  FaBuilding,
 } from "react-icons/fa";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
@@ -28,6 +29,7 @@ import logo from "../img/logo.png";
 import { getFCMToken } from "../utils/fcm";
 import toast from "react-hot-toast";
 import { capitalizeName } from "../utils/formatters";
+import { isCorporateShell } from "../utils/corporateSite";
 
 export default function Layout({ children, activePage }) {
   const {
@@ -47,6 +49,9 @@ export default function Layout({ children, activePage }) {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
+  const corporateShell = isCorporateShell();
+  const companyName = corporateUsage?.name || user?.corporateName || "";
+  const displayName = user?.name ? capitalizeName(user.name) : "";
 
   const isMentorsActive =
     activePage === "Mentors" || location.pathname.startsWith("/mentors");
@@ -154,6 +159,121 @@ export default function Layout({ children, activePage }) {
       }, 0);
     }
   };
+
+  const handleCorporateLogout = () => {
+    logout();
+    setIsDropdownOpen(false);
+    navigate("/corporate/login");
+  };
+
+  // Corporate shell: mates-only app — logo + profile (name / company), no page nav
+  if (corporateShell) {
+    const homePath = isAuthenticated ? "/mate" : "/corporate/login";
+    return (
+      <div className="min-h-screen bg-white">
+        {fcmStatus === "denied" && !isDismissed && isAuthenticated && (
+          <div className="fixed bottom-0 left-0 right-0 md:sticky md:top-0 z-[100]">
+            <div className="bg-red-50 border-t md:border-t-0 md:border-b border-red-200 px-6 py-3 flex flex-col md:flex-row items-center justify-between gap-4 w-full shadow-lg">
+              <div className="flex items-center gap-4 text-left">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <span className="text-red-600 text-xl font-bold">✕</span>
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-red-700 leading-tight">
+                    Notifications Blocked
+                  </h3>
+                  <p className="text-sm text-red-600/80 font-medium">
+                    Needed to receive incoming calls
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 w-full md:w-auto">
+                <button
+                  type="button"
+                  onClick={handleRequestPermission}
+                  className="flex-1 md:flex-none px-6 py-2 bg-red-100 hover:bg-red-200 text-red-700 rounded-xl font-bold text-sm border border-red-200"
+                >
+                  Reset Settings
+                </button>
+                <button
+                  onClick={() => setIsDismissed(true)}
+                  className="p-2 text-red-400 hover:text-red-700"
+                  aria-label="Dismiss"
+                >
+                  <FaTimes />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <nav
+          className={`sticky ${fcmStatus === "denied" && !isDismissed && isAuthenticated ? "md:top-[68px]" : "top-0"} z-50 bg-white/95 backdrop-blur-xl shadow-lg border-b border-purple-100 px-4 sm:px-6 h-16`}
+        >
+          <div className="container mx-auto flex items-center justify-between h-full">
+            <Link to={homePath} className="flex items-center gap-2 sm:gap-4">
+              <img className="h-12 w-12 object-contain" src={logo} alt="Mejoric" />
+              <h1 className="text-lg sm:text-xl font-bold text-purple-700">Mejoric</h1>
+            </Link>
+
+            <div className="flex items-center gap-2 sm:gap-3" ref={dropdownRef}>
+              {isAuthenticated && companyName ? (
+                <div className="hidden sm:flex items-center gap-2 px-3 py-2 bg-indigo-100 text-indigo-800 rounded-full font-semibold text-sm max-w-[200px]">
+                  <FaBuilding className="text-xs flex-shrink-0" />
+                  <span className="truncate">{companyName}</span>
+                </div>
+              ) : null}
+
+              {isAuthenticated ? (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                    className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-purple-100 text-purple-700 rounded-full font-semibold hover:bg-purple-200 transition-colors text-sm max-w-[220px]"
+                  >
+                    <FaUser className="text-xs flex-shrink-0" />
+                    <span className="truncate">{displayName || "Profile"}</span>
+                    <FaChevronDown
+                      className={`text-xs flex-shrink-0 transition-transform ${isDropdownOpen ? "rotate-180" : ""}`}
+                    />
+                  </button>
+
+                  {isDropdownOpen ? (
+                    <div className="absolute right-0 mt-2 w-64 bg-white rounded-2xl shadow-2xl border border-purple-100 py-2 z-50 overflow-hidden">
+                      <div className="px-5 py-4 bg-purple-50/50 border-b border-purple-100">
+                        <p className="text-sm font-bold text-gray-900 truncate">
+                          {displayName || "User"}
+                        </p>
+                        {companyName ? (
+                          <p className="text-[11px] text-indigo-700 font-medium truncate mt-0.5 flex items-center gap-1">
+                            <FaBuilding className="flex-shrink-0" />
+                            {companyName}
+                          </p>
+                        ) : null}
+                        <p className="text-[11px] text-purple-600 font-medium truncate mt-0.5">
+                          {user?.email || user?.phone}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleCorporateLogout}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-purple-50 hover:text-purple-700 transition-colors"
+                      >
+                        <FaSignInAlt className="text-red-600" />
+                        <span className="font-medium">Logout</span>
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </nav>
+
+        <main className="min-h-screen">{children}</main>
+      </div>
+    );
+  }
 
   // Role-based navigation items
   const navigationItems =
