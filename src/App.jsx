@@ -21,6 +21,7 @@ import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
 import Signup from './components/Signup';
 import CorporateLogin from './components/CorporateLogin';
+import CorporateOwnerDashboard from './components/CorporateOwnerDashboard';
 import VideoCall from './components/VideoCall';
 import Wallet from './components/Wallet';
 import ScrollToTop from './components/ScrollToTop';
@@ -124,7 +125,8 @@ const EmailVerificationGate = ({ children }) => {
         "/verify-email", 
         "/login", 
         "/signup",
-        "/corporate/login", 
+        "/corporate/login",
+        "/corporate/owner/dashboard",
         "/forgot-password", 
         "/reset-password",
         "/mentors",
@@ -147,9 +149,8 @@ const EmailVerificationGate = ({ children }) => {
   return children;
 };
 
-/** Restrict corporate.mejoric.com to login + mates (and call/detail pages). */
 const CorporateShellGuard = ({ children }) => {
-  const { isAuthenticated, authInitialized, isCorporateUser } = useAuth();
+  const { isAuthenticated, authInitialized, isCorporateUser, isCorporateOwner } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -158,18 +159,58 @@ const CorporateShellGuard = ({ children }) => {
     if (!authInitialized) return;
 
     const path = location.pathname;
+    const isOwnerPath = path.startsWith("/corporate/owner");
+
     if (path === "/") {
-      navigate(isAuthenticated ? "/mate" : "/corporate/login", { replace: true });
+      navigate(
+        isAuthenticated
+          ? isCorporateOwner
+            ? "/corporate/owner/dashboard"
+            : "/mate"
+          : "/corporate/login",
+        { replace: true },
+      );
       return;
     }
 
     if (!isCorporateAllowedPath(path)) {
-      navigate(isAuthenticated ? "/mate" : "/corporate/login", { replace: true });
+      navigate(
+        isAuthenticated
+          ? isCorporateOwner
+            ? "/corporate/owner/dashboard"
+            : "/mate"
+          : "/corporate/login",
+        { replace: true },
+      );
       return;
     }
 
-    if (path === "/corporate/login" && isAuthenticated && isCorporateUser) {
+    if (path === "/corporate/owner/login") {
+      navigate("/corporate/login", { replace: true });
+      return;
+    }
+
+    if (path === "/corporate/owner/dashboard" && (!isAuthenticated || !isCorporateOwner)) {
+      navigate("/corporate/login", { replace: true });
+      return;
+    }
+
+    if (path === "/corporate/login" && isAuthenticated && isCorporateOwner) {
+      navigate("/corporate/owner/dashboard", { replace: true });
+      return;
+    }
+
+    if (path === "/corporate/login" && isAuthenticated && isCorporateUser && !isCorporateOwner) {
       navigate("/mate", { replace: true });
+      return;
+    }
+
+    if (
+      isAuthenticated &&
+      isCorporateOwner &&
+      !isOwnerPath
+    ) {
+      navigate("/corporate/owner/dashboard", { replace: true });
       return;
     }
 
@@ -178,8 +219,8 @@ const CorporateShellGuard = ({ children }) => {
       !isCorporateUser &&
       path !== "/corporate/login"
     ) {
-      // Non-corporate accounts should not use this shell
       navigate("/corporate/login", { replace: true });
+      return;
     }
 
     if (
@@ -193,6 +234,7 @@ const CorporateShellGuard = ({ children }) => {
     authInitialized,
     isAuthenticated,
     isCorporateUser,
+    isCorporateOwner,
     location.pathname,
     navigate,
   ]);
@@ -253,6 +295,11 @@ function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/signup" element={<Signup />} />
             <Route path="/corporate/login" element={<CorporateLogin />} />
+            <Route
+              path="/corporate/owner/login"
+              element={<Navigate to="/corporate/login" replace />}
+            />
+            <Route path="/corporate/owner/dashboard" element={<CorporateOwnerDashboard />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/video-call" element={<VideoCall />} />
             <Route path="/wallet" element={<Wallet />} />

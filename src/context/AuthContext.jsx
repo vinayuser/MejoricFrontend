@@ -9,6 +9,10 @@ import React, {
 import { apiGet, apiPost } from "../utils/api";
 
 const isCorporateUser = (user) => Boolean(user?.corporateId);
+const isCorporateOwner = (user) =>
+  Boolean(user?.corporateId && user?.corporateRole === "owner");
+const isCorporateMember = (user) =>
+  Boolean(user?.corporateId && user?.corporateRole !== "owner");
 
 const AuthContext = createContext();
 
@@ -269,6 +273,8 @@ export const AuthProvider = ({ children }) => {
       signupTrialRemainingSeconds,
       corporateUsage,
       isCorporateUser: isCorporateUser(user),
+      isCorporateOwner: isCorporateOwner(user),
+      isCorporateMember: isCorporateMember(user),
       login,
       logout,
       addToWallet,

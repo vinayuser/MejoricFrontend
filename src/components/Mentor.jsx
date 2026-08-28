@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef, memo } from "react";
+import React, { useEffect, useState, useMemo, useRef, memo, useCallback } from "react";
 import { useAuth } from "../context/AuthContext";
 import {
   FaWhatsapp,
@@ -37,6 +37,8 @@ import mateMentorCtaBg from "../assets/img/mate-mentor-cta-bg.png";
 
 const SOCKET_SERVER_URL =
   import.meta.env.VITE_SOCKET_SERVER_URL || "https://mejoric.com";
+
+const MATES_PAGE_SIZE = 20;
 
 // Transform API data
 const transformMateData = (matesData) => {
@@ -89,7 +91,10 @@ export default function Mentor() {
   const [selectedOnlineStatus, setSelectedOnlineStatus] = useState("All");
   const [priceRange, setPriceRange] = useState([0, 100]);
   const [mates, setMates] = useState([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
   const [showCallModal, setShowCallModal] = useState(false);
   const [callType, setCallType] = useState(""); // 'video' or 'audio'
@@ -524,33 +529,93 @@ export default function Mentor() {
   }, [isAuthenticated, mentorsList, guestTrialExhausted, user?.role, navigate]);
 
   const fetchMatesRef = useRef(null);
+  const loadMoreRef = useRef(null);
+  const fetchInFlightRef = useRef(false);
+  const pageRef = useRef(1);
+  const hasMoreRef = useRef(true);
+
+  const fetchMatesPage = useCallback(async (pageNum, append = false) => {
+    if (fetchInFlightRef.current) return;
+    fetchInFlightRef.current = true;
+
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
+
+    try {
+      const data = await apiGet(
+        `/users/getAll?page=${pageNum}&limit=${MATES_PAGE_SIZE}&role=mate&sortBy=isAvailable`,
+        true,
+      );
+
+      if (data?.success && data?.data) {
+        const list = Array.isArray(data.data.data) ? data.data.data : [];
+        const totalPages = Number(data.data.totalPages) || 1;
+
+        setMates((prev) => (append ? [...prev, ...list] : list));
+        setPage(pageNum);
+        pageRef.current = pageNum;
+        const more = pageNum < totalPages;
+        setHasMore(more);
+        hasMoreRef.current = more;
+        setError(null);
+      } else if (!append) {
+        setMates([]);
+        setHasMore(false);
+        hasMoreRef.current = false;
+        setError("Failed to fetch mates");
+      } else {
+        setHasMore(false);
+        hasMoreRef.current = false;
+      }
+    } catch (err) {
+      console.error(err);
+      if (!append) {
+        setError("Error fetching data");
+        setMates([]);
+      }
+      setHasMore(false);
+      hasMoreRef.current = false;
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+      fetchInFlightRef.current = false;
+    }
+  }, []);
+
+  const refreshMates = useCallback(() => {
+    setHasMore(true);
+    hasMoreRef.current = true;
+    fetchMatesPage(1, false);
+  }, [fetchMatesPage]);
 
   useEffect(() => {
-    const fetchMates = async () => {
-      try {
-        const data = await apiGet(
-          "/users/getAll?page=1&limit=100&role=mate&sortBy=isAvailable",
-          true,
-        );
-        if (data.success && Array.isArray(data?.data?.data)) {
-          setMates(data.data.data);
-        } else {
-          setMates([]);
-          setError("Failed to fetch mates");
+    refreshMates();
+    fetchMatesRef.current = refreshMates;
+  }, [refreshMates]);
+
+  useEffect(() => {
+    const sentinel = loadMoreRef.current;
+    if (!sentinel || loading) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries[0]?.isIntersecting &&
+          hasMoreRef.current &&
+          !fetchInFlightRef.current
+        ) {
+          fetchMatesPage(pageRef.current + 1, true);
         }
-      } catch (err) {
-        console.error(err);
-        setError("Error fetching data");
-      } finally {
-        setLoading(false);
-      }
-    };
+      },
+      { root: null, rootMargin: "240px", threshold: 0 },
+    );
 
-    fetchMates();
-
-    // Store fetchMates in ref so FCM listener can call it
-    fetchMatesRef.current = fetchMates;
-  }, []);
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loading, fetchMatesPage, filteredMentors.length]);
 
   // Listen for MATE_STATUS_CHANGED events (via FCM or Service Worker)
   useEffect(() => {
@@ -1044,6 +1109,14 @@ export default function Mentor() {
                 </div>
               </button>
               )}
+            </div>
+          )}
+          {!loading && !error && hasMore && (
+            <div ref={loadMoreRef} className="h-8" aria-hidden="true" />
+          )}
+          {loadingMore && (
+            <div className="text-center py-8 text-purple-600 text-sm font-medium">
+              Loading more mates...
             </div>
           )}
         </div>
