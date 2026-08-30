@@ -15,7 +15,7 @@ import Swal from "sweetalert2";
 import { useNavigate } from "react-router-dom";
 import Layout from "../components/Layout";
 import Footer from "../components/Footer";
-import { isCorporateShell } from "../utils/corporateSite";
+import { isCorporateShell, hideMatePricing } from "../utils/corporateSite";
 import CallHandler from "../components/CallHandler";
 import { apiGet, apiPost } from "../utils/api";
 import { trackPixel } from "../utils/metaPixel";
@@ -186,9 +186,10 @@ export default function Mentor() {
           corporateUsage,
         }),
         walletBalance,
+        corporateUsage,
       };
 
-      if (user?.role === "user" && !chatAccess.canChat) {
+      if (user?.role === "user") {
         try {
           chatAccess = await resolveUserChatAccess(user, corporateUsage);
           if (!user?.corporateId) {
@@ -737,8 +738,44 @@ export default function Mentor() {
       setSelectedMentorId,
       setCallSessionId,
       setShowCallModal,
+      hidePricing,
     }) => {
       const [isExpanded, setIsExpanded] = React.useState(false);
+
+      const videoTooltip = !mentor.isAvailable
+        ? "Mate is offline"
+        : !isAuthenticated
+          ? "Login required"
+          : user?.role === "guest"
+            ? "Sign up required"
+            : hidePricing
+              ? "Video call"
+              : `₹${import.meta.env.VITE_VIDEO_CALL_PRICE_PER_MIN || 15}/min`;
+
+      const audioTooltip = !mentor.isAvailable
+        ? "Mate is offline"
+        : !isAuthenticated
+          ? "Login required"
+          : user?.role === "guest"
+            ? "Sign up required"
+            : hidePricing
+              ? "Audio call"
+              : `₹${import.meta.env.VITE_AUDIO_CALL_PRICE_PER_MIN || 12}/min`;
+
+      const chatTooltip = !mentor.isAvailable
+        ? "Mate is offline"
+        : !isAuthenticated || user?.role === "guest"
+          ? hidePricing
+            ? "Chat"
+            : "Free trial chat"
+          : hidePricing
+            ? "Chat"
+            : isAuthenticated &&
+                user?.role === "user" &&
+                !user?.corporateId &&
+                walletBalance < 8
+              ? "Recharge to chat (₹8/min)"
+              : `₹${import.meta.env.VITE_CHAT_PRICE_PER_MIN || 8}/min`;
 
       return (
         <div className="bg-white rounded-3xl shadow-lg border border-purple-100 overflow-hidden h-full flex flex-col group/card hover:shadow-2xl transition-all duration-300 relative">
@@ -889,13 +926,7 @@ export default function Mentor() {
                 <FaVideo className="text-xs" />
                 <span>Video</span>
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover/video:opacity-100 transition-opacity bg-gray-900 text-white text-[10px] px-2 py-1 rounded pointer-events-none whitespace-nowrap z-50 shadow-xl">
-                  {!mentor.isAvailable
-                    ? "Mate is offline"
-                    : !isAuthenticated
-                      ? "Login required"
-                      : user?.role === "guest"
-                        ? "Sign up required"
-                        : `₹${import.meta.env.VITE_VIDEO_CALL_PRICE_PER_MIN || 15}/min`}
+                  {videoTooltip}
                   <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                 </div>
               </button>
@@ -976,13 +1007,7 @@ export default function Mentor() {
                 <FaPhone className="text-xs" />
                 <span>Audio</span>
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover/audio:opacity-100 transition-opacity bg-gray-900 text-white text-[10px] px-2 py-1 rounded pointer-events-none whitespace-nowrap z-50 shadow-xl">
-                  {!mentor.isAvailable
-                    ? "Mate is offline"
-                    : !isAuthenticated
-                      ? "Login required"
-                      : user?.role === "guest"
-                        ? "Sign up required"
-                        : `₹${import.meta.env.VITE_AUDIO_CALL_PRICE_PER_MIN || 12}/min`}
+                  {audioTooltip}
                   <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                 </div>
               </button>
@@ -1004,13 +1029,7 @@ export default function Mentor() {
                 <FaComments className="text-xs" />
                 <span>Chat</span>
                 <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-900 text-white text-[10px] px-2 py-1 rounded pointer-events-none whitespace-nowrap z-50 shadow-xl">
-                  {!mentor.isAvailable
-                    ? "Mate is offline"
-                    : !isAuthenticated || user?.role === "guest"
-                      ? "Free trial chat"
-                      : isAuthenticated && user?.role === "user" && !user?.corporateId && walletBalance < 8
-                        ? "Recharge to chat (₹8/min)"
-                        : `₹${import.meta.env.VITE_CHAT_PRICE_PER_MIN || 8}/min`}
+                  {chatTooltip}
                   <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                 </div>
               </button>
@@ -1020,6 +1039,8 @@ export default function Mentor() {
       );
     },
   );
+
+  const hidePricing = hideMatePricing();
 
   return (
     <Layout activePage="Mate">
@@ -1068,6 +1089,7 @@ export default function Mentor() {
                     setSelectedMentorId={setSelectedMentorId}
                     setCallSessionId={setCallSessionId}
                     setShowCallModal={setShowCallModal}
+                    hidePricing={hidePricing}
                   />
                 </div>
               ))}

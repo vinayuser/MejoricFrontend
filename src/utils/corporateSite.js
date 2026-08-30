@@ -24,3 +24,15 @@ export function isCorporateAllowedPath(pathname) {
   if (pathname.startsWith("/mate-profile/")) return true;
   return false;
 }
+
+/** Corporate B2B shell — hide wallet/per-minute pricing on mate UI */
+export function hideMatePricing() {
+  if (isCorporateShell()) return true;
+  if (typeof window === "undefined") return false;
+  try {
+    const user = JSON.parse(localStorage.getItem("user") || "null");
+    return Boolean(user?.corporateId);
+  } catch {
+    return false;
+  }
+}

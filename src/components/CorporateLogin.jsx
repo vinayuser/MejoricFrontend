@@ -471,13 +471,6 @@ export default function CorporateLogin() {
     }
   };
 
-  const handleForgotEmail = () => {
-    setForm((prev) => ({ ...prev, email: "" }));
-    setResolvedCompany(null);
-    setRememberMe(false);
-    localStorage.removeItem(REMEMBER_EMAIL_KEY);
-  };
-
   const companyLabel = resolvedCompany?.name;
   const isSignupView = view === "signup";
   const showSignupProfileOnOtp = step === 2 && isFirstSignup;
@@ -564,13 +557,6 @@ export default function CorporateLogin() {
                       />
                       Remember me
                     </label>
-                    <button
-                      type="button"
-                      onClick={handleForgotEmail}
-                      className="corp-auth-link"
-                    >
-                      Forgot email?
-                    </button>
                   </div>
 
                   <button

@@ -15,7 +15,7 @@ import { useAuth } from "../context/AuthContext";
 import { apiGet, apiPost } from "../utils/api";
 import Layout from "./Layout";
 import Footer from "./Footer";
-import { isCorporateShell } from "../utils/corporateSite";
+import { isCorporateShell, hideMatePricing } from "../utils/corporateSite";
 import InstantChat from "./InstantChat";
 import { initializeFCM } from "../utils/fcm";
 import Swal from "sweetalert2";
@@ -352,12 +352,18 @@ const MateDetailsPage = () => {
       let canChat = !isChatDisabled;
       let blockMessage = getSignupChatBlockMessage(false, walletBalance, user);
 
-      if (user?.role === "user" && isChatDisabled) {
+      if (user?.role === "user") {
         try {
-          const access = await resolveUserChatAccess(user);
+          const access = await resolveUserChatAccess(user, corporateUsage);
           canChat = access.canChat;
-          blockMessage = getSignupChatBlockMessage(false, access.walletBalance);
-          void refreshWalletBalance();
+          blockMessage = getSignupChatBlockMessage(
+            false,
+            access.walletBalance,
+            user,
+          );
+          if (!user?.corporateId) {
+            void refreshWalletBalance();
+          }
         } catch (e) {
           console.warn("Could not refresh chat access", e);
         }
@@ -422,6 +428,8 @@ const MateDetailsPage = () => {
     );
   }
 
+  const hidePricing = hideMatePricing();
+
   return (
     <Layout activePage="Mate">
       <div className="bg-gray-50 min-h-screen pb-20">
@@ -468,7 +476,7 @@ const MateDetailsPage = () => {
                     <span className="text-gray-400 text-xs ml-1">(4.9/5)</span>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4 mt-8">
+                  <div className={`grid gap-4 mt-8 ${hidePricing ? "grid-cols-1" : "grid-cols-2"}`}>
                     <div className="bg-purple-50 p-3 rounded-2xl">
                       <p className="text-[10px] text-gray-500 uppercase font-bold">
                         Experience
@@ -477,14 +485,16 @@ const MateDetailsPage = () => {
                         {mate.experience}
                       </p>
                     </div>
-                    <div className="bg-purple-50 p-3 rounded-2xl">
-                      <p className="text-[10px] text-gray-500 uppercase font-bold">
-                        Rate
-                      </p>
-                      <p className="text-sm font-bold text-purple-700">
-                        ₹{mate.price}/min
-                      </p>
-                    </div>
+                    {!hidePricing && (
+                      <div className="bg-purple-50 p-3 rounded-2xl">
+                        <p className="text-[10px] text-gray-500 uppercase font-bold">
+                          Rate
+                        </p>
+                        <p className="text-sm font-bold text-purple-700">
+                          ₹{mate.price}/min
+                        </p>
+                      </div>
+                    )}
                   </div>
 
                   <div className="mt-6 grid grid-cols-3 gap-2">
@@ -514,7 +524,9 @@ const MateDetailsPage = () => {
                             ? "Login required"
                             : user?.role === "guest"
                               ? "Sign up required"
-                              : `₹${import.meta.env.VITE_VIDEO_CALL_PRICE_PER_MIN || 15}/min`}
+                              : hidePricing
+                                ? "Video call"
+                                : `₹${import.meta.env.VITE_VIDEO_CALL_PRICE_PER_MIN || 15}/min`}
                         <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                       </div>
                     </button>
@@ -544,7 +556,9 @@ const MateDetailsPage = () => {
                             ? "Login required"
                             : user?.role === "guest"
                               ? "Sign up required"
-                              : `₹${import.meta.env.VITE_AUDIO_CALL_PRICE_PER_MIN || 12}/min`}
+                              : hidePricing
+                                ? "Audio call"
+                                : `₹${import.meta.env.VITE_AUDIO_CALL_PRICE_PER_MIN || 12}/min`}
                         <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                       </div>
                     </button>
@@ -567,8 +581,12 @@ const MateDetailsPage = () => {
                         {!mate.isAvailable
                           ? "Mate is offline"
                           : !isAuthenticated || user?.role === "guest"
-                            ? "Free trial chat"
-                            : `₹${import.meta.env.VITE_CHAT_PRICE_PER_MIN || 8}/min`}
+                            ? hidePricing
+                              ? "Chat"
+                              : "Free trial chat"
+                            : hidePricing
+                              ? "Chat"
+                              : `₹${import.meta.env.VITE_CHAT_PRICE_PER_MIN || 8}/min`}
                         <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
                       </div>
                     </button>
