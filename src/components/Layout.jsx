@@ -168,7 +168,7 @@ export default function Layout({ children, activePage }) {
 
   // Corporate shell: mates-only app — logo + profile (name / company), no page nav
   if (corporateShell) {
-    const homePath = isAuthenticated ? "/mate" : "/corporate/login";
+    const homePath = isAuthenticated ? "/mate" : "/";
     return (
       <div className="min-h-screen bg-white">
         {fcmStatus === "denied" && !isDismissed && isAuthenticated && (

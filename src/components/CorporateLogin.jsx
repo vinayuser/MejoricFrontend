@@ -48,9 +48,10 @@ const LEFT_FEATURES = [
 ];
 
 function CorporateAuthHeader() {
+  const homePath = isCorporateShell() ? "/" : "/corporate/login";
   return (
     <header className="corp-auth-header">
-      <Link to="/corporate/login" className="corp-auth-brand">
+      <Link to={homePath} className="corp-auth-brand">
         <img src={logo} alt="Mejoric" />
         <span>Mejoric</span>
       </Link>

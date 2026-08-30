@@ -12,6 +12,7 @@ export function isCorporateShell() {
 
 /** Paths allowed on the corporate shell (SPA). */
 export const CORPORATE_ALLOWED_PATHS = [
+  "/",
   "/corporate/login",
   "/corporate/owner/dashboard",
   "/mate",

@@ -21,6 +21,7 @@ import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
 import Signup from './components/Signup';
 import CorporateLogin from './components/CorporateLogin';
+import CorporateLanding from './components/CorporateLanding';
 import CorporateOwnerDashboard from './components/CorporateOwnerDashboard';
 import VideoCall from './components/VideoCall';
 import Wallet from './components/Wallet';
@@ -162,14 +163,12 @@ const CorporateShellGuard = ({ children }) => {
     const isOwnerPath = path.startsWith("/corporate/owner");
 
     if (path === "/") {
-      navigate(
-        isAuthenticated
-          ? isCorporateOwner
-            ? "/corporate/owner/dashboard"
-            : "/mate"
-          : "/corporate/login",
-        { replace: true },
-      );
+      if (isAuthenticated) {
+        navigate(
+          isCorporateOwner ? "/corporate/owner/dashboard" : "/mate",
+          { replace: true },
+        );
+      }
       return;
     }
 
@@ -225,6 +224,7 @@ const CorporateShellGuard = ({ children }) => {
 
     if (
       !isAuthenticated &&
+      path !== "/" &&
       path !== "/corporate/login" &&
       isCorporateAllowedPath(path)
     ) {
@@ -265,13 +265,7 @@ function App() {
           <Routes>
             <Route
               path="/"
-              element={
-                isCorporateShell() ? (
-                  <Navigate to="/corporate/login" replace />
-                ) : (
-                  <Home />
-                )
-              }
+              element={isCorporateShell() ? <CorporateLanding /> : <Home />}
             />
             <Route path="/about" element={<About />} />
             <Route path="/mate" element={<Mentor />} />
