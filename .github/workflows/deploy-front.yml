@@ -57,7 +57,6 @@ jobs:
           [ -z "${{ secrets.SSH_HOST }}" ] && missing="$missing SSH_HOST"
           [ -z "${{ secrets.SSH_USER }}" ] && missing="$missing SSH_USER"
           [ -z "${{ secrets.SSH_PASSWORD }}" ] && missing="$missing SSH_PASSWORD"
-          [ -z "${{ secrets.APP_DIR }}" ] && missing="$missing APP_DIR"
           [ -z "${{ secrets.VITE_API_BASE_URL }}" ] && missing="$missing VITE_API_BASE_URL"
           [ -z "${{ secrets.VITE_SOCKET_SERVER_URL }}" ] && missing="$missing VITE_SOCKET_SERVER_URL"
           [ -z "${{ secrets.VITE_PIXEL_ID }}" ] && missing="$missing VITE_PIXEL_ID"
@@ -86,34 +85,41 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           command_timeout: 20m
-          allenvs: true
           envs: BRANCH,DEPLOY_ENV,APP_DIR,VITE_BASE,VITE_API_BASE_URL,VITE_SOCKET_SERVER_URL,VITE_APP_ENV,VITE_IS_STAGING,VITE_ALLOW_MOCK_PAYMENTS,VITE_PIXEL_ID,VITE_GA_ID,VITE_TRIAL_CHAT_DURATION,VITE_FREE_WALLET_RECHARGE,VITE_CHAT_PRICE_PER_MIN,VITE_AUDIO_CALL_PRICE_PER_MIN,VITE_VIDEO_CALL_PRICE_PER_MIN,VITE_RAZORPAY_KEY_ID,VITE_AGORA_APP_ID,VITE_AGORA_TOKEN_TTL_SECONDS,VITE_FCM_VAPID_KEY,VITE_VIDEO_CALL_BASE_URL,VITE_AUDIO_CALL_BASE_URL,VITE_SKIP_MEDIA_PERMISSION
           script: |
             set -euo pipefail
 
-            if [ -z "${APP_DIR:-}" ]; then
-              echo "APP_DIR secret is required (set it on the GitHub Environment)"
-              exit 1
-            fi
-
-            if [ ! -f "$APP_DIR/package.json" ] && [ -f "$APP_DIR/MejoricFrontend/package.json" ]; then
-              APP_DIR="$APP_DIR/MejoricFrontend"
+            if [ "$DEPLOY_ENV" = "staging" ]; then
+              APP_DIR="${APP_DIR:-/var/www/html/mejoric/front-dev}"
+              SITE_URL="https://dev.mejoric.com"
+            else
+              APP_DIR="${APP_DIR:-/var/www/html/mejoric/front}"
+              SITE_URL="https://mejoric.com"
             fi
 
             if [ "$APP_DIR" = "/var/www/html/mejoric" ]; then
-              echo "APP_DIR must not be /var/www/html/mejoric"
+              echo "APP_DIR must be the front folder (e.g. /var/www/html/mejoric/front), not /var/www/html/mejoric"
               exit 1
             fi
 
+            REPO_SSH="git@github.com-frontend:vinayuser/MejoricFrontend.git"
+
+            # Repair broken working trees (build-only dirs / deleted source files)
             if [ ! -d "$APP_DIR/.git" ] || [ ! -f "$APP_DIR/package.json" ]; then
-              echo "APP_DIR is not a MejoricFrontend clone: $APP_DIR"
-              exit 1
-            fi
-
-            if [ "$DEPLOY_ENV" = "staging" ]; then
-              SITE_URL="https://dev.mejoric.com"
-            else
-              SITE_URL="https://mejoric.com"
+              echo "==> Repairing $APP_DIR (missing .git or package.json)"
+              TS="$(date +%Y%m%d%H%M%S)"
+              BUILD_BAK="/tmp/mejoric-front-build-$TS"
+              if [ -d "$APP_DIR/build" ]; then
+                cp -a "$APP_DIR/build" "$BUILD_BAK"
+              fi
+              if [ -e "$APP_DIR" ]; then
+                mv "$APP_DIR" "${APP_DIR}.broken-$TS"
+              fi
+              git clone "$REPO_SSH" "$APP_DIR"
+              if [ -d "$BUILD_BAK" ]; then
+                mkdir -p "$APP_DIR/build"
+                cp -a "$BUILD_BAK/." "$APP_DIR/build/"
+              fi
             fi
 
             VITE_BASE="${VITE_BASE:-/}"
@@ -134,13 +140,22 @@ jobs:
             echo "==> URL:         $SITE_URL"
             echo "==> API:         $VITE_API_BASE_URL"
             echo "==> Socket:      $VITE_SOCKET_SERVER_URL"
-            echo "==> VITE_IS_STAGING=$VITE_IS_STAGING"
+            echo "==> Staging:     $VITE_IS_STAGING"
 
             cd "$APP_DIR"
 
+            git remote set-url origin "$REPO_SSH" || true
             git fetch origin "$BRANCH"
             git checkout -B "$BRANCH" "origin/$BRANCH"
             git reset --hard "origin/$BRANCH"
+            git clean -fd -e build -e node_modules -e '.env*'
+
+            if [ ! -f package.json ]; then
+              echo "package.json still missing in $APP_DIR after checkout"
+              git status -sb || true
+              ls -la
+              exit 1
+            fi
 
             echo "==> Writing .env.production from GitHub Environment secrets"
             {
