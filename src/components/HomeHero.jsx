@@ -43,9 +43,8 @@ export default function HomeHero() {
           </h1>
 
           <p className="home-hero-sub">
-            Whether you need a Mate to listen or a Mentor to lead, we&apos;re
-            here for you. Start your journey to a calmer mind today with
-            compassionate, professional guidance.
+            Talk to a Mate who listens without judgment. Start your journey to a
+            calmer mind today with compassionate support.
           </p>
 
           <div className="home-hero-actions">
@@ -55,15 +54,6 @@ export default function HomeHero() {
               onClick={() => go("/mate", "hero_talk_to_mate")}
             >
               Talk to a Mate
-            </button>
-            <button
-              type="button"
-              className="home-hero-btn home-hero-btn-mentor"
-              onClick={() =>
-                go("/mentors/professional/browse", "hero_find_mentor")
-              }
-            >
-              Find a Mentor
             </button>
           </div>
         </div>

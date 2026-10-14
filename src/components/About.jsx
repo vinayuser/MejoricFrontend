@@ -305,14 +305,6 @@ export default function About() {
               </p>
             </div>
 
-            <div className="text-center mt-8">
-              <button
-                onClick={() => navigate("/know-your-mate-mentor")}
-                className="bg-purple-600 text-white px-8 py-4 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 font-semibold text-lg hover:scale-105"
-              >
-                Know Your Mate & Mentor
-              </button>
-            </div>
           </div>
         </div>
       </section>
@@ -430,25 +422,12 @@ export default function About() {
               Choose support that meets you exactly where you are.
             </p>
 
-            {/* Triple CTA */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 gap-6 max-w-md mx-auto">
               <button
                 onClick={() => navigate("/emotional-care")}
                 className="bg-white text-purple-600 px-8 py-4 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 font-semibold text-lg hover:scale-105"
               >
                 Talk to a Mate
-              </button>
-              <button
-                onClick={() => navigate("/mentors/emotional/about")}
-                className="bg-white text-purple-600 px-8 py-4 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 font-semibold text-lg hover:scale-105"
-              >
-                Talk to a Mentor
-              </button>
-              <button
-                onClick={() => navigate("/know-your-mate-mentor")}
-                className="bg-white/20 text-white border-2 border-white px-8 py-4 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 font-semibold text-lg hover:scale-105"
-              >
-                Know Your Mate & Mentor
               </button>
             </div>
           </div>

@@ -15,7 +15,6 @@ import { useAuth } from "../context/AuthContext";
 const QUICK_LINKS = [
   { name: "Home", path: "/" },
   { name: "Mate", path: "/mate" },
-  { name: "Mentor", path: "/mentors/professional/browse" },
   { name: "Psychometric Test", path: "/compass" },
   { name: "Certificate", path: "/certificate" },
   { name: "Terms & Conditions", path: "/terms-and-conditions" },
@@ -51,17 +50,14 @@ function FooterLink({ to, children }) {
 }
 
 export default function Footer() {
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const isMate = isAuthenticated && user?.role === "mate";
-  const isMentor = isAuthenticated && user?.role === "mentor";
 
   const loginLinks = [
     !isMate && { name: "Mate Login", path: "/login?role=mate" },
-    !isMentor && { name: "Mentor Login", path: "/login?role=mentor" },
     { name: "About Us", path: "/about" },
-  { name: "Careers", path: "/careers" },
-  { name: "Privacy Policy", path: "/privacy-policy" },
-
+    { name: "Careers", path: "/careers" },
+    { name: "Privacy Policy", path: "/privacy-policy" },
   ].filter(Boolean);
 
   return (

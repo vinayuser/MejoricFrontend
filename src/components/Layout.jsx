@@ -6,7 +6,6 @@ import {
   FaHome,
   FaUser,
   FaHeart,
-  FaUsers,
   FaComments,
   FaWhatsapp,
   FaInstagram,
@@ -39,9 +38,6 @@ const Layout = ({ children, activePage }) => {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
   const location = useLocation();
-
-  const isMentorsActive =
-    activePage === "Mentors" || location.pathname.startsWith("/mentors");
 
   // Notification State
   const [fcmStatus, setFcmStatus] = useState(
@@ -168,7 +164,6 @@ const Layout = ({ children, activePage }) => {
       : [
           { name: "Home", icon: <FaHome />, path: "/", badge: null },
           { name: "Mate", icon: <FaHeart />, path: "/mate", badge: "" },
-          { name: "Mentors", icon: <FaUsers />, path: "/mentors/professional/browse", badge: "" },
           {
             name: "Community",
             icon: <FaComments />,
@@ -244,10 +239,7 @@ const Layout = ({ children, activePage }) => {
           {/* Desktop Navigation */}
           <ul className="hidden lg:flex items-center gap-1">
             {navigationItems.map((item) => {
-              const isActive =
-                item.name === "Mentors"
-                  ? isMentorsActive
-                  : activePage === item.name;
+              const isActive = activePage === item.name;
 
               return (
                 <li key={item.name} className="relative">
@@ -524,10 +516,7 @@ const Layout = ({ children, activePage }) => {
                 {/* Navigation Items */}
                 <ul className="space-y-3 mb-8">
                   {navigationItems.map((item) => {
-                    const isActive =
-                      item.name === "Mentors"
-                        ? isMentorsActive
-                        : activePage === item.name;
+                    const isActive = activePage === item.name;
 
                     return (
                       <li key={item.name}>
