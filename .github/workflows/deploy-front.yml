@@ -85,7 +85,6 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           password: ${{ secrets.SSH_PASSWORD }}
           command_timeout: 20m
-          script_stop: true
           envs: BRANCH,DEPLOY_ENV,APP_DIR,VITE_BASE,VITE_API_BASE_URL,VITE_SOCKET_SERVER_URL,VITE_APP_ENV,VITE_IS_STAGING,VITE_ALLOW_MOCK_PAYMENTS,VITE_PIXEL_ID,VITE_GA_ID,VITE_TRIAL_CHAT_DURATION,VITE_FREE_WALLET_RECHARGE,VITE_CHAT_PRICE_PER_MIN,VITE_AUDIO_CALL_PRICE_PER_MIN,VITE_VIDEO_CALL_PRICE_PER_MIN,VITE_RAZORPAY_KEY_ID,VITE_AGORA_APP_ID,VITE_AGORA_TOKEN_TTL_SECONDS,VITE_FCM_VAPID_KEY,VITE_VIDEO_CALL_BASE_URL,VITE_AUDIO_CALL_BASE_URL,VITE_SKIP_MEDIA_PERMISSION
           script: |
             set -euo pipefail
@@ -96,6 +95,26 @@ jobs:
             else
               APP_DIR="${APP_DIR:-/var/www/html/mejoric/front}"
               SITE_URL="https://mejoric.com"
+            fi
+
+            # If secret points at parent folder that contains the clone, use it
+            if [ ! -d "$APP_DIR/.git" ] && [ -d "$APP_DIR/MejoricFrontend/.git" ]; then
+              APP_DIR="$APP_DIR/MejoricFrontend"
+            fi
+            if [ ! -d "$APP_DIR/.git" ] && [ -d "$APP_DIR/front/.git" ]; then
+              APP_DIR="$APP_DIR/front"
+            fi
+
+            if [ "$APP_DIR" = "/var/www/html/mejoric" ]; then
+              echo "APP_DIR must be the frontend clone, not /var/www/html/mejoric"
+              echo "Use e.g. /var/www/html/mejoric/front or /var/www/html/mejoric/front-dev"
+              exit 1
+            fi
+
+            if [ ! -d "$APP_DIR/.git" ]; then
+              echo "APP_DIR is not a git clone: $APP_DIR"
+              ls -la "$APP_DIR" 2>/dev/null || echo "(path does not exist)"
+              exit 1
             fi
 
             VITE_BASE="${VITE_BASE:-/}"
@@ -120,13 +139,18 @@ jobs:
 
             cd "$APP_DIR"
 
+            # Discard dirty/deleted working tree from prior deploys, then match remote exactly
             git fetch origin "$BRANCH"
-            if git show-ref --verify --quiet "refs/heads/$BRANCH"; then
-              git checkout "$BRANCH"
-            else
-              git checkout -b "$BRANCH" --track "origin/$BRANCH"
+            git checkout -B "$BRANCH" "origin/$BRANCH"
+            git reset --hard "origin/$BRANCH"
+            git clean -fd
+
+            if [ ! -f package.json ]; then
+              echo "package.json missing after checkout of $BRANCH in $APP_DIR"
+              git status -sb || true
+              ls -la
+              exit 1
             fi
-            git pull origin "$BRANCH"
 
             echo "==> Writing .env.production for this build"
             cat > .env.production <<EOF
