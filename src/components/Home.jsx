@@ -126,25 +126,6 @@ export default function Home() {
                         Connect & talk
                       </span>
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        trackPixel("ViewContent");
-                        if (typeof window.gtag === "function") {
-                          window.gtag("event", "select_content", {
-                            content_type: "CTA Button",
-                            content_id: "find_mentor_panel",
-                          });
-                        }
-                        navigate("/mentors");
-                      }}
-                      className="flex-1 bg-white/15 text-white border border-white/40 px-6 py-4 rounded-2xl shadow-lg hover:bg-white/25 transition-all duration-300 font-semibold text-lg hover:scale-[1.02]"
-                    >
-                      Mentor
-                      <span className="block text-sm font-medium opacity-90 mt-0.5">
-                        Get clarity
-                      </span>
-                    </button>
                   </div>
                 </div>
               </div>
@@ -250,21 +231,6 @@ export default function Home() {
                 className="bg-white cursor-pointer text-purple-700 px-8 py-4 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 font-semibold text-lg hover:scale-105"
               >
                 Talk to a Mate
-              </button>
-              <button
-                onClick={() => {
-                  trackPixel("ViewContent");
-                  if (typeof window.gtag === "function") {
-                    window.gtag("event", "select_content", {
-                      content_type: "CTA Button",
-                      content_id: "find_mentor_bottom",
-                    });
-                  }
-                  navigate("/mentors/professional/browse");
-                }}
-                className="bg-white cursor-pointer text-purple-700 px-8 py-4 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 font-semibold text-lg hover:scale-105"
-              >
-                Find a Mentor
               </button>
             </div>
           </div>

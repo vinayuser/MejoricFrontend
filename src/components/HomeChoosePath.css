@@ -50,6 +50,12 @@
     grid-template-columns: 1fr 1fr;
     gap: 1.5rem;
   }
+
+  .hcp-grid-single {
+    grid-template-columns: 1fr;
+    max-width: 28rem;
+    margin-inline: auto;
+  }
 }
 
 .hcp-card {

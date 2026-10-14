@@ -8,14 +8,7 @@ import Contact from './components/Contact';
 import TermsAndConditions from './components/TermsAndConditions';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import EmotionalCare from './components/EmotionalCare';
-import ProfessionalMentors from './components/ProfessionalMentors';
-import MentorExplainPage from './components/mentor-platform/explain/MentorExplainPage';
-import MentorDomainsPage from './components/mentor-platform/domains/MentorDomainsPage';
-import MentorProfilePage from './components/mentor-platform/profile/MentorProfilePage';
-import MentorBookingConfirmPage from './components/mentor-platform/booking/MentorBookingConfirmPage';
-import { MentorTypeGuard } from './components/mentor-platform/shared/MentorTypeGuard';
 import Mentor from './components/Mentor';
-import KnowYourMateMentor from './components/KnowYourMateMentor';
 import Login from './components/Login';
 import ForgotPassword from './components/ForgotPassword';
 import ResetPassword from './components/ResetPassword';
@@ -26,9 +19,6 @@ import ScrollToTop from './components/ScrollToTop';
 import Certificate from './components/Certificate';
 import MateDashboard from './components/MateDashboard';
 import MateProfile from './components/MateProfile';
-import MentorDashboard from './components/MentorDashboard';
-import MyAppointments from './components/MyAppointments';
-import MentorSessionCall from './components/MentorSessionCall';
 import CallNotification from './components/CallNotification';
 import IOSInstallPrompt from './components/IOSInstallPrompt';
 import { isInAppBrowser } from './utils/browserDetect';
@@ -167,21 +157,16 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/about" element={<About />} />
             <Route path="/mate" element={<Mentor />} />
-            <Route path="/mentor" element={<Navigate to="/mentors/professional/browse" replace />} />
-
+            <Route path="/mentor" element={<Navigate to="/" replace />} />
             <Route path="/emotional-care" element={<EmotionalCare />} />
-            <Route path="/mentors" element={<Navigate to="/mentors/professional/browse" replace />} />
-            {/* Emotional mentors → platform HTML design (about → browse sidebar) */}
-            <Route path="/mentors/emotional" element={<Navigate to="/mentors/emotional/about" replace />} />
-            <Route path="/mentors/professional" element={<ProfessionalMentors />} />
-            <Route path="/mentors/:type/about" element={<MentorTypeGuard><MentorExplainPage /></MentorTypeGuard>} />
-            <Route path="/mentors/:type/browse" element={<MentorTypeGuard><MentorDomainsPage /></MentorTypeGuard>} />
-            <Route path="/mentors/:type/mentor/:mentorId" element={<MentorTypeGuard><MentorProfilePage /></MentorTypeGuard>} />
-            <Route path="/mentors/:type/booking/confirm" element={<MentorTypeGuard><MentorBookingConfirmPage /></MentorTypeGuard>} />
+            <Route path="/mentors/*" element={<Navigate to="/" replace />} />
+            <Route path="/know-your-mate-mentor" element={<Navigate to="/" replace />} />
+            <Route path="/my-appointments" element={<Navigate to="/" replace />} />
+            <Route path="/mentor-session/:bookingId" element={<Navigate to="/" replace />} />
+            <Route path="/mentor-dashboard" element={<Navigate to="/" replace />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/terms-and-conditions" element={<TermsAndConditions />} />
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-            <Route path="/know-your-mate-mentor" element={<KnowYourMateMentor />} />
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
@@ -189,13 +174,10 @@ function App() {
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/video-call" element={<VideoCall />} />
             <Route path="/wallet" element={<Wallet />} />
-            <Route path="/my-appointments" element={<MyAppointments />} />
-            <Route path="/mentor-session/:bookingId" element={<MentorSessionCall />} />
             <Route path="/certificate" element={<Certificate />} />
             <Route path="/mate-profile/:id" element={<MateDetailsPage />} />
             <Route path="/dashboard" element={<MateDashboard />} />
             <Route path="/dashboard/profile" element={<MateProfile />} />
-            <Route path="/mentor-dashboard" element={<MentorDashboard />} />
             <Route path="/community" element={<CommunityComingSoon />} />
             <Route path="/careers" element={<Careers />} />
             <Route path="/careers/:id" element={<CareerDetail />} />

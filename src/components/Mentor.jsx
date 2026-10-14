@@ -32,7 +32,6 @@ import {
   getSignupChatBlockMessage,
   resolveUserChatAccess,
 } from "../utils/chatAccess";
-import mateMentorCtaBg from "../assets/img/mate-mentor-cta-bg.png";
 
 const SOCKET_SERVER_URL =
   import.meta.env.VITE_SOCKET_SERVER_URL || "https://mejoric.com";
@@ -1001,41 +1000,6 @@ export default function Mentor() {
                 </div>
               ))}
 
-              {/* CTA → emotional mentors browse */}
-              <button
-                type="button"
-                onClick={() => navigate("/mentors/emotional/browse")}
-                className="relative overflow-hidden rounded-3xl border border-[#e8d5ec] shadow-[0_12px_40px_-12px_rgba(144,67,181,0.35)] h-full min-h-[320px] flex flex-col items-center justify-end p-8 text-center group transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_20px_50px_-12px_rgba(144,67,181,0.45)] focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
-              >
-                <img
-                  src={mateMentorCtaBg}
-                  alt=""
-                  aria-hidden="true"
-                  className="pointer-events-none absolute inset-0 h-full w-full object-cover object-[center_20%] transition-transform duration-500 group-hover:scale-105"
-                />
-                <div
-                  className="pointer-events-none absolute inset-0"
-                  style={{
-                    background:
-                      "linear-gradient(to top, rgba(28, 21, 32, 0.82) 0%, rgba(28, 21, 32, 0.45) 45%, rgba(28, 21, 32, 0.15) 100%)",
-                  }}
-                />
-                <div className="relative z-[1] flex flex-col items-center">
-                  <h3 className="text-xl font-bold tracking-tight text-white">
-                    Talk to our psychologist
-                  </h3>
-                  <p className="mt-3 max-w-[230px] text-sm leading-relaxed text-white/85">
-                    <br />
-                    Book a session with a mentor.
-                  </p>
-                  <span className="mt-7 inline-flex items-center gap-2 rounded-full bg-[#9043b5] px-6 py-3 text-sm font-semibold text-white shadow-md shadow-black/20 transition-all duration-300 group-hover:bg-[#7a3599] group-hover:shadow-lg">
-                    Browse Mentors
-                    <span aria-hidden className="translate-x-0 transition-transform group-hover:translate-x-0.5">
-                      →
-                    </span>
-                  </span>
-                </div>
-              </button>
             </div>
           )}
         </div>

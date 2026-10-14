@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { trackPixel } from "../utils/metaPixel";
 import mateBg from "../assets/img/hcp-mate-bg.png";
-import mentorBg from "../assets/img/hcp-mentor-bg.png";
 import "./HomeChoosePath.css";
 
 const MATE = {
@@ -11,15 +10,6 @@ const MATE = {
     "A trained, empathetic listener, no advice, no scripts",
     "Instant, judgment-free conversation",
     "Best for venting, feeling heard, easing overwhelm",
-  ],
-};
-
-const MENTOR = {
-  tag: "For when you need direction",
-  lines: [
-    "A seasoned professional for structured guidance",
-    "Goal-oriented sessions on career growth & decisions",
-    "Best for planning your next concrete steps",
   ],
 };
 
@@ -143,7 +133,6 @@ export default function HomeChoosePath() {
   const [start, setStart] = useState(false);
 
   const mate = useTypewriter(MATE.tag, MATE.lines, start);
-  const mentor = useTypewriter(MENTOR.tag, MENTOR.lines, start);
 
   useEffect(() => {
     const node = sectionRef.current;
@@ -183,15 +172,15 @@ export default function HomeChoosePath() {
       <div className="hcp-inner">
         <header className="hcp-head">
           <h2 id="hcp-heading" className="hcp-title">
-            Mate or Mentor?
+            Talk to a Mate
           </h2>
           <p className="hcp-sub">
-            Both paths lead to clarity, pick the kind of conversation that fits
-            how you feel right now.
+            A trained, empathetic listener — no advice overload, no judgment.
+            Start a conversation that fits how you feel right now.
           </p>
         </header>
 
-        <div className="hcp-grid">
+        <div className="hcp-grid hcp-grid-single">
           <PathCard
             variant="mate"
             bg={mateBg}
@@ -203,20 +192,6 @@ export default function HomeChoosePath() {
             btnLabel="Talk to a Mate"
             btnClass="hcp-btn-mate"
             onClick={() => go("/mate", "choose_path_mate")}
-          />
-          <PathCard
-            variant="mentor"
-            bg={mentorBg}
-            tag={mentor.tag}
-            lines={mentor.lines}
-            typingTag={mentor.typingTag}
-            typingLine={mentor.typingLine}
-            complete={mentor.complete}
-            btnLabel="Find a Mentor"
-            btnClass="hcp-btn-mentor"
-            onClick={() =>
-              go("/mentors/professional/browse", "choose_path_mentor")
-            }
           />
         </div>
       </div>

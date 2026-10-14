@@ -22,9 +22,15 @@ export default function Login() {
   const { login } = useAuth();
   const roleParam = searchParams.get("role");
   const isMateLogin = roleParam === "mate";
-  const isMentorLogin = roleParam === "mentor";
-  const isEmailPasswordLogin = isMateLogin || isMentorLogin;
-  const emailPasswordRole = isMentorLogin ? "mentor" : "mate";
+  const isMentorLogin = false;
+  const isEmailPasswordLogin = isMateLogin;
+  const emailPasswordRole = "mate";
+
+  useEffect(() => {
+    if (roleParam === "mentor") {
+      navigate("/login", { replace: true });
+    }
+  }, [roleParam, navigate]);
 
   // User OTP login state
   const [step, setStep] = useState("mobile");
@@ -460,31 +466,6 @@ export default function Login() {
                   </button>
                 </p>
 
-                <p className="text-center text-gray-600 mt-3 text-sm">
-                  {isMentorLogin ? (
-                    <>
-                      Are you a mate?{" "}
-                      <button
-                        type="button"
-                        onClick={() => navigate("/login?role=mate")}
-                        className="text-purple-600 hover:text-purple-800 font-semibold"
-                      >
-                        Mate login
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      Are you a mentor?{" "}
-                      <button
-                        type="button"
-                        onClick={() => navigate("/login?role=mentor")}
-                        className="text-purple-600 hover:text-purple-800 font-semibold"
-                      >
-                        Mentor login
-                      </button>
-                    </>
-                  )}
-                </p>
               </form>
             ) : step === "mobile" ? (
               <form onSubmit={handleMobileSubmit}>
@@ -593,17 +574,6 @@ export default function Login() {
                     className="text-purple-600 hover:text-purple-800 font-semibold"
                   >
                     Mate login with email
-                  </button>
-                </p>
-
-                <p className="text-center text-gray-600 mt-3 text-sm">
-                  Are you a mentor?{" "}
-                  <button
-                    type="button"
-                    onClick={() => navigate("/login?role=mentor")}
-                    className="text-purple-600 hover:text-purple-800 font-semibold"
-                  >
-                    Mentor login with email
                   </button>
                 </p>
 
